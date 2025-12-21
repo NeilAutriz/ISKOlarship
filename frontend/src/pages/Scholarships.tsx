@@ -11,7 +11,6 @@ import {
   Loader2
 } from 'lucide-react';
 import { AuthContext } from '../App';
-import { scholarships as staticScholarships } from '../data/scholarships';
 import { scholarshipApi } from '../services/apiClient';
 import ScholarshipList from '../components/ScholarshipList';
 import FilterPanel from '../components/FilterPanel';
@@ -28,9 +27,9 @@ const Scholarships: React.FC = () => {
   const initialSearch = searchParams.get('search') || '';
   
   // State
-  const [scholarships, setScholarships] = useState<Scholarship[]>(staticScholarships);
+  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
-  const [useApi, setUseApi] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterCriteria>({
     searchQuery: initialSearch,
     scholarshipTypes: [],
@@ -43,14 +42,9 @@ const Scholarships: React.FC = () => {
   // Fetch scholarships from API
   useEffect(() => {
     const fetchScholarships = async () => {
-      if (!useApi) {
-        setScholarships(staticScholarships);
-        setLoading(false);
-        return;
-      }
-      
       try {
         setLoading(true);
+        setError(null);
         const response = await scholarshipApi.getAll({ 
           search: filters.searchQuery,
           limit: 100
@@ -58,19 +52,18 @@ const Scholarships: React.FC = () => {
         if (response.success && response.data?.scholarships) {
           setScholarships(response.data.scholarships);
         } else {
-          setScholarships(staticScholarships);
+          setError('Failed to load scholarships');
         }
-      } catch (error) {
-        console.warn('Failed to fetch from API, using static data:', error);
-        setScholarships(staticScholarships);
-        setUseApi(false);
+      } catch (err) {
+        console.error('Failed to fetch from API:', err);
+        setError('Failed to connect to server. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchScholarships();
-  }, [filters.searchQuery, useApi]);
+  }, [filters.searchQuery]);
 
   // Handle filter changes
   const handleFilterChange = (newFilters: Partial<FilterCriteria>) => {

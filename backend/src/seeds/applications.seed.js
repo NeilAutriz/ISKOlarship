@@ -1,203 +1,352 @@
 // =============================================================================
-// ISKOlarship - Historical Applications Seed Data
-// Creates sample application data for logistic regression training
-// Based on research paper methodology
+// ISKOlarship - Applications Seed Data
+// Based on ERD from research paper
+// Contains historical application data for logistic regression training
 // =============================================================================
 
-const mongoose = require('mongoose');
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
+const { ApplicationStatus } = require('../models/Application.model');
 
-const { Application, ApplicationStatus } = require('../models/Application.model');
-const { User } = require('../models/User.model');
-const { Scholarship } = require('../models/Scholarship.model');
+// Application types for seed data
+const ApplicationType = {
+  HISTORICAL: 'historical',
+  CURRENT: 'current'
+};
 
 // =============================================================================
-// Helper function to generate random applications
+// Helper Functions
 // =============================================================================
 
-const generateHistoricalApplications = async (users, scholarships, adminId) => {
+const randomBetween = (min, max) => Math.random() * (max - min) + min;
+
+const randomDate = (start, end) => {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+};
+
+const daysFromNow = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date;
+};
+
+const daysAgo = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
+
+// =============================================================================
+// Generate Historical Applications
+// This data is used to train the logistic regression model for prediction
+// =============================================================================
+
+const generateHistoricalApplications = (students, scholarships, count = 200) => {
   const applications = [];
+  const startDate = daysAgo(365); // 1 year ago
+  const endDate = daysAgo(30); // 1 month ago
+  
+  // Track unique combinations to avoid duplicates
+  const uniqueCombinations = new Set();
 
-  // For each student, create 1-3 historical applications
-  for (const user of users) {
-    if (user.role !== 'student') continue;
+  for (let i = 0; i < count; i++) {
+    // Try to find a unique student-scholarship combination
+    let attempts = 0;
+    let student, scholarship, combinationKey;
     
-    const numApplications = Math.floor(Math.random() * 3) + 1;
-    const usedScholarships = new Set();
+    do {
+      student = students[Math.floor(Math.random() * students.length)];
+      scholarship = scholarships[Math.floor(Math.random() * scholarships.length)];
+      combinationKey = `${student._id.toString()}_${scholarship._id.toString()}`;
+      attempts++;
+    } while (uniqueCombinations.has(combinationKey) && attempts < 100);
+    
+    // Skip if we couldn't find a unique combination
+    if (uniqueCombinations.has(combinationKey)) continue;
+    uniqueCombinations.add(combinationKey);
+    
+    if (!student.studentProfile) continue;
 
-    for (let i = 0; i < numApplications; i++) {
-      // Pick a random scholarship (avoid duplicates for same user)
-      let scholarship;
-      let attempts = 0;
-      do {
-        scholarship = scholarships[Math.floor(Math.random() * scholarships.length)];
-        attempts++;
-      } while (usedScholarships.has(scholarship._id.toString()) && attempts < 10);
-      
-      if (usedScholarships.has(scholarship._id.toString())) continue;
-      usedScholarships.add(scholarship._id.toString());
+    const studentProfile = student.studentProfile;
+    const eligibilityCriteria = scholarship.eligibilityCriteria || {};
 
-      // Check eligibility based on student profile
-      const student = user.studentProfile;
-      const criteria = scholarship.eligibilityCriteria || {};
-      
-      // Calculate eligibility
-      const meetsGWA = !criteria.minGWA || student.gwa <= criteria.minGWA;
-      const meetsIncome = !criteria.maxAnnualFamilyIncome || 
-                          student.annualFamilyIncome <= criteria.maxAnnualFamilyIncome;
-      const meetsYearLevel = !criteria.requiredYearLevels?.length || 
-                             criteria.requiredYearLevels.includes(student.yearLevel);
-      const meetsCollege = !criteria.eligibleColleges?.length || 
-                           criteria.eligibleColleges.includes(student.college);
-      const noFailingGrade = !criteria.mustNotHaveFailingGrade || !student.hasFailingGrade;
-      const noDisciplinary = !criteria.mustNotHaveDisciplinaryAction || !student.hasDisciplinaryAction;
-      const noOtherScholarship = !criteria.mustNotHaveOtherScholarship || !student.hasExistingScholarship;
+    // Calculate eligibility percentage based on criteria matching
+    let matchedCriteria = 0;
+    let totalCriteria = 0;
 
-      // Determine outcome based on eligibility
-      const isEligible = meetsGWA && meetsIncome && meetsYearLevel && 
-                         meetsCollege && noFailingGrade && noDisciplinary && noOtherScholarship;
-
-      // Add some randomness for rejected applications
-      let status;
-      if (!isEligible) {
-        status = ApplicationStatus.REJECTED;
-      } else {
-        // High GWA students have higher approval rate
-        const approvalChance = student.gwa <= 1.5 ? 0.9 : 
-                               student.gwa <= 2.0 ? 0.75 : 
-                               student.gwa <= 2.5 ? 0.6 : 0.4;
-        status = Math.random() < approvalChance ? 
-                 ApplicationStatus.APPROVED : ApplicationStatus.REJECTED;
-      }
-
-      // Calculate prediction score (simulated)
-      const predictionScore = isEligible ? 
-        0.5 + (Math.random() * 0.45) + ((2.0 - Math.min(student.gwa, 2.0)) * 0.1) :
-        0.1 + (Math.random() * 0.3);
-      
-      // Determine confidence level based on score
-      const confidenceLevel = predictionScore >= 0.7 ? 'high' : 
-                              predictionScore >= 0.4 ? 'medium' : 'low';
-
-      // Generate application date (last 2 academic years)
-      const daysAgo = Math.floor(Math.random() * 730) + 30; // 30-760 days ago
-      const applicationDate = new Date();
-      applicationDate.setDate(applicationDate.getDate() - daysAgo);
-
-      // Generate decision date (7-30 days after application)
-      const processingDays = Math.floor(Math.random() * 23) + 7;
-      const decisionDate = new Date(applicationDate);
-      decisionDate.setDate(decisionDate.getDate() + processingDays);
-
-      const application = {
-        applicant: user._id,
-        scholarship: scholarship._id,
-        academicYear: daysAgo > 365 ? '2023-2024' : '2024-2025',
-        semester: Math.random() > 0.5 ? 'First' : 'Second',
-        status: status,
-        
-        // Snapshot of student profile at time of application
-        applicantSnapshot: {
-          studentNumber: student.studentNumber,
-          course: student.course,
-          college: student.college,
-          yearLevel: student.yearLevel,
-          gwa: student.gwa,
-          totalUnitsEarned: student.totalUnitsEarned,
-          currentUnitsEnrolled: student.currentUnitsEnrolled,
-          stBracket: student.stBracket,
-          annualFamilyIncome: student.annualFamilyIncome
-        },
-
-        // Eligibility results
-        eligibilityResults: {
-          isEligible: isEligible,
-          stage1Passed: meetsGWA && meetsYearLevel && meetsCollege,
-          stage2Passed: meetsIncome,
-          stage3Passed: noFailingGrade && noDisciplinary && noOtherScholarship,
-          checks: [
-            { criterion: 'Minimum GWA', passed: meetsGWA, applicantValue: student.gwa, requiredValue: criteria.minGWA },
-            { criterion: 'Year Level', passed: meetsYearLevel, applicantValue: student.yearLevel, requiredValue: criteria.requiredYearLevels },
-            { criterion: 'College Eligibility', passed: meetsCollege, applicantValue: student.college, requiredValue: criteria.eligibleColleges },
-            { criterion: 'Income Requirement', passed: meetsIncome, applicantValue: student.annualFamilyIncome, requiredValue: criteria.maxAnnualFamilyIncome },
-            { criterion: 'No Failing Grade', passed: noFailingGrade, applicantValue: student.hasFailingGrade, requiredValue: false },
-            { criterion: 'No Disciplinary Action', passed: noDisciplinary, applicantValue: student.hasDisciplinaryAction, requiredValue: false }
-          ],
-          checkedAt: applicationDate
-        },
-
-        // Prediction results
-        prediction: {
-          probability: Math.round(predictionScore * 100) / 100,
-          predictedOutcome: predictionScore >= 0.5 ? 'approved' : 'rejected',
-          confidence: confidenceLevel,
-          featureContributions: {
-            gwa: (2.0 - Math.min(student.gwa, 2.0)) / 2.0,
-            financialNeed: 1 - Math.min(student.annualFamilyIncome, 500000) / 500000,
-            yearLevel: ['Senior', 'Junior'].includes(student.yearLevel) ? 0.8 : 0.6,
-            collegeMatch: meetsCollege ? 1.0 : 0.0,
-            completenessScore: 0.9
-          },
-          predictedAt: applicationDate
-        },
-
-        // Status history
-        statusHistory: [
-          {
-            status: ApplicationStatus.SUBMITTED,
-            changedBy: user._id,
-            changedAt: applicationDate,
-            notes: 'Application submitted online'
-          },
-          {
-            status: ApplicationStatus.UNDER_REVIEW,
-            changedBy: adminId,
-            changedAt: new Date(applicationDate.getTime() + 86400000 * 3),
-            notes: 'Application under review by committee'
-          },
-          {
-            status: status,
-            changedBy: adminId,
-            changedAt: decisionDate,
-            notes: status === ApplicationStatus.APPROVED ? 
-                  'Application approved by scholarship committee' :
-                  'Application did not meet all requirements'
-          }
-        ],
-
-        // Simulated documents
-        documents: [
-          {
-            name: 'Certified True Copy of Grades',
-            type: 'grades',
-            url: `/uploads/${user._id}/ctcg.pdf`,
-            uploadedAt: new Date(applicationDate.getTime() - 86400000),
-            verified: true,
-            verifiedBy: adminId,
-            verifiedAt: new Date(applicationDate.getTime() + 86400000 * 2)
-          },
-          {
-            name: 'Certificate of Registration',
-            type: 'registration',
-            url: `/uploads/${user._id}/cor.pdf`,
-            uploadedAt: new Date(applicationDate.getTime() - 86400000),
-            verified: true,
-            verifiedBy: adminId,
-            verifiedAt: new Date(applicationDate.getTime() + 86400000 * 2)
-          }
-        ],
-
-        createdAt: applicationDate,
-        updatedAt: decisionDate
-      };
-
-      // Add remarks for rejected applications
-      if (status === ApplicationStatus.REJECTED && !isEligible) {
-        application.adminRemarks = 'Application did not meet eligibility requirements.';
-      }
-
-      applications.push(application);
+    // GWA Check
+    if (eligibilityCriteria.maxGWA) {
+      totalCriteria++;
+      if (studentProfile.gwa <= eligibilityCriteria.maxGWA) matchedCriteria++;
     }
+
+    // Income Check
+    if (eligibilityCriteria.maxAnnualFamilyIncome) {
+      totalCriteria++;
+      if (studentProfile.familyAnnualIncome <= eligibilityCriteria.maxAnnualFamilyIncome) matchedCriteria++;
+    }
+
+    // Classification Check
+    if (eligibilityCriteria.eligibleClassifications && eligibilityCriteria.eligibleClassifications.length > 0) {
+      totalCriteria++;
+      if (eligibilityCriteria.eligibleClassifications.includes(studentProfile.classification)) matchedCriteria++;
+    }
+
+    // College Check
+    if (eligibilityCriteria.eligibleColleges && eligibilityCriteria.eligibleColleges.length > 0) {
+      totalCriteria++;
+      if (eligibilityCriteria.eligibleColleges.includes(studentProfile.college)) matchedCriteria++;
+    }
+
+    // Course Check
+    if (eligibilityCriteria.eligibleCourses && eligibilityCriteria.eligibleCourses.length > 0) {
+      totalCriteria++;
+      if (eligibilityCriteria.eligibleCourses.includes(studentProfile.course)) matchedCriteria++;
+    }
+
+    // Province Check
+    if (eligibilityCriteria.eligibleProvinces && eligibilityCriteria.eligibleProvinces.length > 0) {
+      totalCriteria++;
+      if (eligibilityCriteria.eligibleProvinces.includes(studentProfile.provinceOfOrigin)) matchedCriteria++;
+    }
+
+    // No failing grade check
+    if (eligibilityCriteria.mustNotHaveFailingGrade) {
+      totalCriteria++;
+      if (!studentProfile.hasFailingGrade) matchedCriteria++;
+    }
+
+    // No grade of 4 check
+    if (eligibilityCriteria.mustNotHaveGradeOf4) {
+      totalCriteria++;
+      if (!studentProfile.hasGradeOf4) matchedCriteria++;
+    }
+
+    // No incomplete grade check
+    if (eligibilityCriteria.mustNotHaveIncompleteGrade) {
+      totalCriteria++;
+      if (!studentProfile.hasIncompleteGrade) matchedCriteria++;
+    }
+
+    // No other scholarship check
+    if (eligibilityCriteria.mustNotHaveOtherScholarship) {
+      totalCriteria++;
+      if (!studentProfile.hasOtherScholarship) matchedCriteria++;
+    }
+
+    // Thesis outline check
+    if (eligibilityCriteria.requiresApprovedThesisOutline) {
+      totalCriteria++;
+      if (studentProfile.hasApprovedThesisOutline) matchedCriteria++;
+    }
+
+    // ST Bracket check
+    if (eligibilityCriteria.eligibleSTBrackets && eligibilityCriteria.eligibleSTBrackets.length > 0) {
+      totalCriteria++;
+      if (studentProfile.stBracket && eligibilityCriteria.eligibleSTBrackets.includes(studentProfile.stBracket)) matchedCriteria++;
+    }
+
+    // Calculate eligibility percentage
+    const eligibilityPercentage = totalCriteria > 0 
+      ? Math.round((matchedCriteria / totalCriteria) * 100) 
+      : 50; // Default to 50% if no criteria
+
+    // Determine application status based on eligibility
+    // Higher eligibility = higher chance of approval
+    const approvalThreshold = randomBetween(60, 80);
+    let status;
+    
+    if (eligibilityPercentage >= 90) {
+      status = Math.random() < 0.85 ? ApplicationStatus.APPROVED : ApplicationStatus.REJECTED;
+    } else if (eligibilityPercentage >= 75) {
+      status = Math.random() < 0.65 ? ApplicationStatus.APPROVED : ApplicationStatus.REJECTED;
+    } else if (eligibilityPercentage >= 50) {
+      status = Math.random() < 0.35 ? ApplicationStatus.APPROVED : ApplicationStatus.REJECTED;
+    } else {
+      status = Math.random() < 0.1 ? ApplicationStatus.APPROVED : ApplicationStatus.REJECTED;
+    }
+
+    // Calculate prediction score (simulating logistic regression output)
+    // This is based on multiple factors
+    let predictionScore = 0.5;
+    
+    // GWA factor (lower is better)
+    if (studentProfile.gwa <= 1.5) predictionScore += 0.15;
+    else if (studentProfile.gwa <= 2.0) predictionScore += 0.1;
+    else if (studentProfile.gwa <= 2.5) predictionScore += 0.05;
+    else predictionScore -= 0.05;
+
+    // Income factor (lower is better for need-based)
+    if (studentProfile.familyAnnualIncome <= 150000) predictionScore += 0.1;
+    else if (studentProfile.familyAnnualIncome <= 250000) predictionScore += 0.05;
+    
+    // Eligibility factor
+    predictionScore += (eligibilityPercentage / 100) * 0.2;
+
+    // Add some randomness
+    predictionScore += randomBetween(-0.1, 0.1);
+    
+    // Clamp between 0 and 1
+    predictionScore = Math.max(0, Math.min(1, predictionScore));
+    predictionScore = Math.round(predictionScore * 100) / 100;
+
+    // Generate dates
+    const appliedDate = randomDate(startDate, endDate);
+    const decisionDate = new Date(appliedDate);
+    decisionDate.setDate(decisionDate.getDate() + Math.floor(randomBetween(7, 30)));
+
+    // Document submission (random for historical data)
+    const hasTranscript = Math.random() < 0.9;
+    const hasIncomeCertificate = Math.random() < 0.85;
+    const hasCertificateOfRegistration = Math.random() < 0.95;
+    const hasGradeReport = Math.random() < 0.8;
+
+    applications.push({
+      applicant: student._id,
+      scholarship: scholarship._id,
+      status,
+      eligibilityPercentage,
+      hasTranscript,
+      hasIncomeCertificate,
+      hasCertificateOfRegistration,
+      hasGradeReport,
+      prediction: {
+        probability: predictionScore,
+        model: 'logistic_regression_v1',
+        calculatedAt: appliedDate
+      },
+      appliedDate,
+      submittedAt: appliedDate,
+      decisionDate: status !== ApplicationStatus.PENDING ? decisionDate : null,
+      applicantSnapshot: {
+        studentNumber: studentProfile.studentNumber,
+        firstName: studentProfile.firstName,
+        lastName: studentProfile.lastName,
+        college: studentProfile.college,
+        course: studentProfile.course,
+        major: studentProfile.major,
+        classification: studentProfile.classification,
+        gwa: studentProfile.gwa,
+        annualFamilyIncome: studentProfile.familyAnnualIncome,
+        provinceOfOrigin: studentProfile.provinceOfOrigin,
+        stBracket: studentProfile.stBracket,
+        citizenship: studentProfile.citizenship
+      },
+      reviewNotes: status === ApplicationStatus.APPROVED 
+        ? 'Meets all eligibility criteria. Approved for scholarship grant.'
+        : status === ApplicationStatus.REJECTED 
+          ? 'Does not meet minimum eligibility requirements.'
+          : '',
+      academicYear: '2024-2025',
+      semester: 'First',
+      isComplete: true
+    });
+  }
+
+  return { applications, usedCombinations: uniqueCombinations };
+};
+
+// =============================================================================
+// Generate Current Applications (Pending/In-Review)
+// =============================================================================
+
+const generateCurrentApplications = (students, scholarships, existingCombinations = new Set(), count = 30) => {
+  const applications = [];
+  const startDate = daysAgo(14);
+  const endDate = new Date();
+  
+  // Use existing combinations to avoid duplicates
+  const uniqueCombinations = new Set(existingCombinations);
+
+  // Filter eligible students (those without too many issues)
+  const eligibleStudents = students.filter(s => 
+    s.studentProfile && 
+    !s.studentProfile.hasFailingGrade &&
+    !s.studentProfile.hasDisciplinaryAction
+  );
+
+  for (let i = 0; i < count && i < eligibleStudents.length; i++) {
+    const student = eligibleStudents[i % eligibleStudents.length];
+    const scholarship = scholarships[i % scholarships.length];
+    
+    // Check for duplicate
+    const combinationKey = `${student._id.toString()}_${scholarship._id.toString()}`;
+    if (uniqueCombinations.has(combinationKey)) continue;
+    uniqueCombinations.add(combinationKey);
+    
+    const studentProfile = student.studentProfile;
+    const eligibilityCriteria = scholarship.eligibilityCriteria || {};
+
+    // Calculate eligibility (same logic as historical)
+    let matchedCriteria = 0;
+    let totalCriteria = 0;
+
+    if (eligibilityCriteria.maxGWA) {
+      totalCriteria++;
+      if (studentProfile.gwa <= eligibilityCriteria.maxGWA) matchedCriteria++;
+    }
+    if (eligibilityCriteria.maxAnnualFamilyIncome) {
+      totalCriteria++;
+      if (studentProfile.familyAnnualIncome <= eligibilityCriteria.maxAnnualFamilyIncome) matchedCriteria++;
+    }
+    if (eligibilityCriteria.eligibleClassifications?.length > 0) {
+      totalCriteria++;
+      if (eligibilityCriteria.eligibleClassifications.includes(studentProfile.classification)) matchedCriteria++;
+    }
+    if (eligibilityCriteria.eligibleColleges?.length > 0) {
+      totalCriteria++;
+      if (eligibilityCriteria.eligibleColleges.includes(studentProfile.college)) matchedCriteria++;
+    }
+
+    const eligibilityPercentage = totalCriteria > 0 
+      ? Math.round((matchedCriteria / totalCriteria) * 100) 
+      : 50;
+
+    // Calculate prediction score
+    let predictionScore = 0.5 + (eligibilityPercentage / 100) * 0.3;
+    if (studentProfile.gwa <= 2.0) predictionScore += 0.1;
+    if (studentProfile.familyAnnualIncome <= 250000) predictionScore += 0.05;
+    predictionScore = Math.max(0, Math.min(1, predictionScore));
+    predictionScore = Math.round(predictionScore * 100) / 100;
+
+    // Vary status between pending and under_review
+    const status = Math.random() < 0.6 ? ApplicationStatus.PENDING : ApplicationStatus.UNDER_REVIEW;
+    const appliedDate = randomDate(startDate, endDate);
+
+    applications.push({
+      applicant: student._id,
+      scholarship: scholarship._id,
+      status,
+      eligibilityPercentage,
+      hasTranscript: true,
+      hasIncomeCertificate: true,
+      hasCertificateOfRegistration: true,
+      hasGradeReport: Math.random() < 0.8,
+      prediction: {
+        probability: predictionScore,
+        model: 'logistic_regression_v1',
+        calculatedAt: appliedDate
+      },
+      appliedDate,
+      submittedAt: appliedDate,
+      decisionDate: null,
+      applicantSnapshot: {
+        studentNumber: studentProfile.studentNumber,
+        firstName: studentProfile.firstName,
+        lastName: studentProfile.lastName,
+        college: studentProfile.college,
+        course: studentProfile.course,
+        major: studentProfile.major,
+        classification: studentProfile.classification,
+        gwa: studentProfile.gwa,
+        annualFamilyIncome: studentProfile.familyAnnualIncome,
+        provinceOfOrigin: studentProfile.provinceOfOrigin,
+        stBracket: studentProfile.stBracket,
+        citizenship: studentProfile.citizenship
+      },
+      reviewNotes: '',
+      academicYear: '2025-2026',
+      semester: 'First',
+      isComplete: true
+    });
   }
 
   return applications;
@@ -207,85 +356,74 @@ const generateHistoricalApplications = async (users, scholarships, adminId) => {
 // Seed Function
 // =============================================================================
 
-const seedApplications = async () => {
+const seedApplications = async (Application, students, scholarships) => {
   try {
-    console.log('🔌 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
-
-    // Get all users and scholarships
-    console.log('📥 Fetching users and scholarships...');
-    const students = await User.find({ role: 'student' });
-    const admin = await User.findOne({ role: 'admin' });
-    const scholarships = await Scholarship.find();
-
-    console.log(`   Found ${students.length} students`);
-    console.log(`   Found ${scholarships.length} scholarships`);
-    console.log(`   Admin ID: ${admin?._id}`);
-
-    if (students.length === 0 || scholarships.length === 0 || !admin) {
-      console.log('❌ Please seed users and scholarships first!');
-      return;
-    }
-
-    // Clear existing applications
-    console.log('🗑️  Clearing existing applications...');
     await Application.deleteMany({});
-    console.log('✅ Cleared existing applications');
+    console.log('Cleared existing applications');
 
-    // Generate applications
-    console.log('📝 Generating historical applications...');
-    const applicationsData = await generateHistoricalApplications(students, scholarships, admin._id);
-    console.log(`   Generated ${applicationsData.length} applications`);
+    // Generate historical applications for ML training
+    const { applications: historicalApplications, usedCombinations } = generateHistoricalApplications(students, scholarships, 200);
+    console.log(`Generated ${historicalApplications.length} historical applications`);
 
-    // Insert applications
-    console.log('💾 Inserting applications...');
-    const result = await Application.insertMany(applicationsData);
-    console.log(`✅ Successfully inserted ${result.length} applications`);
+    // Generate current applications (passing used combinations to avoid duplicates)
+    const currentApplications = generateCurrentApplications(students, scholarships, usedCombinations, 40);
+    console.log(`Generated ${currentApplications.length} current applications`);
 
-    // Summary
-    console.log('\n📊 Application Summary:');
-    const statusStats = await Application.aggregate([
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-    statusStats.forEach(item => {
-      console.log(`   ${item._id}: ${item.count}`);
-    });
+    const allApplications = [...historicalApplications, ...currentApplications];
+    const insertedApplications = await Application.insertMany(allApplications);
 
-    // Calculate approval rate
-    const approved = statusStats.find(s => s._id === 'approved')?.count || 0;
-    const total = result.length;
-    console.log(`\n📈 Approval Rate: ${((approved / total) * 100).toFixed(1)}%`);
+    console.log(`Inserted ${insertedApplications.length} total applications`);
 
-    // Applications by scholarship type
-    console.log('\n🎓 Applications by Scholarship Type:');
-    const typeStats = await Application.aggregate([
-      {
-        $lookup: {
-          from: 'scholarships',
-          localField: 'scholarship',
-          foreignField: '_id',
-          as: 'scholarshipInfo'
-        }
-      },
-      { $unwind: '$scholarshipInfo' },
-      { $group: { _id: '$scholarshipInfo.type', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-    typeStats.forEach(item => {
-      console.log(`   ${item._id}: ${item.count}`);
-    });
+    // Calculate and log statistics
+    const approved = insertedApplications.filter(a => a.status === ApplicationStatus.APPROVED).length;
+    const rejected = insertedApplications.filter(a => a.status === ApplicationStatus.REJECTED).length;
+    const pending = insertedApplications.filter(a => a.status === ApplicationStatus.PENDING).length;
+    const underReview = insertedApplications.filter(a => a.status === ApplicationStatus.UNDER_REVIEW).length;
 
-    console.log('\n🎉 Application seeding completed successfully!');
+    console.log('Application Statistics:');
+    console.log(`  - Approved: ${approved}`);
+    console.log(`  - Rejected: ${rejected}`);
+    console.log(`  - Pending: ${pending}`);
+    console.log(`  - Under Review: ${underReview}`);
 
+    return insertedApplications;
   } catch (error) {
-    console.error('❌ Error seeding applications:', error);
-  } finally {
-    await mongoose.connection.close();
-    console.log('🔌 Disconnected from MongoDB');
+    console.error('Error seeding applications:', error);
+    throw error;
   }
 };
 
-// Run the seed
-seedApplications();
+// =============================================================================
+// Generate Training Data for ML
+// This function extracts features for logistic regression
+// =============================================================================
+
+const generateTrainingData = (applications) => {
+  return applications
+    .filter(app => app.status === ApplicationStatus.APPROVED || app.status === ApplicationStatus.REJECTED)
+    .map(app => ({
+      // Features (X)
+      features: {
+        gwa: app.applicantSnapshot?.gwa || 2.5,
+        familyIncome: app.applicantSnapshot?.annualFamilyIncome || 250000,
+        eligibilityPercentage: app.eligibilityPercentage || 50,
+        hasCompleteDocuments: 
+          (app.hasTranscript ? 1 : 0) +
+          (app.hasIncomeCertificate ? 1 : 0) +
+          (app.hasCertificateOfRegistration ? 1 : 0) +
+          (app.hasGradeReport ? 1 : 0),
+        classification: ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'].indexOf(
+          app.applicantSnapshot?.classification || 'Junior'
+        ) + 1
+      },
+      // Label (y) - 1 for approved, 0 for rejected
+      label: app.status === ApplicationStatus.APPROVED ? 1 : 0
+    }));
+};
+
+module.exports = {
+  generateHistoricalApplications,
+  generateCurrentApplications,
+  generateTrainingData,
+  seedApplications
+};

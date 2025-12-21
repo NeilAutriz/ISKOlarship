@@ -27,13 +27,55 @@ import {
   MapPin,
   Brain
 } from 'lucide-react';
-import { scholarships, getScholarshipStats } from '../data/scholarships';
-import { platformStatistics } from '../data/mockHistoricalData';
+import { scholarshipApi, statisticsApi } from '../services/apiClient';
+import { Scholarship } from '../types';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, openAuthModal } = useAuth();
-  const stats = getScholarshipStats();
+  
+  // State for data from API
+  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
+  const [stats, setStats] = useState({
+    totalScholarships: 0,
+    totalFunding: 0,
+    activeStudents: 500
+  });
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch scholarships
+        const scholarshipRes = await scholarshipApi.getAll({ limit: 100 });
+        if (scholarshipRes.success && scholarshipRes.data?.scholarships) {
+          setScholarships(scholarshipRes.data.scholarships);
+          setStats(prev => ({
+            ...prev,
+            totalScholarships: scholarshipRes.data.scholarships.length,
+            totalFunding: scholarshipRes.data.scholarships.reduce((sum: number, s: Scholarship) => sum + (s.awardAmount || 0), 0)
+          }));
+        }
+        
+        // Try to fetch platform stats
+        try {
+          const statsRes = await statisticsApi.getOverview();
+          if (statsRes.success && statsRes.data) {
+            setStats(prev => ({
+              ...prev,
+              activeStudents: statsRes.data.overview?.totalStudents || 500
+            }));
+          }
+        } catch {
+          // Use default values
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Animated counter hook
   const useCounter = (end: number, duration: number = 2000) => {
@@ -585,7 +627,7 @@ const Home: React.FC = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {featuredScholarships.map((scholarship, index) => (
               <div
-                key={scholarship.id}
+                key={(scholarship as any)._id || scholarship.id || index}
                 onClick={() => {
                   if (isAuthenticated) {
                     navigate(`/scholarships/${scholarship.id}`);

@@ -1,11 +1,34 @@
 // =============================================================================
 // ISKOlarship - Models Index
 // Central export for all MongoDB models
+// Based on ERD from research paper
 // =============================================================================
 
-const { User, UserRole, YearLevel, UPLBCollege, STBracket, AdminAccessLevel } = require('./User.model');
-const { Scholarship, ScholarshipType, ScholarshipStatus } = require('./Scholarship.model');
-const { Application, ApplicationStatus } = require('./Application.model');
+const { 
+  User, 
+  UserRole, 
+  YearLevel, 
+  Classification, 
+  Citizenship,
+  UPLBCollege,
+  UPLBCourse, 
+  STBracket, 
+  AdminAccessLevel,
+  PhilippineProvinces 
+} = require('./User.model');
+
+const { 
+  Scholarship, 
+  ScholarshipType, 
+  ScholarshipStatus 
+} = require('./Scholarship.model');
+
+const { 
+  Application, 
+  ApplicationStatus,
+  ApplicationType 
+} = require('./Application.model');
+
 const { PlatformStats } = require('./PlatformStats.model');
 
 module.exports = {
@@ -15,13 +38,22 @@ module.exports = {
   Application,
   PlatformStats,
   
-  // Enums
+  // User Enums
   UserRole,
-  YearLevel,
+  YearLevel,        // Alias for backward compatibility
+  Classification,   // ERD-aligned classification
+  Citizenship,      // ERD field
   UPLBCollege,
+  UPLBCourse,
   STBracket,
   AdminAccessLevel,
+  PhilippineProvinces,
+  
+  // Scholarship Enums
   ScholarshipType,
   ScholarshipStatus,
-  ApplicationStatus
+  
+  // Application Enums
+  ApplicationStatus,
+  ApplicationType
 };

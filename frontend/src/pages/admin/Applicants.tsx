@@ -3,7 +3,7 @@
 // Review and process scholarship applications
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search,
   User,
@@ -13,82 +13,25 @@ import {
   XCircle,
   TrendingUp,
   ChevronDown,
-  Award
+  Award,
+  Loader2
 } from 'lucide-react';
+import { applicationApi } from '../../services/apiClient';
 
-// Mock applications data
-const mockApplications = [
-  {
-    id: 'app-1',
-    studentName: 'Maria Santos',
-    email: 'maria.santos@university.edu',
-    course: 'BS Biology',
-    yearLevel: 'Junior',
-    gwa: 2.30,
-    familyIncome: 240000,
-    scholarship: 'Sterix HOPE Scholarship',
-    scholarshipType: 'Regular',
-    submittedDate: '2025-11-08',
-    status: 'pending',
-    matchScore: 95,
-  },
-  {
-    id: 'app-2',
-    studentName: 'Juan Dela Cruz',
-    email: 'juan.delacruz@university.edu',
-    course: 'BS Chemistry',
-    yearLevel: 'Sophomore',
-    gwa: 2.45,
-    familyIncome: 280000,
-    scholarship: 'Dr. Ernesto Tuazon Memorial',
-    scholarshipType: 'Regular',
-    submittedDate: '2025-11-07',
-    status: 'pending',
-    matchScore: 88,
-  },
-  {
-    id: 'app-3',
-    studentName: 'Ana Reyes',
-    email: 'ana.reyes@university.edu',
-    course: 'BS Mathematics',
-    yearLevel: 'Senior',
-    gwa: 1.85,
-    familyIncome: 180000,
-    scholarship: 'Academic Excellence Award',
-    scholarshipType: 'Merit',
-    submittedDate: '2025-11-06',
-    status: 'under_review',
-    matchScore: 92,
-  },
-  {
-    id: 'app-4',
-    studentName: 'Pedro Garcia',
-    email: 'pedro.garcia@university.edu',
-    course: 'BS Agriculture',
-    yearLevel: 'Freshman',
-    gwa: 2.10,
-    familyIncome: 150000,
-    scholarship: 'DOST Merit Scholarship',
-    scholarshipType: 'Government',
-    submittedDate: '2025-11-05',
-    status: 'approved',
-    matchScore: 90,
-  },
-  {
-    id: 'app-5',
-    studentName: 'Lisa Fernandez',
-    email: 'lisa.fernandez@university.edu',
-    course: 'BS Computer Science',
-    yearLevel: 'Junior',
-    gwa: 1.75,
-    familyIncome: 320000,
-    scholarship: 'Tech Leaders Program',
-    scholarshipType: 'Industry',
-    submittedDate: '2025-11-04',
-    status: 'pending',
-    matchScore: 85,
-  },
-];
+interface ApplicationData {
+  id: string;
+  studentName: string;
+  email: string;
+  course: string;
+  yearLevel: string;
+  gwa: number;
+  familyIncome: number;
+  scholarship: string;
+  scholarshipType: string;
+  submittedDate: string;
+  status: string;
+  matchScore: number;
+}
 
 type ApplicationStatus = 'all' | 'pending' | 'under_review' | 'approved' | 'rejected';
 type TabFilter = 'all' | 'pending' | 'processed';
@@ -97,24 +40,60 @@ const Applicants: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus>('all');
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
+  const [applications, setApplications] = useState<ApplicationData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch applications from API
+  useEffect(() => {
+    const fetchApplications = async () => {
+      try {
+        setLoading(true);
+        const response = await applicationApi.getAll({ limit: 100 });
+        if (response.success && response.data?.applications) {
+          setApplications(response.data.applications.map((app: any) => ({
+            id: app._id || app.id,
+            studentName: app.applicant?.studentProfile 
+              ? `${app.applicant.studentProfile.firstName} ${app.applicant.studentProfile.lastName}`
+              : 'Unknown Student',
+            email: app.applicant?.email || 'N/A',
+            course: app.applicant?.studentProfile?.course || 'N/A',
+            yearLevel: app.applicant?.studentProfile?.classification || 'N/A',
+            gwa: app.applicant?.studentProfile?.gwa || 0,
+            familyIncome: app.applicant?.studentProfile?.familyAnnualIncome || 0,
+            scholarship: app.scholarship?.name || 'Unknown Scholarship',
+            scholarshipType: app.scholarship?.type || 'Regular',
+            submittedDate: app.submittedAt ? new Date(app.submittedAt).toISOString().split('T')[0] : 'N/A',
+            status: app.status || 'pending',
+            matchScore: app.eligibilityScore || 0
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to fetch applications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchApplications();
+  }, []);
 
   // Calculate stats
   const stats = {
-    pendingReview: mockApplications.filter(a => a.status === 'pending').length,
-    underReview: mockApplications.filter(a => a.status === 'under_review').length,
-    approved: mockApplications.filter(a => a.status === 'approved').length,
-    rejected: mockApplications.filter(a => a.status === 'rejected').length,
+    pendingReview: applications.filter(a => a.status === 'pending' || a.status === 'submitted').length,
+    underReview: applications.filter(a => a.status === 'under_review').length,
+    approved: applications.filter(a => a.status === 'approved').length,
+    rejected: applications.filter(a => a.status === 'rejected').length,
   };
 
   // Filter applications
-  const filteredApplications = mockApplications.filter(app => {
+  const filteredApplications = applications.filter(app => {
     const matchesSearch = 
       app.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.scholarship.toLowerCase().includes(searchQuery.toLowerCase());
     
     let matchesTab = true;
     if (activeTab === 'pending') {
-      matchesTab = app.status === 'pending' || app.status === 'under_review';
+      matchesTab = app.status === 'pending' || app.status === 'submitted' || app.status === 'under_review';
     } else if (activeTab === 'processed') {
       matchesTab = app.status === 'approved' || app.status === 'rejected';
     }
@@ -127,6 +106,7 @@ const Applicants: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
+      case 'submitted':
         return <span className="px-2.5 py-1 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full">Pending</span>;
       case 'under_review':
         return <span className="px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">Under Review</span>;
@@ -140,10 +120,21 @@ const Applicants: React.FC = () => {
   };
 
   const tabCounts = {
-    all: mockApplications.length,
-    pending: mockApplications.filter(a => a.status === 'pending' || a.status === 'under_review').length,
-    processed: mockApplications.filter(a => a.status === 'approved' || a.status === 'rejected').length,
+    all: applications.length,
+    pending: applications.filter(a => a.status === 'pending' || a.status === 'submitted' || a.status === 'under_review').length,
+    processed: applications.filter(a => a.status === 'approved' || a.status === 'rejected').length,
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+          <p className="text-slate-600 font-medium">Loading applications...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

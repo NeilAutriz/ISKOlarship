@@ -1,12 +1,13 @@
 // =============================================================================
 // ISKOlarship - Application Model
-// Based on ERD: Application entity linking User and Scholarship
+// Based on ERD: Application entity linking Student and Scholarship
+// Aligned with Research Paper Entity Relationship Diagram
 // =============================================================================
 
 const mongoose = require('mongoose');
 
 // =============================================================================
-// Application Status Workflow
+// Application Status Workflow (from ERD: application_status)
 // =============================================================================
 
 const ApplicationStatus = {
@@ -23,7 +24,7 @@ const ApplicationStatus = {
 };
 
 // =============================================================================
-// Document Sub-Schema
+// Document Sub-Schema (from ERD: has_transcript, has_income_cert)
 // =============================================================================
 
 const documentSchema = new mongoose.Schema({
@@ -31,11 +32,28 @@ const documentSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  type: {
+  documentType: {
     type: String,
-    required: true
+    required: true,
+    enum: [
+      'transcript',
+      'income_certificate',
+      'certificate_of_registration',
+      'grade_report',
+      'barangay_certificate',
+      'tax_return',
+      'thesis_outline',
+      'recommendation_letter',
+      'personal_statement',
+      'photo_id',
+      'proof_of_enrollment',
+      'other'
+    ]
   },
   url: String,
+  fileName: String,
+  fileSize: Number,
+  mimeType: String,
   uploadedAt: {
     type: Date,
     default: Date.now
@@ -49,7 +67,7 @@ const documentSchema = new mongoose.Schema({
     ref: 'User'
   },
   verifiedAt: Date,
-  notes: String
+  verificationNotes: String
 }, { _id: true });
 
 // =============================================================================
@@ -76,7 +94,7 @@ const statusHistorySchema = new mongoose.Schema({
 }, { _id: true });
 
 // =============================================================================
-// Eligibility Check Sub-Schema
+// Eligibility Check Sub-Schema (from ERD: eligibility_percentage)
 // =============================================================================
 
 const eligibilityCheckSchema = new mongoose.Schema({
@@ -84,128 +102,237 @@ const eligibilityCheckSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  criterionType: {
+    type: String,
+    enum: ['gwa', 'income', 'classification', 'college', 'course', 'province', 'citizenship', 'scholarship_status', 'thesis', 'disciplinary', 'units', 'custom']
+  },
   passed: {
     type: Boolean,
     required: true
   },
   applicantValue: mongoose.Schema.Types.Mixed,
   requiredValue: mongoose.Schema.Types.Mixed,
+  weight: {
+    type: Number,
+    default: 1
+  },
   notes: String
 }, { _id: false });
 
 // =============================================================================
-// Prediction Sub-Schema (from Logistic Regression)
+// Prediction Sub-Schema (from ERD: prediction_score)
+// Based on Logistic Regression from research paper
 // =============================================================================
 
 const predictionSchema = new mongoose.Schema({
+  // prediction_score (from ERD) - Probability of approval
   probability: {
     type: Number,
     min: 0,
     max: 1
   },
+  
+  // Predicted outcome
   predictedOutcome: {
     type: String,
     enum: ['approved', 'rejected']
   },
+  
+  // Confidence level
   confidence: {
     type: String,
     enum: ['low', 'medium', 'high']
   },
+  
+  // Feature contributions (for explainability - from research paper)
   featureContributions: {
-    gwa: Number,
-    financialNeed: Number,
-    yearLevel: Number,
-    collegeMatch: Number,
-    completenessScore: Number
+    gwa: { type: Number, default: 0 },
+    financialNeed: { type: Number, default: 0 },
+    yearLevel: { type: Number, default: 0 },
+    collegeMatch: { type: Number, default: 0 },
+    courseMatch: { type: Number, default: 0 },
+    locationMatch: { type: Number, default: 0 },
+    completenessScore: { type: Number, default: 0 }
   },
+  
   generatedAt: {
     type: Date,
     default: Date.now
   },
-  modelVersion: String
+  
+  modelVersion: {
+    type: String,
+    default: '1.0.0'
+  }
 }, { _id: false });
 
 // =============================================================================
-// Application Schema
+// Application Schema (from ERD)
 // =============================================================================
 
 const applicationSchema = new mongoose.Schema({
-  // Core References
+  // =========================================================================
+  // Core References (from ERD)
+  // application_id: auto-generated (_id)
+  // =========================================================================
+  
+  // student_id (from ERD) - Reference to applicant
   applicant: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'Applicant is required']
   },
+  
+  // scholarship_id (from ERD) - Reference to scholarship
   scholarship: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Scholarship',
     required: [true, 'Scholarship is required']
   },
   
-  // Application Status
+  // =========================================================================
+  // Application Status (from ERD: application_status)
+  // =========================================================================
+  
   status: {
     type: String,
     enum: Object.values(ApplicationStatus),
     default: ApplicationStatus.DRAFT
   },
+  
   statusHistory: [statusHistorySchema],
   
-  // Documents
+  // =========================================================================
+  // Documents (from ERD: has_transcript, has_income_cert)
+  // =========================================================================
+  
   documents: [documentSchema],
   
-  // Eligibility Verification
+  // Quick access flags from ERD
+  hasTranscript: {
+    type: Boolean,
+    default: false
+  },
+  hasIncomeCertificate: {
+    type: Boolean,
+    default: false
+  },
+  hasCertificateOfRegistration: {
+    type: Boolean,
+    default: false
+  },
+  hasGradeReport: {
+    type: Boolean,
+    default: false
+  },
+  
+  // =========================================================================
+  // Eligibility (from ERD: eligibility_percentage)
+  // =========================================================================
+  
   eligibilityChecks: [eligibilityCheckSchema],
+  
   passedAllEligibilityCriteria: {
     type: Boolean,
     default: false
   },
-  eligibilityScore: {
+  
+  // eligibility_percentage (from ERD)
+  eligibilityPercentage: {
     type: Number,
     min: 0,
     max: 100
   },
   
-  // ML Prediction
-  prediction: predictionSchema,
-  
-  // Applicant Snapshot (at time of application)
-  applicantSnapshot: {
-    gwa: Number,
-    yearLevel: String,
-    college: String,
-    course: String,
-    annualFamilyIncome: Number,
-    unitsEnrolled: Number
+  // Number of criteria passed vs total
+  criteriaPassed: {
+    type: Number,
+    default: 0
+  },
+  criteriaTotal: {
+    type: Number,
+    default: 0
   },
   
+  // =========================================================================
+  // ML Prediction (from ERD: prediction_score)
+  // =========================================================================
+  
+  prediction: predictionSchema,
+  
+  // =========================================================================
+  // Applicant Snapshot (at time of application)
+  // =========================================================================
+  
+  applicantSnapshot: {
+    studentNumber: String,
+    firstName: String,
+    lastName: String,
+    gwa: Number,
+    classification: String,
+    college: String,
+    course: String,
+    major: String,
+    annualFamilyIncome: Number,
+    unitsEnrolled: Number,
+    unitsPassed: Number,
+    provinceOfOrigin: String,
+    citizenship: String,
+    stBracket: String,
+    hasExistingScholarship: Boolean,
+    hasThesisGrant: Boolean,
+    hasApprovedThesisOutline: Boolean,
+    hasDisciplinaryAction: Boolean,
+    hasFailingGrade: Boolean
+  },
+  
+  // =========================================================================
   // Application Content
+  // =========================================================================
+  
   personalStatement: {
     type: String,
     maxlength: [5000, 'Personal statement cannot exceed 5000 characters']
   },
+  
   additionalInfo: {
     type: String,
     maxlength: [2000, 'Additional info cannot exceed 2000 characters']
   },
   
-  // Timeline
+  // =========================================================================
+  // Timeline (from ERD: applied_date, decision_date)
+  // =========================================================================
+  
+  // applied_date (from ERD)
+  appliedDate: Date,
+  
   submittedAt: Date,
   lastUpdatedAt: {
     type: Date,
     default: Date.now
   },
   reviewStartedAt: Date,
-  decisionMadeAt: Date,
   
+  // decision_date (from ERD)
+  decisionDate: Date,
+  
+  // =========================================================================
   // Review Information
+  // =========================================================================
+  
   reviewedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
   reviewNotes: String,
   rejectionReason: String,
+  approvalNotes: String,
   
+  // =========================================================================
   // Academic Year Context
+  // =========================================================================
+  
   academicYear: {
     type: String,
     match: [/^\d{4}-\d{4}$/, 'Academic year must be in format YYYY-YYYY']
@@ -215,7 +342,10 @@ const applicationSchema = new mongoose.Schema({
     enum: ['First', 'Second', 'Midyear']
   },
   
-  // Flags
+  // =========================================================================
+  // Completion Flags
+  // =========================================================================
+  
   isComplete: {
     type: Boolean,
     default: false
@@ -224,17 +354,21 @@ const applicationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  
+  // =========================================================================
+  // Review Queue Priority
+  // =========================================================================
+  
   flaggedForReview: {
     type: Boolean,
     default: false
   },
   flagReason: String,
-  
-  // Priority/Ranking (for review queue)
   priorityScore: {
     type: Number,
     default: 0
   }
+  
 }, {
   timestamps: true
 });
@@ -248,7 +382,9 @@ applicationSchema.index({ status: 1 });
 applicationSchema.index({ scholarship: 1, status: 1 });
 applicationSchema.index({ applicant: 1, status: 1 });
 applicationSchema.index({ submittedAt: -1 });
+applicationSchema.index({ appliedDate: -1 });
 applicationSchema.index({ 'prediction.probability': -1 });
+applicationSchema.index({ eligibilityPercentage: -1 });
 applicationSchema.index({ academicYear: 1, semester: 1 });
 
 // =============================================================================
@@ -256,11 +392,23 @@ applicationSchema.index({ academicYear: 1, semester: 1 });
 // =============================================================================
 
 applicationSchema.pre('save', function(next) {
-  // Update lastUpdatedAt
   this.lastUpdatedAt = new Date();
   
-  // Check if all required documents are present
-  // (This would need to cross-reference with scholarship requirements)
+  // Update document flags
+  this.hasTranscript = this.documents.some(d => d.documentType === 'transcript');
+  this.hasIncomeCertificate = this.documents.some(d => d.documentType === 'income_certificate');
+  this.hasCertificateOfRegistration = this.documents.some(d => d.documentType === 'certificate_of_registration');
+  this.hasGradeReport = this.documents.some(d => d.documentType === 'grade_report');
+  
+  // Calculate eligibility percentage
+  if (this.eligibilityChecks && this.eligibilityChecks.length > 0) {
+    const passed = this.eligibilityChecks.filter(c => c.passed).length;
+    const total = this.eligibilityChecks.length;
+    this.criteriaPassed = passed;
+    this.criteriaTotal = total;
+    this.eligibilityPercentage = Math.round((passed / total) * 100);
+    this.passedAllEligibilityCriteria = passed === total;
+  }
   
   next();
 });
@@ -269,7 +417,6 @@ applicationSchema.pre('save', function(next) {
 // Instance Methods
 // =============================================================================
 
-// Add status change to history
 applicationSchema.methods.updateStatus = function(newStatus, userId, notes, reason) {
   const historyEntry = {
     status: newStatus,
@@ -285,45 +432,40 @@ applicationSchema.methods.updateStatus = function(newStatus, userId, notes, reas
   // Update relevant timestamps
   if (newStatus === ApplicationStatus.SUBMITTED) {
     this.submittedAt = new Date();
+    this.appliedDate = new Date();
   } else if (newStatus === ApplicationStatus.UNDER_REVIEW) {
     this.reviewStartedAt = new Date();
   } else if ([ApplicationStatus.APPROVED, ApplicationStatus.REJECTED].includes(newStatus)) {
-    this.decisionMadeAt = new Date();
+    this.decisionDate = new Date();
   }
   
   return this;
 };
 
-// Add document
 applicationSchema.methods.addDocument = function(document) {
   this.documents.push(document);
   return this;
 };
 
-// Verify document
 applicationSchema.methods.verifyDocument = function(documentId, userId, notes) {
   const doc = this.documents.id(documentId);
   if (doc) {
     doc.verified = true;
     doc.verifiedBy = userId;
     doc.verifiedAt = new Date();
-    doc.notes = notes;
+    doc.verificationNotes = notes;
   }
   return this;
 };
 
-// Calculate completion status
 applicationSchema.methods.calculateCompleteness = function() {
   let completedFields = 0;
   let totalFields = 0;
   
-  // Check basic info
   totalFields += 2;
   if (this.personalStatement) completedFields++;
   if (this.documents.length > 0) completedFields++;
   
-  // Check documents (this would ideally check against scholarship requirements)
-  // For now, we'll assume all documents need to be verified
   totalFields += this.documents.length;
   completedFields += this.documents.filter(d => d.verified).length;
   
@@ -334,47 +476,41 @@ applicationSchema.methods.calculateCompleteness = function() {
   };
 };
 
-// Get current status duration
 applicationSchema.methods.getCurrentStatusDuration = function() {
   const lastChange = this.statusHistory[this.statusHistory.length - 1];
   if (!lastChange) return 0;
-  
-  return Math.ceil((new Date() - lastChange.changedAt) / (1000 * 60 * 60 * 24)); // days
+  return Math.ceil((new Date() - lastChange.changedAt) / (1000 * 60 * 60 * 24));
 };
 
 // =============================================================================
 // Static Methods
 // =============================================================================
 
-// Find by applicant
 applicationSchema.statics.findByApplicant = function(applicantId) {
   return this.find({ applicant: applicantId })
-    .populate('scholarship', 'name type sponsor applicationDeadline')
+    .populate('scholarship', 'name type sponsor applicationDeadline totalGrant')
     .sort({ createdAt: -1 });
 };
 
-// Find by scholarship
 applicationSchema.statics.findByScholarship = function(scholarshipId, status = null) {
   const query = { scholarship: scholarshipId };
   if (status) query.status = status;
   
   return this.find(query)
-    .populate('applicant', 'firstName lastName email studentProfile')
+    .populate('applicant', 'email studentProfile')
     .sort({ submittedAt: -1 });
 };
 
-// Get pending review queue
 applicationSchema.statics.getPendingReviewQueue = function(limit = 50) {
   return this.find({
     status: { $in: [ApplicationStatus.SUBMITTED, ApplicationStatus.UNDER_REVIEW] }
   })
-    .populate('applicant', 'firstName lastName email studentProfile')
+    .populate('applicant', 'email studentProfile')
     .populate('scholarship', 'name type applicationDeadline')
     .sort({ priorityScore: -1, submittedAt: 1 })
     .limit(limit);
 };
 
-// Get statistics for a scholarship
 applicationSchema.statics.getScholarshipStats = async function(scholarshipId) {
   const stats = await this.aggregate([
     { $match: { scholarship: new mongoose.Types.ObjectId(scholarshipId) } },
@@ -392,7 +528,6 @@ applicationSchema.statics.getScholarshipStats = async function(scholarshipId) {
   }, {});
 };
 
-// Get user application statistics
 applicationSchema.statics.getUserStats = async function(userId) {
   const stats = await this.aggregate([
     { $match: { applicant: new mongoose.Types.ObjectId(userId) } },
@@ -408,6 +543,25 @@ applicationSchema.statics.getUserStats = async function(userId) {
     acc[item._id] = item.count;
     return acc;
   }, {});
+};
+
+// Get historical data for logistic regression training
+applicationSchema.statics.getHistoricalData = async function(filters = {}) {
+  const query = {
+    status: { $in: [ApplicationStatus.APPROVED, ApplicationStatus.REJECTED] },
+    decisionDate: { $exists: true }
+  };
+  
+  if (filters.scholarshipId) {
+    query.scholarship = new mongoose.Types.ObjectId(filters.scholarshipId);
+  }
+  if (filters.academicYear) {
+    query.academicYear = filters.academicYear;
+  }
+  
+  return this.find(query)
+    .select('applicantSnapshot status prediction eligibilityPercentage')
+    .lean();
 };
 
 // =============================================================================

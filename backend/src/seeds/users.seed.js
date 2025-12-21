@@ -1,653 +1,829 @@
 // =============================================================================
-// ISKOlarship - User Seed Data
-// Creates sample students and admin users for testing
+// ISKOlarship - Users Seed Data
+// Based on ERD from research paper
+// Contains realistic student data for testing rule-based filtering
 // =============================================================================
 
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
-
-const { User, UserRole, YearLevel, UPLBCollege, STBracket, AdminAccessLevel } = require('../models/User.model');
-
-// =============================================================================
-// Sample UPLB Students (diverse profiles for testing filtering & predictions)
-// =============================================================================
-
-const studentsData = [
-  // =========================================================================
-  // HIGH-PERFORMING STUDENTS (University Scholar candidates)
-  // =========================================================================
-  {
-    email: 'maria.santos@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Maria',
-    lastName: 'Santos',
-    middleName: 'Cruz',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2021-12345',
-      course: 'BS Computer Science',
-      college: UPLBCollege.CAS,
-      yearLevel: YearLevel.JUNIOR,
-      gwa: 1.15,
-      totalUnitsEarned: 90,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.BRACKET_E,
-      annualFamilyIncome: 850000,
-      province: 'Laguna',
-      city: 'Los Baños',
-      barangay: 'Batong Malake',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'juan.delacruz@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Juan',
-    lastName: 'Dela Cruz',
-    middleName: 'Reyes',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2020-54321',
-      course: 'BS Chemical Engineering',
-      college: UPLBCollege.CEAT,
-      yearLevel: YearLevel.SENIOR,
-      gwa: 1.18,
-      totalUnitsEarned: 120,
-      currentUnitsEnrolled: 15,
-      stBracket: STBracket.BRACKET_D,
-      annualFamilyIncome: 600000,
-      province: 'Batangas',
-      city: 'Lipa',
-      barangay: 'Marawoy',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: true
-    }
-  },
-  {
-    email: 'ana.garcia@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Ana',
-    lastName: 'Garcia',
-    middleName: 'Lopez',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2021-11111',
-      course: 'BS Biology',
-      college: UPLBCollege.CAS,
-      yearLevel: YearLevel.JUNIOR,
-      gwa: 1.22,
-      totalUnitsEarned: 85,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.BRACKET_C,
-      annualFamilyIncome: 450000,
-      province: 'Quezon',
-      city: 'Lucena',
-      barangay: 'Ibabang Dupay',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-
-  // =========================================================================
-  // COLLEGE SCHOLAR CANDIDATES (GWA 1.45-1.75)
-  // =========================================================================
-  {
-    email: 'pedro.martinez@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Pedro',
-    lastName: 'Martinez',
-    middleName: 'Villanueva',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2022-22222',
-      course: 'BS Economics',
-      college: UPLBCollege.CEM,
-      yearLevel: YearLevel.SOPHOMORE,
-      gwa: 1.55,
-      totalUnitsEarned: 45,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.BRACKET_B,
-      annualFamilyIncome: 280000,
-      province: 'Laguna',
-      city: 'Calamba',
-      barangay: 'Real',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'carla.fernandez@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Carla',
-    lastName: 'Fernandez',
-    middleName: 'Aquino',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2021-33333',
-      course: 'BS Civil Engineering',
-      college: UPLBCollege.CEAT,
-      yearLevel: YearLevel.JUNIOR,
-      gwa: 1.68,
-      totalUnitsEarned: 78,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.BRACKET_C,
-      annualFamilyIncome: 380000,
-      province: 'Cavite',
-      city: 'Bacoor',
-      barangay: 'Molino',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-
-  // =========================================================================
-  // NEED-BASED SCHOLARSHIP CANDIDATES (Low income, Full Discount)
-  // =========================================================================
-  {
-    email: 'jose.ramos@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Jose',
-    lastName: 'Ramos',
-    middleName: 'Mendoza',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2023-44444',
-      course: 'BS Agriculture',
-      college: UPLBCollege.CAFS,
-      yearLevel: YearLevel.FRESHMAN,
-      gwa: 2.0,
-      totalUnitsEarned: 21,
-      currentUnitsEnrolled: 21,
-      stBracket: STBracket.FULL_DISCOUNT,
-      annualFamilyIncome: 95000,
-      province: 'Laguna',
-      city: 'Bay',
-      barangay: 'Sta. Cruz',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'rosa.villanueva@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Rosa',
-    lastName: 'Villanueva',
-    middleName: 'Bernardo',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2022-55555',
-      course: 'BS Development Communication',
-      college: UPLBCollege.CDC,
-      yearLevel: YearLevel.SOPHOMORE,
-      gwa: 1.85,
-      totalUnitsEarned: 42,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.FULL_DISCOUNT,
-      annualFamilyIncome: 110000,
-      province: 'Batangas',
-      city: 'Tanauan',
-      barangay: 'Poblacion',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'miguel.torres@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Miguel',
-    lastName: 'Torres',
-    middleName: 'Perez',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2021-66666',
-      course: 'BS Food Technology',
-      college: UPLBCollege.CAFS,
-      yearLevel: YearLevel.JUNIOR,
-      gwa: 1.95,
-      totalUnitsEarned: 81,
-      currentUnitsEnrolled: 15,
-      stBracket: STBracket.BRACKET_A,
-      annualFamilyIncome: 150000,
-      province: 'Laguna',
-      city: 'San Pablo',
-      barangay: 'San Roque',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-
-  // =========================================================================
-  // DOST SCHOLAR CANDIDATES
-  // =========================================================================
-  {
-    email: 'lisa.reyes@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Lisa',
-    lastName: 'Reyes',
-    middleName: 'Castillo',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2022-77777',
-      course: 'BS Statistics',
-      college: UPLBCollege.CAS,
-      yearLevel: YearLevel.SOPHOMORE,
-      gwa: 1.45,
-      totalUnitsEarned: 48,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.BRACKET_C,
-      annualFamilyIncome: 420000,
-      province: 'Rizal',
-      city: 'Antipolo',
-      barangay: 'San Jose',
-      hasExistingScholarship: true,
-      existingScholarshipName: 'DOST-SEI Merit Scholar',
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'mark.gonzales@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Mark',
-    lastName: 'Gonzales',
-    middleName: 'Aguilar',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2020-88888',
-      course: 'BS Electrical Engineering',
-      college: UPLBCollege.CEAT,
-      yearLevel: YearLevel.SENIOR,
-      gwa: 1.52,
-      totalUnitsEarned: 130,
-      currentUnitsEnrolled: 12,
-      stBracket: STBracket.BRACKET_D,
-      annualFamilyIncome: 520000,
-      province: 'Quezon',
-      city: 'Lucban',
-      barangay: 'Samil',
-      hasExistingScholarship: true,
-      existingScholarshipName: 'DOST-SEI Merit Scholar',
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: true
-    }
-  },
-
-  // =========================================================================
-  // STUDENTS WITH CHALLENGES (for testing edge cases)
-  // =========================================================================
-  {
-    email: 'kevin.cruz@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Kevin',
-    lastName: 'Cruz',
-    middleName: 'Santos',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2022-99999',
-      course: 'BS Accountancy',
-      college: UPLBCollege.CEM,
-      yearLevel: YearLevel.SOPHOMORE,
-      gwa: 2.8,
-      totalUnitsEarned: 39,
-      currentUnitsEnrolled: 15,
-      stBracket: STBracket.BRACKET_B,
-      annualFamilyIncome: 320000,
-      province: 'Laguna',
-      city: 'Sta. Rosa',
-      barangay: 'Balibago',
-      hasExistingScholarship: false,
-      hasFailingGrade: true,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'angela.lim@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Angela',
-    lastName: 'Lim',
-    middleName: 'Tan',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2021-10101',
-      course: 'BS Human Ecology',
-      college: UPLBCollege.CHE,
-      yearLevel: YearLevel.JUNIOR,
-      gwa: 2.35,
-      totalUnitsEarned: 72,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.BRACKET_C,
-      annualFamilyIncome: 400000,
-      province: 'Manila',
-      city: 'Quezon City',
-      barangay: 'Diliman',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: true,
-      hasApprovedThesis: false
-    }
-  },
-
-  // =========================================================================
-  // SENIOR THESIS STUDENTS
-  // =========================================================================
-  {
-    email: 'paulo.castro@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Paulo',
-    lastName: 'Castro',
-    middleName: 'Rivera',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2020-12121',
-      course: 'BS Agricultural Biotechnology',
-      college: UPLBCollege.CAFS,
-      yearLevel: YearLevel.SENIOR,
-      gwa: 1.72,
-      totalUnitsEarned: 132,
-      currentUnitsEnrolled: 9,
-      stBracket: STBracket.BRACKET_C,
-      annualFamilyIncome: 380000,
-      province: 'Laguna',
-      city: 'Los Baños',
-      barangay: 'Anos',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: true,
-      thesisTitle: 'Development of Drought-Resistant Rice Varieties Using CRISPR Technology'
-    }
-  },
-  {
-    email: 'diana.morales@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Diana',
-    lastName: 'Morales',
-    middleName: 'Bautista',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2020-13131',
-      course: 'BS Chemistry',
-      college: UPLBCollege.CAS,
-      yearLevel: YearLevel.SENIOR,
-      gwa: 1.38,
-      totalUnitsEarned: 128,
-      currentUnitsEnrolled: 12,
-      stBracket: STBracket.BRACKET_D,
-      annualFamilyIncome: 550000,
-      province: 'Batangas',
-      city: 'Batangas City',
-      barangay: 'Kumintang Ibaba',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: true,
-      thesisTitle: 'Synthesis of Novel Antimicrobial Compounds from Philippine Medicinal Plants'
-    }
-  },
-
-  // =========================================================================
-  // MORE DIVERSE STUDENT PROFILES
-  // =========================================================================
-  {
-    email: 'gabriel.luna@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Gabriel',
-    lastName: 'Luna',
-    middleName: 'Soriano',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2023-14141',
-      course: 'BS Applied Mathematics',
-      college: UPLBCollege.CAS,
-      yearLevel: YearLevel.FRESHMAN,
-      gwa: 1.65,
-      totalUnitsEarned: 24,
-      currentUnitsEnrolled: 21,
-      stBracket: STBracket.BRACKET_B,
-      annualFamilyIncome: 240000,
-      province: 'Laguna',
-      city: 'Biñan',
-      barangay: 'Dela Paz',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'sophia.mendez@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Sophia',
-    lastName: 'Mendez',
-    middleName: 'Ocampo',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2022-15151',
-      course: 'BS Forestry',
-      college: UPLBCollege.CFNR,
-      yearLevel: YearLevel.SOPHOMORE,
-      gwa: 1.88,
-      totalUnitsEarned: 45,
-      currentUnitsEnrolled: 18,
-      stBracket: STBracket.BRACKET_A,
-      annualFamilyIncome: 180000,
-      province: 'Laguna',
-      city: 'Pagsanjan',
-      barangay: 'Biñan',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'rafael.santos@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Rafael',
-    lastName: 'Santos',
-    middleName: 'Dizon',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2021-16161',
-      course: 'Doctor of Veterinary Medicine',
-      college: UPLBCollege.CVM,
-      yearLevel: YearLevel.JUNIOR,
-      gwa: 1.92,
-      totalUnitsEarned: 95,
-      currentUnitsEnrolled: 21,
-      stBracket: STBracket.BRACKET_C,
-      annualFamilyIncome: 420000,
-      province: 'Cavite',
-      city: 'Tagaytay',
-      barangay: 'Maharlika',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: false
-    }
-  },
-  {
-    email: 'patricia.yap@up.edu.ph',
-    password: 'Student123!',
-    firstName: 'Patricia',
-    lastName: 'Yap',
-    middleName: 'Chua',
-    role: UserRole.STUDENT,
-    studentProfile: {
-      studentNumber: '2020-17171',
-      course: 'BS Agribusiness Economics',
-      college: UPLBCollege.CEM,
-      yearLevel: YearLevel.SENIOR,
-      gwa: 1.78,
-      totalUnitsEarned: 125,
-      currentUnitsEnrolled: 12,
-      stBracket: STBracket.BRACKET_E,
-      annualFamilyIncome: 900000,
-      province: 'Metro Manila',
-      city: 'Makati',
-      barangay: 'San Lorenzo',
-      hasExistingScholarship: false,
-      hasFailingGrade: false,
-      hasDisciplinaryAction: false,
-      hasApprovedThesis: true,
-      thesisTitle: 'Value Chain Analysis of Organic Vegetables in Benguet'
-    }
-  }
-];
+const {
+  UPLBCollege,
+  UPLBCourse,
+  Classification,
+  Citizenship,
+  STBracket,
+  PhilippineProvinces
+} = require('../models/User.model');
 
 // =============================================================================
 // Admin Users
 // =============================================================================
 
-const adminsData = [
+const adminUsers = [
   {
-    email: 'admin@up.edu.ph',
-    password: 'Admin123!',
-    firstName: 'System',
-    lastName: 'Administrator',
-    role: UserRole.ADMIN,
+    email: 'admin@iskolarship.uplb.edu.ph',
+    role: 'admin',
+    isActive: true,
+    isEmailVerified: true,
     adminProfile: {
-      employeeId: 'UPLB-001',
-      department: 'Office of Student Services',
-      position: 'System Administrator',
-      accessLevel: AdminAccessLevel.UNIVERSITY,
-      permissions: [
-        'manage_scholarships',
-        'manage_users',
-        'approve_applications',
-        'view_reports',
-        'manage_system'
-      ]
+      firstName: 'Maria',
+      lastName: 'Santos',
+      department: 'Office of Student Affairs',
+      accessLevel: 'university'  // Highest level - university-wide access
     }
   },
   {
-    email: 'osg.staff@up.edu.ph',
-    password: 'Staff123!',
-    firstName: 'OSG',
-    lastName: 'Staff',
-    role: UserRole.ADMIN,
+    email: 'osfa.admin@iskolarship.uplb.edu.ph',
+    role: 'admin',
+    isActive: true,
+    isEmailVerified: true,
     adminProfile: {
-      employeeId: 'OSG-001',
-      department: 'Office of Scholarships and Grants',
-      position: 'Scholarship Coordinator',
-      accessLevel: AdminAccessLevel.UNIVERSITY,
-      permissions: [
-        'manage_scholarships',
-        'approve_applications',
-        'view_reports'
-      ]
+      firstName: 'Jose',
+      lastName: 'Reyes',
+      department: 'Office of Scholarships and Financial Assistance',
+      accessLevel: 'university'  // University level for OSFA
     }
   },
   {
-    email: 'cas.coordinator@up.edu.ph',
-    password: 'Coord123!',
-    firstName: 'CAS',
-    lastName: 'Coordinator',
-    role: UserRole.ADMIN,
+    email: 'cafs.admin@iskolarship.uplb.edu.ph',
+    role: 'admin',
+    isActive: true,
+    isEmailVerified: true,
     adminProfile: {
-      employeeId: 'CAS-001',
-      department: 'College of Arts and Sciences',
-      position: 'College Scholarship Coordinator',
-      accessLevel: AdminAccessLevel.COLLEGE,
-      permissions: [
-        'manage_scholarships',
-        'approve_applications',
-        'view_reports'
-      ]
+      firstName: 'Elena',
+      lastName: 'Cruz',
+      department: 'College of Agriculture and Food Science',
+      accessLevel: 'college'  // College level access
     }
   }
 ];
 
 // =============================================================================
-// Seed Function
+// Helper Functions
 // =============================================================================
 
-const seedUsers = async () => {
-  try {
-    console.log('🔌 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
+// Generate student number
+const generateStudentNumber = (year, index) => {
+  const yearPart = year.toString();
+  const indexPart = (index + 1).toString().padStart(5, '0');
+  return `${yearPart}-${indexPart}`;
+};
 
-    // Clear existing users
-    console.log('🗑️  Clearing existing users...');
-    await User.deleteMany({});
-    console.log('✅ Cleared existing users');
+// Random from array
+const randomFrom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-    // Hash passwords and prepare users
-    console.log('🔐 Hashing passwords...');
-    const salt = await bcrypt.genSalt(10);
+// Random number in range
+const randomBetween = (min, max) => Math.random() * (max - min) + min;
 
-    const preparedStudents = await Promise.all(
-      studentsData.map(async (student) => ({
-        ...student,
-        password: await bcrypt.hash(student.password, salt)
-      }))
-    );
+// Round GWA to 2 decimal places
+const roundGWA = (gwa) => Math.round(gwa * 100) / 100;
 
-    const preparedAdmins = await Promise.all(
-      adminsData.map(async (admin) => ({
-        ...admin,
-        password: await bcrypt.hash(admin.password, salt)
-      }))
-    );
-
-    // Insert students
-    console.log('👨‍🎓 Inserting students...');
-    const studentsResult = await User.insertMany(preparedStudents);
-    console.log(`✅ Successfully inserted ${studentsResult.length} students`);
-
-    // Insert admins
-    console.log('👤 Inserting admins...');
-    const adminsResult = await User.insertMany(preparedAdmins);
-    console.log(`✅ Successfully inserted ${adminsResult.length} admins`);
-
-    // Summary
-    console.log('\n📊 User Summary:');
-    console.log(`   Students: ${studentsResult.length}`);
-    console.log(`   Admins: ${adminsResult.length}`);
-    console.log(`   Total: ${studentsResult.length + adminsResult.length}`);
-
-    // College distribution
-    console.log('\n🏛️  Students by College:');
-    const collegeStats = await User.aggregate([
-      { $match: { role: 'student' } },
-      { $group: { _id: '$studentProfile.college', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-    collegeStats.forEach(item => {
-      console.log(`   ${item._id}: ${item.count}`);
-    });
-
-    console.log('\n🎉 User seeding completed successfully!');
-
-  } catch (error) {
-    console.error('❌ Error seeding users:', error);
-  } finally {
-    await mongoose.connection.close();
-    console.log('🔌 Disconnected from MongoDB');
+// Generate random units based on classification
+const getUnitsForClassification = (classification) => {
+  switch (classification) {
+    case Classification.INCOMING_FRESHMAN: return 0;
+    case Classification.FRESHMAN: return Math.floor(randomBetween(15, 30));
+    case Classification.SOPHOMORE: return Math.floor(randomBetween(31, 60));
+    case Classification.JUNIOR: return Math.floor(randomBetween(61, 100));
+    case Classification.SENIOR: return Math.floor(randomBetween(101, 150));
+    case Classification.GRADUATE: return Math.floor(randomBetween(150, 180));
+    default: return 0;
   }
 };
 
-// Run the seed
-seedUsers();
+// =============================================================================
+// Course Mappings by College
+// =============================================================================
+
+const coursesByCollege = {
+  [UPLBCollege.CAFS]: [
+    'BS Agriculture',
+    'BS Agricultural Biotechnology',
+    'BS Agricultural Chemistry',
+    'BS Food Technology'
+  ],
+  [UPLBCollege.CAS]: [
+    'BS Biology',
+    'BS Chemistry',
+    'BS Mathematics',
+    'BS Applied Mathematics',
+    'BS Statistics',
+    'BS Computer Science',
+    'BS Applied Physics'
+  ],
+  [UPLBCollege.CDC]: [
+    'BS Human Ecology',
+    'BS Development Communication'
+  ],
+  [UPLBCollege.CEAT]: [
+    'BS Civil Engineering',
+    'BS Chemical Engineering',
+    'BS Electrical Engineering',
+    'BS Mechanical Engineering',
+    'BS Agricultural and Biosystems Engineering',
+    'BS Computer Engineering'
+  ],
+  [UPLBCollege.CEM]: [
+    'BS Economics',
+    'BS Agricultural Economics',
+    'BS Agribusiness Management',
+    'BS Accountancy'
+  ],
+  [UPLBCollege.CFNR]: [
+    'BS Forestry',
+    'BS Geo-informatics'
+  ],
+  [UPLBCollege.CHE]: [
+    'BS Nutrition',
+    'BS Food Science',
+    'BS Family Life and Child Development'
+  ],
+  [UPLBCollege.CVM]: [
+    'Doctor of Veterinary Medicine'
+  ],
+  [UPLBCollege.GRADUATE]: [
+    'MS Biology',
+    'MS Chemistry',
+    'MS Agriculture',
+    'PhD Forestry'
+  ]
+};
+
+// =============================================================================
+// Major Mappings (for specific courses)
+// =============================================================================
+
+const majorsByCourse = {
+  'BS Agriculture': ['Animal Science', 'Crop Science', 'Entomology', 'Plant Pathology', 'Weed Science', 'Horticulture', 'Soil Science'],
+  'BS Biology': ['Cell Biology', 'Ecology', 'Genetics', 'Microbiology', 'Zoology'],
+  'BS Mathematics and Science Teaching': ['Biology', 'Chemistry', 'Mathematics', 'Physics'],
+  'BS Forestry': ['Forest Resources Management', 'Social Forestry'],
+  'BS Nutrition': ['Clinical Nutrition', 'Community Nutrition']
+};
+
+// =============================================================================
+// Filipino Names
+// =============================================================================
+
+const firstNames = [
+  'Juan', 'Maria', 'Jose', 'Ana', 'Pedro', 'Rosa', 'Carlos', 'Elena',
+  'Miguel', 'Sofia', 'Antonio', 'Isabella', 'Francisco', 'Gabriela', 'Manuel',
+  'Carmen', 'Rafael', 'Patricia', 'Fernando', 'Andrea', 'Ricardo', 'Beatriz',
+  'Eduardo', 'Cristina', 'Luis', 'Daniela', 'Marco', 'Victoria', 'Pablo',
+  'Angelica', 'Diego', 'Maricel', 'Adrian', 'Jasmine', 'Benedict', 'Kate',
+  'Christian', 'Nicole', 'Daniel', 'Samantha', 'Elijah', 'Trisha', 'Gabriel',
+  'Bianca', 'Joshua', 'Clarisse', 'Kevin', 'Diana', 'Mark', 'Erica',
+  'Nathan', 'Frances', 'Oliver', 'Grace', 'Patrick', 'Hannah', 'Quincy',
+  'Irene', 'Ryan', 'Julia', 'Stephen', 'Katrina', 'Timothy', 'Liza',
+  'Vincent', 'Monica', 'William', 'Nina', 'Xavier', 'Olivia', 'Zachary', 'Paula'
+];
+
+const lastNames = [
+  'Santos', 'Reyes', 'Cruz', 'Bautista', 'Aquino', 'Garcia', 'Mendoza',
+  'Torres', 'Gonzales', 'Ramos', 'Fernandez', 'Lopez', 'Martinez', 'Perez',
+  'Rivera', 'Villanueva', 'Dela Cruz', 'Del Rosario', 'Castillo', 'Soriano',
+  'Tan', 'Lim', 'Chua', 'Sy', 'Ong', 'Go', 'Co', 'Yap', 'Ang', 'Lee',
+  'Hernandez', 'Francisco', 'Pascual', 'Diaz', 'Castro', 'Mercado', 'Salvador',
+  'Ignacio', 'Manalo', 'Navarro', 'Aguilar', 'Santiago', 'Valdez', 'Morales',
+  'Padilla', 'Salazar', 'Domingo', 'Flores', 'Luna', 'Medina'
+];
+
+const middleNames = [
+  'Andres', 'Bernardo', 'Carlos', 'David', 'Enrique', 'Felix', 'Gregorio',
+  'Hernando', 'Ignacio', 'Jorge', 'Lorenzo', 'Miguel', 'Nicolas', 'Oscar',
+  'Pablo', 'Ramon', 'Salvador', 'Teodoro', 'Vicente', 'Alejandro',
+  'Maria', 'Ana', 'Rosa', 'Elena', 'Sofia', 'Isabel', 'Carmen', 'Lucia',
+  'Teresa', 'Angela', 'Rosario', 'Concepcion', 'Esperanza', 'Pilar'
+];
+
+// =============================================================================
+// Address Templates
+// =============================================================================
+
+const barangays = [
+  'Barangay 1', 'Barangay 2', 'Barangay 3', 'Poblacion', 'San Jose',
+  'San Antonio', 'San Miguel', 'Santo Niño', 'Bagong Silang', 'Maligaya',
+  'Mabuhay', 'Masagana', 'Masaya', 'Maginhawa', 'Mapayapa'
+];
+
+const cities = [
+  'Los Baños', 'Calamba', 'San Pablo', 'Bay', 'Santa Cruz',
+  'Biñan', 'Cabuyao', 'Victoria', 'Pila', 'Calauan'
+];
+
+const generateAddress = (province) => {
+  const number = Math.floor(Math.random() * 500) + 1;
+  const streetName = randomFrom(['Rizal', 'Mabini', 'Bonifacio', 'Luna', 'Aguinaldo', 'Quezon', 'Laurel']);
+  const street = `${number} ${streetName} Street`;
+  const barangay = randomFrom(barangays);
+  const city = province === 'Laguna' ? randomFrom(cities) : `${province} City`;
+  const zipCode = String(Math.floor(Math.random() * 9000) + 1000);
+  
+  return {
+    street,
+    barangay,
+    city,
+    province,
+    zipCode,
+    fullAddress: `${street}, ${barangay}, ${city}, ${province} ${zipCode}`
+  };
+};
+
+// =============================================================================
+// Generate 50+ Student Users
+// =============================================================================
+
+const generateStudentData = () => {
+  const students = [];
+  const baseYear = 2021;
+  
+  // Distribution of students across classifications
+  const classificationDistribution = [
+    { classification: Classification.FRESHMAN, count: 8 },
+    { classification: Classification.SOPHOMORE, count: 12 },
+    { classification: Classification.JUNIOR, count: 15 },
+    { classification: Classification.SENIOR, count: 15 },
+    { classification: Classification.GRADUATE, count: 5 }
+  ];
+
+  let studentIndex = 0;
+
+  classificationDistribution.forEach(({ classification, count }) => {
+    for (let i = 0; i < count; i++) {
+      // Determine year based on classification
+      let enrollmentYear;
+      switch (classification) {
+        case Classification.FRESHMAN: enrollmentYear = 2024; break;
+        case Classification.SOPHOMORE: enrollmentYear = 2023; break;
+        case Classification.JUNIOR: enrollmentYear = 2022; break;
+        case Classification.SENIOR: enrollmentYear = 2021; break;
+        case Classification.GRADUATE: enrollmentYear = 2020; break;
+        default: enrollmentYear = 2023;
+      }
+
+      // Select college and course
+      const college = randomFrom(Object.values(UPLBCollege).filter(c => c !== UPLBCollege.GRADUATE));
+      const coursesForCollege = coursesByCollege[college] || ['BS Agriculture'];
+      const course = randomFrom(coursesForCollege);
+      
+      // Determine major if applicable
+      const majors = majorsByCourse[course];
+      const major = majors ? randomFrom(majors) : null;
+
+      // Generate GWA (realistic distribution - most students between 1.5-2.5)
+      const gwaDistribution = Math.random();
+      let gwa;
+      if (gwaDistribution < 0.15) {
+        gwa = roundGWA(randomBetween(1.0, 1.5)); // Dean's lister
+      } else if (gwaDistribution < 0.5) {
+        gwa = roundGWA(randomBetween(1.51, 2.0)); // Above average
+      } else if (gwaDistribution < 0.85) {
+        gwa = roundGWA(randomBetween(2.01, 2.5)); // Average
+      } else {
+        gwa = roundGWA(randomBetween(2.51, 3.0)); // Below average
+      }
+
+      // Generate income (realistic distribution)
+      const incomeDistribution = Math.random();
+      let familyIncome;
+      if (incomeDistribution < 0.25) {
+        familyIncome = Math.floor(randomBetween(50000, 150000)); // Low income
+      } else if (incomeDistribution < 0.55) {
+        familyIncome = Math.floor(randomBetween(150001, 250000)); // Lower middle
+      } else if (incomeDistribution < 0.8) {
+        familyIncome = Math.floor(randomBetween(250001, 400000)); // Middle
+      } else {
+        familyIncome = Math.floor(randomBetween(400001, 800000)); // Upper middle
+      }
+
+      // Determine ST Bracket based on income
+      let stBracket;
+      if (familyIncome <= 100000) {
+        stBracket = STBracket.FULL_DISCOUNT_WITH_STIPEND;
+      } else if (familyIncome <= 150000) {
+        stBracket = STBracket.FULL_DISCOUNT;
+      } else if (familyIncome <= 200000) {
+        stBracket = STBracket.PD80;
+      } else if (familyIncome <= 300000) {
+        stBracket = STBracket.PD60;
+      } else if (familyIncome <= 400000) {
+        stBracket = STBracket.PD40;
+      } else if (familyIncome <= 500000) {
+        stBracket = STBracket.PD20;
+      } else {
+        stBracket = STBracket.NO_DISCOUNT;
+      }
+
+      // Select province with some bias toward specific provinces for location-based scholarships
+      let province;
+      const provinceRandom = Math.random();
+      if (provinceRandom < 0.1) {
+        province = 'Laguna'; // Local students
+      } else if (provinceRandom < 0.15) {
+        province = 'Ilocos Sur'; // For Dr. Tuazon scholarship
+      } else if (provinceRandom < 0.2) {
+        province = 'Sorsogon'; // For Dr. Ables scholarship
+      } else if (provinceRandom < 0.25) {
+        province = 'Camarines Sur'; // For Dr. Ables scholarship
+      } else {
+        province = randomFrom(PhilippineProvinces);
+      }
+
+      // Names
+      const firstName = randomFrom(firstNames);
+      const lastName = randomFrom(lastNames);
+      const middleName = randomFrom(middleNames);
+
+      // Academic status flags
+      const hasFailingGrade = Math.random() < 0.1;
+      const hasGradeOf4 = Math.random() < 0.15;
+      const hasGradeOf5 = Math.random() < 0.05;
+      const hasIncompleteGrade = Math.random() < 0.1;
+      const hasDisciplinaryAction = Math.random() < 0.05;
+      const hasOtherScholarship = Math.random() < 0.2;
+
+      // Thesis-related (for seniors)
+      const hasApprovedThesisOutline = classification === Classification.SENIOR && Math.random() < 0.6;
+      const hasThesisGrant = hasApprovedThesisOutline && Math.random() < 0.3;
+
+      students.push({
+        email: `student${studentIndex + 1}@up.edu.ph`,
+        role: 'student',
+        isActive: true,
+        isEmailVerified: true,
+        studentProfile: {
+          studentNumber: generateStudentNumber(enrollmentYear, studentIndex),
+          firstName,
+          lastName,
+          middleName,
+          suffix: Math.random() < 0.05 ? randomFrom(['Jr.', 'II', 'III']) : null,
+          homeAddress: generateAddress(province),
+          provinceOfOrigin: province,
+          college,
+          course,
+          major,
+          classification,
+          gwa,
+          unitsEnrolled: Math.floor(randomBetween(15, 21)),
+          unitsPassed: getUnitsForClassification(classification),
+          familyAnnualIncome: familyIncome,
+          stBracket,
+          citizenship: Citizenship.FILIPINO,
+          hasFailingGrade,
+          hasGradeOf4,
+          hasGradeOf5,
+          hasIncompleteGrade,
+          hasDisciplinaryAction,
+          hasOtherScholarship,
+          hasApprovedThesisOutline,
+          hasThesisGrant,
+          isGraduating: classification === Classification.SENIOR && Math.random() < 0.7
+        }
+      });
+
+      studentIndex++;
+    }
+  });
+
+  // Add specific students to ensure scholarship eligibility testing
+  
+  // Student eligible for Sterix HOPE Thesis Grant
+  students.push({
+    email: 'sterix.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2021-00100',
+      firstName: 'Angela',
+      lastName: 'Reyes',
+      middleName: 'Maria',
+      homeAddress: {
+        street: '123 University Ave',
+        barangay: 'Anos',
+        city: 'Los Baños',
+        province: 'Laguna',
+        zipCode: '4030',
+        fullAddress: '123 University Ave, Anos, Los Baños, Laguna 4030'
+      },
+      provinceOfOrigin: 'Laguna',
+      college: UPLBCollege.CAS,
+      course: 'BS Biology',
+      major: 'Entomology',
+      classification: Classification.SENIOR,
+      gwa: 1.85,
+      unitsEnrolled: 18,
+      unitsPassed: 120,
+      familyAnnualIncome: 180000,
+      stBracket: STBracket.PD80,
+      citizenship: Citizenship.FILIPINO,
+      hasApprovedThesisOutline: true,
+      hasThesisGrant: false,
+      isGraduating: true,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student eligible for Dr. Tuazon Scholarship (Chemistry, Ilocos Sur)
+  students.push({
+    email: 'tuazon.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2022-00101',
+      firstName: 'Roberto',
+      lastName: 'Valdez',
+      middleName: 'Jose',
+      homeAddress: {
+        street: '456 Rizal Street',
+        barangay: 'Poblacion',
+        city: 'Vigan',
+        province: 'Ilocos Sur',
+        zipCode: '2700',
+        fullAddress: '456 Rizal Street, Poblacion, Vigan, Ilocos Sur 2700'
+      },
+      provinceOfOrigin: 'Ilocos Sur',
+      college: UPLBCollege.CAS,
+      course: 'BS Chemistry',
+      classification: Classification.JUNIOR,
+      gwa: 2.15,
+      unitsEnrolled: 18,
+      unitsPassed: 85,
+      familyAnnualIncome: 120000,
+      stBracket: STBracket.FULL_DISCOUNT,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student eligible for Dr. Ables Scholarship (Sorsogon)
+  students.push({
+    email: 'ables.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2023-00102',
+      firstName: 'Marisa',
+      lastName: 'Espinosa',
+      middleName: 'Carmen',
+      homeAddress: {
+        street: '789 Bonifacio Street',
+        barangay: 'Polvorista',
+        city: 'Sorsogon City',
+        province: 'Sorsogon',
+        zipCode: '4700',
+        fullAddress: '789 Bonifacio Street, Polvorista, Sorsogon City, Sorsogon 4700'
+      },
+      provinceOfOrigin: 'Sorsogon',
+      college: UPLBCollege.CEAT,
+      course: 'BS Civil Engineering',
+      classification: Classification.SOPHOMORE,
+      gwa: 1.95,
+      unitsEnrolled: 21,
+      unitsPassed: 45,
+      familyAnnualIncome: 130000,
+      stBracket: STBracket.FULL_DISCOUNT,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student eligible for BASF Scholarship (Agriculture Crop Protection Sophomore)
+  students.push({
+    email: 'basf.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2023-00103',
+      firstName: 'Jerome',
+      lastName: 'Santos',
+      middleName: 'Miguel',
+      homeAddress: {
+        street: '321 Luna Street',
+        barangay: 'Poblacion',
+        city: 'Batangas City',
+        province: 'Batangas',
+        zipCode: '4200',
+        fullAddress: '321 Luna Street, Poblacion, Batangas City, Batangas 4200'
+      },
+      provinceOfOrigin: 'Batangas',
+      college: UPLBCollege.CAFS,
+      course: 'BS Agriculture',
+      major: 'Entomology',
+      classification: Classification.SOPHOMORE,
+      gwa: 1.75,
+      unitsEnrolled: 18,
+      unitsPassed: 38,
+      familyAnnualIncome: 280000,
+      stBracket: STBracket.PD60,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student eligible for CHE Alumni Thesis Grant
+  students.push({
+    email: 'che.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2021-00104',
+      firstName: 'Patricia',
+      lastName: 'Fernandez',
+      middleName: 'Elena',
+      homeAddress: {
+        street: '555 Mabini Street',
+        barangay: 'Poblacion',
+        city: 'Calamba',
+        province: 'Laguna',
+        zipCode: '4027',
+        fullAddress: '555 Mabini Street, Poblacion, Calamba, Laguna 4027'
+      },
+      provinceOfOrigin: 'Laguna',
+      college: UPLBCollege.CHE,
+      course: 'BS Nutrition',
+      classification: Classification.SENIOR,
+      gwa: 1.65,
+      unitsEnrolled: 15,
+      unitsPassed: 135,
+      familyAnnualIncome: 95000,
+      stBracket: STBracket.FULL_DISCOUNT_WITH_STIPEND,
+      citizenship: Citizenship.FILIPINO,
+      hasApprovedThesisOutline: true,
+      hasThesisGrant: false,
+      isGraduating: true,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student eligible for DOST-SEI (High GWA in Science course)
+  students.push({
+    email: 'dost.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2024-00105',
+      firstName: 'Gabriel',
+      lastName: 'Aquino',
+      middleName: 'Rafael',
+      homeAddress: {
+        street: '888 Quezon Street',
+        barangay: 'San Antonio',
+        city: 'Makati',
+        province: 'Metro Manila',
+        zipCode: '1200',
+        fullAddress: '888 Quezon Street, San Antonio, Makati, Metro Manila 1200'
+      },
+      provinceOfOrigin: 'Metro Manila',
+      college: UPLBCollege.CAS,
+      course: 'BS Computer Science',
+      classification: Classification.FRESHMAN,
+      gwa: 1.25,
+      unitsEnrolled: 18,
+      unitsPassed: 18,
+      familyAnnualIncome: 350000,
+      stBracket: STBracket.PD40,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student eligible for CDO Odyssey (Forestry Junior)
+  students.push({
+    email: 'cdo.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2022-00106',
+      firstName: 'Marco',
+      lastName: 'Villanueva',
+      middleName: 'Antonio',
+      homeAddress: {
+        street: '777 Laurel Street',
+        barangay: 'Carmen',
+        city: 'Cagayan de Oro',
+        province: 'Misamis Oriental',
+        zipCode: '9000',
+        fullAddress: '777 Laurel Street, Carmen, Cagayan de Oro, Misamis Oriental 9000'
+      },
+      provinceOfOrigin: 'Misamis Oriental',
+      college: UPLBCollege.CFNR,
+      course: 'BS Forestry',
+      classification: Classification.JUNIOR,
+      gwa: 2.35,
+      unitsEnrolled: 18,
+      unitsPassed: 75,
+      familyAnnualIncome: 200000,
+      stBracket: STBracket.PD80,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student eligible for IMS Program (Math Junior)
+  students.push({
+    email: 'ims.eligible@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2022-00107',
+      firstName: 'Sophia',
+      lastName: 'Tan',
+      middleName: 'Grace',
+      homeAddress: {
+        street: '444 Aguinaldo Street',
+        barangay: 'Diliman',
+        city: 'Quezon City',
+        province: 'Metro Manila',
+        zipCode: '1100',
+        fullAddress: '444 Aguinaldo Street, Diliman, Quezon City, Metro Manila 1100'
+      },
+      provinceOfOrigin: 'Metro Manila',
+      college: UPLBCollege.CAS,
+      course: 'BS Applied Mathematics',
+      classification: Classification.JUNIOR,
+      gwa: 1.55,
+      unitsEnrolled: 18,
+      unitsPassed: 80,
+      familyAnnualIncome: 140000,
+      stBracket: STBracket.FULL_DISCOUNT,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student with failing grades (should be ineligible for most)
+  students.push({
+    email: 'failing.student@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2022-00108',
+      firstName: 'Paulo',
+      lastName: 'Mendoza',
+      middleName: 'Jose',
+      homeAddress: {
+        street: '999 Test Street',
+        barangay: 'Batong Malake',
+        city: 'Los Baños',
+        province: 'Laguna',
+        zipCode: '4030',
+        fullAddress: '999 Test Street, Batong Malake, Los Baños, Laguna 4030'
+      },
+      provinceOfOrigin: 'Laguna',
+      college: UPLBCollege.CAFS,
+      course: 'BS Agriculture',
+      major: 'Animal Science',
+      classification: Classification.JUNIOR,
+      gwa: 2.85,
+      unitsEnrolled: 15,
+      unitsPassed: 60,
+      familyAnnualIncome: 180000,
+      stBracket: STBracket.PD80,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: true,
+      hasGradeOf4: true,
+      hasGradeOf5: false,
+      hasIncompleteGrade: true,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: false
+    }
+  });
+
+  // Student with existing scholarship (should be ineligible for exclusive ones)
+  students.push({
+    email: 'has.scholarship@up.edu.ph',
+    role: 'student',
+    isActive: true,
+    isEmailVerified: true,
+    studentProfile: {
+      studentNumber: '2021-00109',
+      firstName: 'Diana',
+      lastName: 'Garcia',
+      middleName: 'Marie',
+      homeAddress: {
+        street: '111 Scholar Street',
+        barangay: 'Mayondon',
+        city: 'Los Baños',
+        province: 'Laguna',
+        zipCode: '4030',
+        fullAddress: '111 Scholar Street, Mayondon, Los Baños, Laguna 4030'
+      },
+      provinceOfOrigin: 'Laguna',
+      college: UPLBCollege.CAS,
+      course: 'BS Biology',
+      classification: Classification.SENIOR,
+      gwa: 1.45,
+      unitsEnrolled: 18,
+      unitsPassed: 125,
+      familyAnnualIncome: 200000,
+      stBracket: STBracket.PD80,
+      citizenship: Citizenship.FILIPINO,
+      hasFailingGrade: false,
+      hasGradeOf4: false,
+      hasGradeOf5: false,
+      hasIncompleteGrade: false,
+      hasDisciplinaryAction: false,
+      hasOtherScholarship: true
+    }
+  });
+
+  return students;
+};
+
+// =============================================================================
+// Seed Function
+// =============================================================================
+
+const seedUsers = async (User) => {
+  try {
+    await User.deleteMany({});
+    console.log('Cleared existing users');
+
+    const hashedPassword = await bcrypt.hash('password123', 10);
+
+    // Create admin users
+    const adminsWithPassword = adminUsers.map(admin => ({
+      ...admin,
+      password: hashedPassword
+    }));
+
+    // Create student users
+    const studentsData = generateStudentData();
+    const studentsWithPassword = studentsData.map(student => ({
+      ...student,
+      password: hashedPassword
+    }));
+
+    const allUsers = [...adminsWithPassword, ...studentsWithPassword];
+    const insertedUsers = await User.insertMany(allUsers);
+
+    console.log(`Inserted ${insertedUsers.length} users (${adminsWithPassword.length} admins, ${studentsWithPassword.length} students)`);
+
+    // Find and return admin user for scholarship seeding
+    const adminUser = insertedUsers.find(u => u.role === 'admin');
+    const studentUsers = insertedUsers.filter(u => u.role === 'student');
+
+    return {
+      adminUser,
+      studentUsers,
+      allUsers: insertedUsers
+    };
+  } catch (error) {
+    console.error('Error seeding users:', error);
+    throw error;
+  }
+};
+
+module.exports = {
+  adminUsers,
+  generateStudentData,
+  seedUsers
+};

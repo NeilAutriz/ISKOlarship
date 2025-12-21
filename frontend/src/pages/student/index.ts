@@ -1,7 +1,8 @@
 // ============================================================================
-// ISKOlarship - Student Pages Export
+// ISKOlarship - Student Pages Index
+// Export all student portal pages
 // ============================================================================
 
-export { default as StudentDashboard } from '../Dashboard';
-export { default as StudentApplications } from '../MyApplications';
-export { default as StudentProfile } from '../MyProfile';
+export { default as StudentDashboard } from './StudentDashboard';
+export { default as StudentApplications } from './StudentApplications';
+export { default as StudentProfile } from './StudentProfile';

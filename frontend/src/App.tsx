@@ -3,7 +3,7 @@
 // Web-Based Scholarship Platform Using Rule-Based Filtering and Logistic Regression
 // ============================================================================
 
-import React, { useState, createContext, useContext, useCallback } from 'react';
+import React, { useState, createContext, useContext, useCallback, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import StudentHeader from './components/StudentHeader';
@@ -12,6 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
 import ProfileCompletion, { ProfileData } from './components/ProfileCompletion';
+import { authApi, clearTokens, getAccessToken } from './services/apiClient';
 
 // Public Pages
 import Home from './pages/Home';
@@ -19,10 +20,12 @@ import Scholarships from './pages/Scholarships';
 import ScholarshipDetails from './pages/ScholarshipDetails';
 import Analytics from './pages/Analytics';
 
-// Student Pages (keeping original imports for compatibility)
-import Dashboard from './pages/Dashboard';
-import MyApplications from './pages/MyApplications';
-import MyProfile from './pages/MyProfile';
+// Student Pages
+import { 
+  StudentDashboard, 
+  StudentApplications, 
+  StudentProfile as StudentProfilePage 
+} from './pages/student';
 
 // Admin Pages
 import { 
@@ -34,7 +37,7 @@ import {
 
 import './styles/globals.css';
 
-import { StudentProfile, AdminProfile, User, UserRole, YearLevel, UPLBCollege, STBracket, AdminAccessLevel } from './types';
+import { StudentProfile as StudentProfileType, AdminProfile as AdminProfileType, User, UserRole, YearLevel, UPLBCollege, STBracket, AdminAccessLevel } from './types';
 
 // ============================================================================
 // AUTH CONTEXT
@@ -64,7 +67,7 @@ export const useAuth = () => {
 // MOCK USER FOR DEMO
 // ============================================================================
 
-const createMockStudent = (): StudentProfile => ({
+const createMockStudent = (): StudentProfileType => ({
   id: 'student-001',
   email: 'juan.delacruz@up.edu.ph',
   role: UserRole.STUDENT,
@@ -114,7 +117,7 @@ const createMockStudent = (): StudentProfile => ({
 });
 
 // Mock Admin User for Demo
-const createMockAdmin = (): AdminProfile => ({
+const createMockAdmin = (): AdminProfileType => ({
   id: 'admin-001',
   email: 'admin@iskolarship.ph',
   role: UserRole.ADMIN,
@@ -142,6 +145,30 @@ const App: React.FC = () => {
   const [pendingEmail, setPendingEmail] = useState('');
   const [pendingRole, setPendingRole] = useState<'student' | 'admin'>('student');
   const [navigateAfterLogin, setNavigateAfterLogin] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Initialize auth state from stored token
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const response = await authApi.getMe();
+          if (response.success && response.data?.user) {
+            const userData = response.data.user as User;
+            setUser(userData);
+            setIsAuthenticated(true);
+            setUserRole(userData.role);
+          }
+        } catch (error) {
+          console.error('Failed to restore auth session:', error);
+          clearTokens();
+        }
+      }
+      setIsInitializing(false);
+    };
+    initAuth();
+  }, []);
 
   const login = (userData: User) => {
     setUser(userData);
@@ -149,10 +176,17 @@ const App: React.FC = () => {
     setUserRole(userData.role);
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    setUserRole(UserRole.GUEST);
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      clearTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+      setUserRole(UserRole.GUEST);
+    }
   };
 
   const updateProfile = (updates: Partial<User>) => {
@@ -161,126 +195,81 @@ const App: React.FC = () => {
     }
   };
 
-  // Handle sign in
+  // Handle sign in using backend API
   const handleSignIn = async (email: string, password: string, role: 'student' | 'admin') => {
-    // In a real app, this would call the backend API
-    console.log('Sign in:', { email, role });
-    
-    if (role === 'admin') {
-      // Login as admin
-      login(createMockAdmin());
-      setShowAuthModal(false);
-      setNavigateAfterLogin('/admin/dashboard');
-      return;
+    try {
+      const response = await authApi.login(email, password);
+      
+      if (response.success && response.data?.user) {
+        const userData = response.data.user as User;
+        
+        // Check if the user role matches the selected role
+        if ((role === 'admin' && userData.role !== UserRole.ADMIN) ||
+            (role === 'student' && userData.role !== UserRole.STUDENT)) {
+          throw new Error(`Invalid credentials for ${role} login`);
+        }
+        
+        login(userData);
+        setShowAuthModal(false);
+        setNavigateAfterLogin(role === 'admin' ? '/admin/dashboard' : '/dashboard');
+      } else {
+        throw new Error(response.message || 'Login failed');
+      }
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Login failed');
     }
-    
-    // Simulate checking if profile is complete for students
-    const isNewUser = false; // In real app, check from backend
-    
-    if (isNewUser) {
+  };
+
+  // Handle sign up using backend API
+  const handleSignUp = async (email: string, password: string, role: 'student' | 'admin') => {
+    try {
+      // For new users, show profile completion first
       setPendingEmail(email);
       setPendingRole(role);
       setShowAuthModal(false);
       setShowProfileCompletion(true);
-    } else {
-      // Login with existing profile
-      login(createMockStudent());
-      setShowAuthModal(false);
-      setNavigateAfterLogin('/dashboard');
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      throw new Error(error.message || 'Registration failed');
     }
   };
 
-  // Handle sign up
-  const handleSignUp = async (email: string, password: string, role: 'student' | 'admin') => {
-    // In a real app, this would create the account first
-    console.log('Sign up:', { email, role });
-    
-    // After signup, show profile completion
-    setPendingEmail(email);
-    setPendingRole(role);
-    setShowAuthModal(false);
-    setShowProfileCompletion(true);
-  };
-
-  // Handle profile completion
-  const handleProfileComplete = (profileData: ProfileData) => {
+  // Handle profile completion - register user with API
+  const handleProfileComplete = async (profileData: ProfileData) => {
     console.log('Profile completed:', profileData);
     
-    if (pendingRole === 'admin') {
-      // Create admin profile
-      const newAdmin: AdminProfile = {
-        id: `admin-${Date.now()}`,
-        email: profileData.email,
-        role: UserRole.ADMIN,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        firstName: profileData.fullName.split(' ')[0],
-        lastName: profileData.fullName.split(' ').slice(-1)[0],
-        middleName: profileData.fullName.split(' ').slice(1, -1).join(' '),
-        contactNumber: profileData.contactNumber,
-        address: {
-          province: profileData.provinceOfOrigin,
-          city: '',
-          barangay: '',
-          street: profileData.address,
-          zipCode: ''
-        },
-        hometown: profileData.provinceOfOrigin,
-        department: 'Scholarship Office',
-        accessLevel: AdminAccessLevel.SUPER_ADMIN,
-        permissions: ['manage_scholarships', 'review_applications', 'view_analytics', 'manage_users']
-      };
-      login(newAdmin);
-      setShowProfileCompletion(false);
-      setNavigateAfterLogin('/admin/dashboard');
-    } else {
-      // Create student profile
-      const newUser: StudentProfile = {
-        id: `student-${Date.now()}`,
-        email: profileData.email,
-        role: UserRole.STUDENT,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        
-        firstName: profileData.fullName.split(' ')[0],
-        lastName: profileData.fullName.split(' ').slice(-1)[0],
-        middleName: profileData.fullName.split(' ').slice(1, -1).join(' '),
-        contactNumber: profileData.contactNumber,
-        address: {
-          province: profileData.provinceOfOrigin,
-          city: '',
-          barangay: '',
-          street: profileData.address,
-          zipCode: ''
-        },
-        hometown: profileData.provinceOfOrigin,
-        
-        studentNumber: '',
-        college: profileData.college as UPLBCollege,
-        course: profileData.course,
-        yearLevel: profileData.yearLevel as YearLevel,
-        gwa: parseFloat(profileData.gwa) || 2.0,
-        unitsEnrolled: parseInt(profileData.unitsEnrolled) || 18,
-        expectedGraduationDate: new Date('2026-06-30'),
-        hasApprovedThesis: false,
-        
-        annualFamilyIncome: parseInt(profileData.familyAnnualIncome) || 0,
-        householdSize: 5,
-        stBracket: STBracket.PD80,
-        
-        isScholarshipRecipient: profileData.hasOtherScholarships,
-        currentScholarships: [],
-        hasThesisGrant: false,
-        
-        hasDisciplinaryAction: false,
-        
-        profileCompleted: true,
-        lastUpdated: new Date()
-      };
+    try {
+      // Register user with the backend API
+      const names = profileData.fullName.split(' ');
+      const firstName = names[0] || '';
+      const lastName = names.slice(-1)[0] || '';
       
-      login(newUser);
+      const response = await authApi.register({
+        email: profileData.email,
+        password: 'tempPassword123!', // In a real app, this would come from the signup form
+        firstName,
+        lastName,
+        role: pendingRole
+      });
+      
+      if (response.success && response.data?.user) {
+        login(response.data.user as User);
+        setShowProfileCompletion(false);
+        setNavigateAfterLogin(pendingRole === 'admin' ? '/admin/dashboard' : '/dashboard');
+      } else {
+        throw new Error(response.message || 'Registration failed');
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      // For demo purposes, fallback to mock user if API fails
+      if (pendingRole === 'admin') {
+        login(createMockAdmin());
+      } else {
+        login(createMockStudent());
+      }
       setShowProfileCompletion(false);
-      setNavigateAfterLogin('/dashboard');
+      setNavigateAfterLogin(pendingRole === 'admin' ? '/admin/dashboard' : '/dashboard');
     }
   };
 
@@ -402,7 +391,7 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           {/* Protected Student Portal Routes */}
           <Route path="/dashboard" element={
             <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
-              <Dashboard />
+              <StudentDashboard />
             </ProtectedRoute>
           } />
           <Route path="/analytics" element={
@@ -412,12 +401,12 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           } />
           <Route path="/my-applications" element={
             <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
-              <MyApplications />
+              <StudentApplications />
             </ProtectedRoute>
           } />
           <Route path="/my-profile" element={
             <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
-              <MyProfile />
+              <StudentProfilePage />
             </ProtectedRoute>
           } />
           

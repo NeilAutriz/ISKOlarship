@@ -14,7 +14,7 @@ import {
   Award,
   GraduationCap
 } from 'lucide-react';
-import { scholarships } from '../data/scholarships';
+import { scholarshipApi } from '../services/apiClient';
 import { Scholarship } from '../types';
 
 interface SearchBarProps {
@@ -54,17 +54,28 @@ const SearchBar: React.FC<SearchBarProps> = ({
     }
   };
 
-  // Update suggestions based on query
+  // Update suggestions based on query using API
   useEffect(() => {
-    if (query.length >= 2 && showSuggestions) {
-      const filtered = scholarships.filter(s =>
-        s.name.toLowerCase().includes(query.toLowerCase()) ||
-        s.sponsor.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 5);
-      setSuggestions(filtered);
-    } else {
-      setSuggestions([]);
-    }
+    const fetchSuggestions = async () => {
+      if (query.length >= 2 && showSuggestions) {
+        try {
+          const response = await scholarshipApi.getAll({ search: query, limit: 5 });
+          if (response.success && response.data?.scholarships) {
+            setSuggestions(response.data.scholarships);
+          } else {
+            setSuggestions([]);
+          }
+        } catch {
+          setSuggestions([]);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    };
+
+    // Debounce the API call
+    const timeoutId = setTimeout(fetchSuggestions, 300);
+    return () => clearTimeout(timeoutId);
   }, [query, showSuggestions]);
 
   // Handle click outside to close suggestions

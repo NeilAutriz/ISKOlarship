@@ -1,10 +1,11 @@
 // =============================================================================
 // ISKOlarship - Scholarship Model
 // Based on ERD: Scholarship entity with eligibility criteria
+// Aligned with Research Paper Entity Relationship Diagram
 // =============================================================================
 
 const mongoose = require('mongoose');
-const { UPLBCollege, YearLevel, STBracket } = require('./User.model');
+const { UPLBCollege, Classification, STBracket, Citizenship } = require('./User.model');
 
 // =============================================================================
 // Scholarship Types (from research paper)
@@ -18,6 +19,7 @@ const ScholarshipType = {
   THESIS_GRANT: 'Thesis/Research Grant'
 };
 
+// scholarship_status (from ERD)
 const ScholarshipStatus = {
   DRAFT: 'draft',
   ACTIVE: 'active',
@@ -26,11 +28,17 @@ const ScholarshipStatus = {
 };
 
 // =============================================================================
-// Eligibility Criteria Sub-Schema
+// Eligibility Criteria Sub-Schema (from ERD)
+// Maps to: eligible_gwa, eligible_classification, eligible_income, 
+// eligible_college, eligible_courses, eligible_citizenship
 // =============================================================================
 
 const eligibilityCriteriaSchema = new mongoose.Schema({
-  // Academic Requirements
+  // =========================================================================
+  // Academic Requirements (from ERD)
+  // =========================================================================
+  
+  // eligible_gwa (from ERD) - Minimum GWA required
   minGWA: {
     type: Number,
     min: 1.0,
@@ -39,164 +47,314 @@ const eligibilityCriteriaSchema = new mongoose.Schema({
   maxGWA: {
     type: Number,
     min: 1.0,
-    max: 5.0
+    max: 5.0,
+    default: 5.0
   },
-  requiredYearLevels: [{
+  
+  // eligible_classification (from ERD) - Required year levels
+  eligibleClassifications: [{
     type: String,
-    enum: Object.values(YearLevel)
+    enum: Object.values(Classification)
   }],
-  minUnitsEnrolled: Number,
+  
+  // Minimum units enrolled requirement
+  minUnitsEnrolled: {
+    type: Number,
+    min: 0
+  },
+  
+  // Minimum units passed (for thesis grants)
+  minUnitsPassed: {
+    type: Number,
+    min: 0
+  },
+  
+  // eligible_college (from ERD) - Eligible colleges
   eligibleColleges: [{
     type: String,
     enum: Object.values(UPLBCollege)
   }],
+  
+  // eligible_courses (from ERD) - Specific courses
   eligibleCourses: [String],
+  
+  // Specific majors within courses
   eligibleMajors: [String],
   
-  // Financial Requirements
-  maxAnnualFamilyIncome: Number,
-  minAnnualFamilyIncome: Number,
-  requiredSTBrackets: [{
+  // =========================================================================
+  // Financial Requirements (from ERD)
+  // =========================================================================
+  
+  // eligible_income (from ERD) - Maximum family income
+  maxAnnualFamilyIncome: {
+    type: Number,
+    min: 0
+  },
+  minAnnualFamilyIncome: {
+    type: Number,
+    min: 0
+  },
+  
+  // Required ST Brackets
+  eligibleSTBrackets: [{
     type: String,
     enum: Object.values(STBracket)
   }],
   
-  // Location Requirements
+  // =========================================================================
+  // Location Requirements (from ERD - via province_of_origin)
+  // =========================================================================
+  
+  // Eligible provinces (for location-based scholarships)
   eligibleProvinces: [String],
   
-  // Other Requirements
-  requiresApprovedThesis: {
+  // =========================================================================
+  // Citizenship Requirements (from ERD)
+  // =========================================================================
+  
+  // eligible_citizenship (from ERD)
+  eligibleCitizenship: [{
+    type: String,
+    enum: Object.values(Citizenship)
+  }],
+  
+  // =========================================================================
+  // Academic Status Requirements
+  // =========================================================================
+  
+  // Requires approved thesis outline
+  requiresApprovedThesisOutline: {
     type: Boolean,
     default: false
   },
+  
+  // Must not have other scholarship
   mustNotHaveOtherScholarship: {
     type: Boolean,
     default: false
   },
+  
+  // Must not have thesis grant (for non-thesis scholarships)
   mustNotHaveThesisGrant: {
     type: Boolean,
     default: false
   },
+  
+  // Must not have disciplinary action
   mustNotHaveDisciplinaryAction: {
     type: Boolean,
     default: false
   },
+  
+  // Must not have failing grades (grade of 5)
   mustNotHaveFailingGrade: {
     type: Boolean,
     default: false
   },
-  isFilipinoOnly: {
+  
+  // Must not have grade of 4
+  mustNotHaveGradeOf4: {
     type: Boolean,
-    default: true
+    default: false
   },
   
-  // Additional custom requirements (free text)
-  additionalRequirements: [String]
+  // Must not have incomplete grade
+  mustNotHaveIncompleteGrade: {
+    type: Boolean,
+    default: false
+  },
+  
+  // Must be graduating this semester
+  mustBeGraduating: {
+    type: Boolean,
+    default: false
+  },
+  
+  // =========================================================================
+  // Additional Custom Requirements
+  // =========================================================================
+  
+  additionalRequirements: [{
+    description: String,
+    isRequired: {
+      type: Boolean,
+      default: true
+    }
+  }]
 }, { _id: false });
 
 // =============================================================================
-// Scholarship Schema
+// Scholarship Schema (from ERD)
 // =============================================================================
 
 const scholarshipSchema = new mongoose.Schema({
-  // Basic Information
+  // =========================================================================
+  // Basic Information (from ERD)
+  // scholarship_id: auto-generated (_id)
+  // =========================================================================
+  
+  // name (from ERD)
   name: {
     type: String,
     required: [true, 'Scholarship name is required'],
     trim: true,
     maxlength: [200, 'Name cannot exceed 200 characters']
   },
+  
+  // description (from ERD)
   description: {
     type: String,
     required: [true, 'Description is required'],
-    maxlength: [2000, 'Description cannot exceed 2000 characters']
+    maxlength: [3000, 'Description cannot exceed 3000 characters']
   },
+  
+  // Sponsor organization
   sponsor: {
     type: String,
     required: [true, 'Sponsor is required'],
     trim: true
   },
+  
+  // Scholarship type
   type: {
     type: String,
     enum: Object.values(ScholarshipType),
     required: [true, 'Scholarship type is required']
   },
   
-  // Financial Details
-  awardAmount: {
+  // =========================================================================
+  // Financial Details (from ERD)
+  // =========================================================================
+  
+  // total_grant (from ERD) - Award amount
+  totalGrant: {
     type: Number,
     min: 0
   },
-  awardDescription: String,
   
-  // Eligibility
+  // Award description (e.g., "₱100,000/year", "Full tuition")
+  awardDescription: {
+    type: String,
+    trim: true
+  },
+  
+  // =========================================================================
+  // Eligibility Criteria (from ERD)
+  // =========================================================================
+  
   eligibilityCriteria: {
     type: eligibilityCriteriaSchema,
     required: true
   },
   
+  // =========================================================================
   // Required Documents
-  requirements: [{
-    type: String,
-    trim: true
+  // =========================================================================
+  
+  requiredDocuments: [{
+    name: {
+      type: String,
+      required: true
+    },
+    description: String,
+    isRequired: {
+      type: Boolean,
+      default: true
+    }
   }],
   
-  // Timeline
+  // =========================================================================
+  // Timeline (from ERD)
+  // =========================================================================
+  
+  // deadline (from ERD)
   applicationDeadline: {
     type: Date,
     required: [true, 'Application deadline is required']
   },
+  
+  // Application start date
+  applicationStartDate: {
+    type: Date
+  },
+  
+  // Academic year context
   academicYear: {
     type: String,
     required: [true, 'Academic year is required'],
     match: [/^\d{4}-\d{4}$/, 'Academic year must be in format YYYY-YYYY']
   },
+  
   semester: {
     type: String,
     enum: ['First', 'Second', 'Midyear'],
     required: true
   },
   
+  // =========================================================================
   // Capacity
+  // =========================================================================
+  
+  // Number of available slots
   slots: {
     type: Number,
     min: 0
   },
+  
+  // Filled slots count
   filledSlots: {
     type: Number,
     default: 0,
     min: 0
   },
   
-  // Status
+  // =========================================================================
+  // Status (from ERD)
+  // =========================================================================
+  
+  // scholarship_status (from ERD)
   status: {
     type: String,
     enum: Object.values(ScholarshipStatus),
     default: ScholarshipStatus.DRAFT
   },
+  
   isActive: {
     type: Boolean,
     default: true
   },
   
-  // Metadata
+  // =========================================================================
+  // Metadata (from ERD - admin_id relationship)
+  // =========================================================================
+  
+  // admin_id (from ERD) - Created by admin
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
+  
   lastModifiedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
   
-  // Tags for search/filtering
-  tags: [String],
-  
+  // =========================================================================
   // Contact Information
+  // =========================================================================
+  
   contactEmail: String,
   contactPhone: String,
-  websiteUrl: String
+  websiteUrl: String,
+  applicationUrl: String,
+  
+  // =========================================================================
+  // Tags for search/filtering
+  // =========================================================================
+  
+  tags: [String]
+  
 }, {
   timestamps: true
 });
@@ -210,25 +368,23 @@ scholarshipSchema.index({ type: 1 });
 scholarshipSchema.index({ status: 1 });
 scholarshipSchema.index({ applicationDeadline: 1 });
 scholarshipSchema.index({ 'eligibilityCriteria.eligibleColleges': 1 });
-scholarshipSchema.index({ 'eligibilityCriteria.requiredYearLevels': 1 });
+scholarshipSchema.index({ 'eligibilityCriteria.eligibleClassifications': 1 });
+scholarshipSchema.index({ 'eligibilityCriteria.eligibleProvinces': 1 });
 scholarshipSchema.index({ isActive: 1, status: 1 });
 
 // =============================================================================
 // Virtual Properties
 // =============================================================================
 
-// Check if deadline has passed
 scholarshipSchema.virtual('isExpired').get(function() {
   return new Date() > this.applicationDeadline;
 });
 
-// Get remaining slots
 scholarshipSchema.virtual('remainingSlots').get(function() {
   if (!this.slots) return null;
   return Math.max(0, this.slots - this.filledSlots);
 });
 
-// Days until deadline
 scholarshipSchema.virtual('daysUntilDeadline').get(function() {
   const now = new Date();
   const deadline = new Date(this.applicationDeadline);
@@ -236,11 +392,16 @@ scholarshipSchema.virtual('daysUntilDeadline').get(function() {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 });
 
+scholarshipSchema.virtual('isOpen').get(function() {
+  const now = new Date();
+  const startOpen = !this.applicationStartDate || now >= this.applicationStartDate;
+  return startOpen && !this.isExpired && this.status === ScholarshipStatus.ACTIVE;
+});
+
 // =============================================================================
 // Instance Methods
 // =============================================================================
 
-// Check if scholarship is currently accepting applications
 scholarshipSchema.methods.isAcceptingApplications = function() {
   return (
     this.isActive &&
@@ -250,22 +411,33 @@ scholarshipSchema.methods.isAcceptingApplications = function() {
   );
 };
 
-// Get eligibility summary
 scholarshipSchema.methods.getEligibilitySummary = function() {
   const criteria = this.eligibilityCriteria;
   const summary = [];
   
   if (criteria.minGWA) {
-    summary.push(`Minimum GWA: ${criteria.minGWA.toFixed(2)}`);
+    summary.push(`Minimum GWA: ${criteria.minGWA.toFixed(2)} or better`);
   }
-  if (criteria.requiredYearLevels?.length) {
-    summary.push(`Year Level: ${criteria.requiredYearLevels.join(', ')}`);
+  if (criteria.eligibleClassifications?.length) {
+    summary.push(`Year Level: ${criteria.eligibleClassifications.join(', ')}`);
   }
   if (criteria.eligibleColleges?.length) {
     summary.push(`Colleges: ${criteria.eligibleColleges.length} eligible`);
   }
+  if (criteria.eligibleCourses?.length) {
+    summary.push(`Courses: ${criteria.eligibleCourses.join(', ')}`);
+  }
   if (criteria.maxAnnualFamilyIncome) {
-    summary.push(`Max Income: ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}`);
+    summary.push(`Max Family Income: ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}`);
+  }
+  if (criteria.eligibleProvinces?.length) {
+    summary.push(`Provinces: ${criteria.eligibleProvinces.join(', ')}`);
+  }
+  if (criteria.mustNotHaveOtherScholarship) {
+    summary.push('Must not be a recipient of other scholarship');
+  }
+  if (criteria.requiresApprovedThesisOutline) {
+    summary.push('Must have approved thesis outline');
   }
   
   return summary;
@@ -275,7 +447,6 @@ scholarshipSchema.methods.getEligibilitySummary = function() {
 // Static Methods
 // =============================================================================
 
-// Find active scholarships
 scholarshipSchema.statics.findActive = function() {
   return this.find({
     isActive: true,
@@ -284,7 +455,6 @@ scholarshipSchema.statics.findActive = function() {
   }).sort({ applicationDeadline: 1 });
 };
 
-// Find by type
 scholarshipSchema.statics.findByType = function(type) {
   return this.find({
     type,
@@ -293,12 +463,30 @@ scholarshipSchema.statics.findByType = function(type) {
   });
 };
 
-// Search scholarships
 scholarshipSchema.statics.search = function(query) {
   return this.find({
     $text: { $search: query },
     isActive: true
   }).sort({ score: { $meta: 'textScore' } });
+};
+
+scholarshipSchema.statics.findForStudent = async function(studentProfile) {
+  // Find scholarships matching student's basic profile
+  const query = {
+    isActive: true,
+    status: ScholarshipStatus.ACTIVE,
+    applicationDeadline: { $gte: new Date() }
+  };
+  
+  // Filter by college if specified in criteria
+  if (studentProfile.college) {
+    query.$or = [
+      { 'eligibilityCriteria.eligibleColleges': { $size: 0 } },
+      { 'eligibilityCriteria.eligibleColleges': studentProfile.college }
+    ];
+  }
+  
+  return this.find(query).sort({ applicationDeadline: 1 });
 };
 
 // =============================================================================

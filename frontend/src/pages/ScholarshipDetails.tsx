@@ -4,7 +4,7 @@
 // Based on research paper Figures 10-12
 // ============================================================================
 
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -28,13 +28,13 @@ import {
   ChevronRight,
   Target,
   BarChart2,
-  Percent
+  Percent,
+  Loader2
 } from 'lucide-react';
 import { AuthContext } from '../App';
-import { scholarships, getScholarshipById } from '../data/scholarships';
+import { scholarshipApi, predictionApi } from '../services/apiClient';
 import { matchStudentToScholarships } from '../services/filterEngine';
-import { predictScholarshipSuccess } from '../services/logisticRegression';
-import { Scholarship, MatchResult, EligibilityCheckResult, isStudentProfile } from '../types';
+import { Scholarship, MatchResult, EligibilityCheckResult, isStudentProfile, PredictionResult } from '../types';
 
 const ScholarshipDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,9 +44,62 @@ const ScholarshipDetails: React.FC = () => {
   const openAuthModal = authContext?.openAuthModal;
   const studentUser = isStudentProfile(user) ? user : null;
 
-  // Get scholarship
-  const scholarship = useMemo(() => {
-    return id ? getScholarshipById(id) : undefined;
+  // State for scholarship from API
+  const [scholarship, setScholarship] = useState<Scholarship | null>(null);
+  const [relatedScholarships, setRelatedScholarships] = useState<Scholarship[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [prediction, setPrediction] = useState<PredictionResult | null>(null);
+  const [predictionLoading, setPredictionLoading] = useState(false);
+
+  // Fetch scholarship from API
+  useEffect(() => {
+    const fetchScholarship = async () => {
+      if (!id) {
+        setError('No scholarship ID provided');
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await scholarshipApi.getById(id);
+        if (response.success && response.data) {
+          const scholarshipData = response.data as Scholarship;
+          setScholarship(scholarshipData);
+          
+          // Fetch related scholarships of same type
+          try {
+            const relatedRes = await scholarshipApi.getAll({ 
+              type: scholarshipData.type, 
+              limit: 4 
+            });
+            if (relatedRes.success && relatedRes.data?.scholarships) {
+              // Filter out current scholarship
+              const currentId = (scholarshipData as any)._id || scholarshipData.id;
+              setRelatedScholarships(
+                relatedRes.data.scholarships.filter((s: Scholarship) => {
+                  const sId = (s as any)._id || s.id;
+                  return sId !== currentId;
+                }).slice(0, 3)
+              );
+            }
+          } catch {
+            // Related scholarships are optional
+          }
+        } else {
+          setError('Scholarship not found');
+        }
+      } catch (err) {
+        console.error('Failed to fetch scholarship:', err);
+        setError('Failed to load scholarship');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchScholarship();
   }, [id]);
 
   // Get match result if user is logged in as student
@@ -56,11 +109,33 @@ const ScholarshipDetails: React.FC = () => {
     return results.length > 0 ? results[0] : null;
   }, [studentUser, scholarship]);
 
-  // Get prediction details if eligible
-  const prediction = useMemo(() => {
-    if (!studentUser || !scholarship || !matchResult?.isEligible) return null;
-    return predictScholarshipSuccess(studentUser, scholarship);
-  }, [studentUser, scholarship, matchResult]);
+  // Fetch prediction from API when eligible
+  useEffect(() => {
+    const fetchPrediction = async () => {
+      if (!studentUser || !scholarship || !matchResult?.isEligible) {
+        setPrediction(null);
+        return;
+      }
+      
+      const scholarshipId = (scholarship as any)._id || scholarship.id;
+      if (!scholarshipId) return;
+
+      try {
+        setPredictionLoading(true);
+        const response = await predictionApi.getProbability(scholarshipId);
+        if (response.success && response.data) {
+          setPrediction(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch prediction:', err);
+        // Keep prediction null if API fails
+      } finally {
+        setPredictionLoading(false);
+      }
+    };
+
+    fetchPrediction();
+  }, [studentUser, scholarship, matchResult?.isEligible]);
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -72,23 +147,36 @@ const ScholarshipDetails: React.FC = () => {
     }).format(amount);
   };
 
-  // Format date
-  const formatDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('en-PH', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
+  // Format date - handles both Date objects and ISO strings
+  const formatDate = (date: Date | string | undefined | null): string => {
+    if (!date) return 'No deadline';
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) return 'Invalid date';
+      return new Intl.DateTimeFormat('en-PH', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(dateObj);
+    } catch {
+      return 'Invalid date';
+    }
   };
 
-  // Calculate days until deadline
-  const getDaysUntil = (date: Date): number => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const deadline = new Date(date);
-    deadline.setHours(0, 0, 0, 0);
-    return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  // Calculate days until deadline - handles both Date objects and ISO strings
+  const getDaysUntil = (date: Date | string | undefined | null): number => {
+    if (!date) return -1;
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const deadline = typeof date === 'string' ? new Date(date) : new Date(date);
+      if (isNaN(deadline.getTime())) return -1;
+      deadline.setHours(0, 0, 0, 0);
+      return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    } catch {
+      return -1;
+    }
   };
 
   // Get probability color
@@ -104,8 +192,22 @@ const ScholarshipDetails: React.FC = () => {
     return 'bg-red-500';
   };
 
-  // Not found state
-  if (!scholarship) {
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+          </div>
+          <p className="text-slate-600 font-medium">Loading scholarship details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not found or error state
+  if (!scholarship || error) {
     return (
       <div className="min-h-screen bg-slate-50 py-12">
         <div className="container-app">
@@ -417,22 +519,24 @@ const ScholarshipDetails: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  {prediction.factors.map((factor, index) => {
-                    const isPositive = factor.contribution > 0;
+                  {prediction.featureContributions && Object.entries(prediction.featureContributions).map(([key, value], index) => {
+                    const contribution = value as number || 0;
+                    const isPositive = contribution > 0;
+                    const factorName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                     return (
                       <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className={`w-2 h-2 rounded-full ${
                             isPositive ? 'bg-green-500' : 'bg-red-500'
                           }`} />
-                          <span className="text-sm text-slate-700">{factor.factor}</span>
+                          <span className="text-sm text-slate-700">{factorName}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`text-sm font-medium ${
                             isPositive ? 'text-green-600' : 'text-red-600'
                           }`}>
                             {isPositive ? '+' : ''}
-                            {(factor.contribution * 100).toFixed(0)}%
+                            {(contribution * 100).toFixed(0)}%
                           </span>
                         </div>
                       </div>
@@ -530,13 +634,10 @@ const ScholarshipDetails: React.FC = () => {
             <div className="card p-6">
               <h3 className="font-semibold text-slate-900 mb-4">Similar Scholarships</h3>
               <div className="space-y-3">
-                {scholarships
-                  .filter(s => s.id !== scholarship.id && s.type === scholarship.type)
-                  .slice(0, 3)
-                  .map(s => (
+                {relatedScholarships.length > 0 ? relatedScholarships.map((s: Scholarship) => (
                     <Link
-                      key={s.id}
-                      to={`/scholarships/${s.id}`}
+                      key={(s as any)._id || s.id}
+                      to={`/scholarships/${(s as any)._id || s.id}`}
                       className="block p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
                     >
                       <div className="font-medium text-slate-900 text-sm line-clamp-1">
@@ -547,7 +648,9 @@ const ScholarshipDetails: React.FC = () => {
                         {formatCurrency(s.awardAmount || 0)}
                       </div>
                     </Link>
-                  ))}
+                  )) : (
+                    <p className="text-sm text-slate-500">No similar scholarships found</p>
+                  )}
               </div>
             </div>
           </div>

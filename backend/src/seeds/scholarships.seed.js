@@ -1,727 +1,630 @@
 // =============================================================================
 // ISKOlarship - Scholarship Seed Data
-// Based on UPLB OSG scholarship portfolio and research paper
+// Based on actual UPLB scholarships from the research paper
 // =============================================================================
 
-const mongoose = require('mongoose');
-require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
-
-const { Scholarship, ScholarshipType, ScholarshipStatus } = require('../models/Scholarship.model');
-const { UPLBCollege, YearLevel, STBracket } = require('../models/User.model');
+const { ScholarshipType, ScholarshipStatus } = require('../models/Scholarship.model');
+const { UPLBCollege, Classification, Citizenship, STBracket } = require('../models/User.model');
 
 // =============================================================================
-// UPLB Scholarship Data (from OSG and research paper)
+// Helper function to create dates
+// =============================================================================
+
+const createDeadline = (monthsFromNow) => {
+  const date = new Date();
+  date.setMonth(date.getMonth() + monthsFromNow);
+  return date;
+};
+
+// =============================================================================
+// ACTUAL UPLB SCHOLARSHIPS
+// Based on List of scholarships provided in research
 // =============================================================================
 
 const scholarshipsData = [
   // =========================================================================
-  // UNIVERSITY SCHOLARSHIPS
+  // 1. Sterix HOPE Thesis Grant
   // =========================================================================
   {
-    name: 'University Scholar',
-    description: 'Awarded to students who obtain a weighted average of 1.20 or better and carry the normal load prescribed in the curriculum. University Scholars are entitled to free tuition and other school fees.',
-    sponsor: 'University of the Philippines',
-    type: ScholarshipType.UNIVERSITY,
-    awardAmount: 0,
-    awardDescription: 'Full tuition and other school fees waiver',
+    name: 'Adopt-a-Student Program (AASP) - Sterix Incorporated Gift of HOPE Thesis Grant',
+    description: `The Sterix Incorporated Gift of HOPE (Holistic Offerings to Promote Excellence) Thesis Grant supports senior BS Biology and BS Agriculture (Major in Entomology) students who are working on their undergraduate thesis. This grant provides financial assistance for thesis-related expenses to help students complete their research successfully.
+
+The scholarship aims to nurture future scientists and agricultural experts who will contribute to the advancement of biological sciences and sustainable pest management in the Philippines.`,
+    sponsor: 'Sterix Incorporated',
+    type: ScholarshipType.THESIS_GRANT,
+    totalGrant: 25000,
+    awardDescription: '₱25,000 one-time thesis grant',
     eligibilityCriteria: {
-      minGWA: 1.20,
-      requiredYearLevels: [YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      minUnitsEnrolled: 15,
-      eligibleColleges: Object.values(UPLBCollege),
-      mustNotHaveFailingGrade: true,
-      mustNotHaveDisciplinaryAction: true,
-      isFilipinoOnly: true,
+      eligibleCourses: ['BS Biology', 'BS Agriculture'],
+      eligibleMajors: ['Entomology'],
+      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CAFS],
+      eligibleClassifications: [Classification.SENIOR],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      requiresApprovedThesisOutline: true,
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveThesisGrant: true,
       additionalRequirements: [
-        'Must carry normal load prescribed in curriculum',
-        'Must not have any incomplete or dropped subjects'
+        { description: 'Must have an approved Thesis Outline', isRequired: true },
+        { description: 'Must not be a recipient of other thesis grants', isRequired: true }
       ]
     },
-    requirements: [
-      'Certified True Copy of Grades',
-      'Certificate of Registration',
-      'Certificate of Good Moral Character'
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades (Latest Semester)', isRequired: true },
+      { name: 'Approved Thesis Outline', isRequired: true },
+      { name: 'Certificate of Family Income (ITR or BIR Certificate)', isRequired: true },
+      { name: 'Letter of Intent', isRequired: true }
     ],
-    applicationDeadline: new Date('2025-02-15'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 500,
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 5,
     status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['merit-based', 'university-wide', 'tuition-free'],
-    contactEmail: 'osg.uplb@up.edu.ph'
-  },
-  {
-    name: 'College Scholar',
-    description: 'Awarded to students who obtain a weighted average of 1.45 to 1.75 and carry the normal load prescribed in the curriculum. College Scholars are entitled to free tuition fees.',
-    sponsor: 'University of the Philippines',
-    type: ScholarshipType.UNIVERSITY,
-    awardAmount: 0,
-    awardDescription: 'Tuition fee waiver',
-    eligibilityCriteria: {
-      minGWA: 1.45,
-      maxGWA: 1.75,
-      requiredYearLevels: [YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      minUnitsEnrolled: 15,
-      eligibleColleges: Object.values(UPLBCollege),
-      mustNotHaveFailingGrade: true,
-      mustNotHaveDisciplinaryAction: true,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must carry normal load prescribed in curriculum'
-      ]
-    },
-    requirements: [
-      'Certified True Copy of Grades',
-      'Certificate of Registration'
-    ],
-    applicationDeadline: new Date('2025-02-15'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 1000,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['merit-based', 'university-wide', 'tuition-free'],
-    contactEmail: 'osg.uplb@up.edu.ph'
-  },
-  {
-    name: 'DOST-SEI Undergraduate Scholarship',
-    description: 'The DOST-SEI Merit Scholarship Program provides financial assistance to talented Filipino students pursuing priority S&T courses. Scholars receive tuition, book allowance, and monthly stipend.',
-    sponsor: 'Department of Science and Technology - Science Education Institute',
-    type: ScholarshipType.GOVERNMENT,
-    awardAmount: 10000,
-    awardDescription: 'Tuition + ₱7,000 monthly stipend + ₱10,000 book allowance per year',
-    eligibilityCriteria: {
-      minGWA: 2.0,
-      requiredYearLevels: [YearLevel.FRESHMAN, YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: [
-        UPLBCollege.CAS,
-        UPLBCollege.CEAT,
-        UPLBCollege.CAFS
-      ],
-      eligibleCourses: [
-        'BS Computer Science',
-        'BS Biology',
-        'BS Chemistry',
-        'BS Mathematics',
-        'BS Statistics',
-        'BS Applied Physics',
-        'BS Chemical Engineering',
-        'BS Civil Engineering',
-        'BS Electrical Engineering',
-        'BS Agricultural and Biosystems Engineering',
-        'BS Food Technology',
-        'BS Agricultural Biotechnology'
-      ],
-      mustNotHaveOtherScholarship: true,
-      mustNotHaveFailingGrade: true,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must have passed the DOST-SEI scholarship examination',
-        'Must maintain required GWA per semester'
-      ]
-    },
-    requirements: [
-      'DOST-SEI Scholarship Certificate',
-      'Certified True Copy of Grades',
-      'Certificate of Registration',
-      'Certificate of Good Moral Character',
-      'PSA Birth Certificate'
-    ],
-    applicationDeadline: new Date('2025-01-31'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 200,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['government', 'STEM', 'merit-based', 'with-stipend'],
-    contactEmail: 'dost-sei@sei.dost.gov.ph',
-    websiteUrl: 'https://www.sei.dost.gov.ph'
-  },
-  {
-    name: 'CHED Tulong Dunong Program',
-    description: 'A study grant program for financially disadvantaged but academically able Filipino students. Provides financial assistance to cover tuition and other school fees.',
-    sponsor: 'Commission on Higher Education',
-    type: ScholarshipType.GOVERNMENT,
-    awardAmount: 60000,
-    awardDescription: '₱60,000 per academic year for tuition and fees',
-    eligibilityCriteria: {
-      minGWA: 2.5,
-      requiredYearLevels: [YearLevel.FRESHMAN, YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: Object.values(UPLBCollege),
-      maxAnnualFamilyIncome: 400000,
-      mustNotHaveOtherScholarship: true,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must be a Filipino citizen',
-        'Must come from a low-income family'
-      ]
-    },
-    requirements: [
-      'CHED Application Form',
-      'Certificate of Registration',
-      'Income Tax Return or Certificate of Indigency',
-      'Barangay Certificate',
-      'PSA Birth Certificate'
-    ],
-    applicationDeadline: new Date('2025-02-28'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 150,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['government', 'need-based', 'tuition-assistance'],
-    contactEmail: 'tulong.dunong@ched.gov.ph',
-    websiteUrl: 'https://ched.gov.ph'
-  },
-  {
-    name: 'Socialized Tuition System (STS) - Bracket A',
-    description: 'Full tuition discount for students from the lowest income bracket. Part of UP\'s commitment to accessible quality education for all Filipinos regardless of financial capacity.',
-    sponsor: 'University of the Philippines',
-    type: ScholarshipType.UNIVERSITY,
-    awardAmount: 0,
-    awardDescription: 'Full tuition fee discount (100%)',
-    eligibilityCriteria: {
-      requiredYearLevels: [YearLevel.FRESHMAN, YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: Object.values(UPLBCollege),
-      maxAnnualFamilyIncome: 120000,
-      requiredSTBrackets: [STBracket.FULL_DISCOUNT],
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must undergo STS assessment',
-        'Annual family income must not exceed ₱120,000'
-      ]
-    },
-    requirements: [
-      'STS Application Form',
-      'Income Tax Return',
-      'Certificate of Indigency (if applicable)',
-      'Barangay Certificate',
-      'Utility Bills'
-    ],
-    applicationDeadline: new Date('2025-01-15'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['need-based', 'tuition-discount', 'STS'],
-    contactEmail: 'sts.uplb@up.edu.ph'
-  },
-  {
-    name: 'UPLB Student Assistantship Program',
-    description: 'Provides part-time employment opportunities for financially-challenged students. Assistants work 3-4 hours daily in various university offices and receive monthly stipend.',
-    sponsor: 'University of the Philippines Los Baños',
-    type: ScholarshipType.UNIVERSITY,
-    awardAmount: 5000,
-    awardDescription: '₱5,000 monthly stipend for 60-80 hours of work',
-    eligibilityCriteria: {
-      minGWA: 2.5,
-      requiredYearLevels: [YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: Object.values(UPLBCollege),
-      maxAnnualFamilyIncome: 300000,
-      mustNotHaveOtherScholarship: false,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must be willing to render 60-80 hours of service per month',
-        'Must maintain satisfactory academic standing'
-      ]
-    },
-    requirements: [
-      'Application Form',
-      'Certificate of Registration',
-      'Certified True Copy of Grades',
-      'Income Documentation',
-      'Medical Certificate'
-    ],
-    applicationDeadline: new Date('2025-02-01'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 300,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['need-based', 'student-employment', 'with-stipend'],
-    contactEmail: 'sap.uplb@up.edu.ph'
+    tags: ['thesis', 'biology', 'agriculture', 'entomology', 'research', 'sterix']
   },
 
   // =========================================================================
-  // COLLEGE-SPECIFIC SCHOLARSHIPS
+  // 2. Dr. Ernesto Tuazon Scholarship
   // =========================================================================
   {
-    name: 'CAS Dean\'s Scholarship',
-    description: 'Merit scholarship for outstanding students of the College of Arts and Sciences. Awarded based on academic excellence and contribution to college activities.',
-    sponsor: 'College of Arts and Sciences - UPLB',
-    type: ScholarshipType.COLLEGE,
-    awardAmount: 15000,
-    awardDescription: '₱15,000 per semester',
+    name: 'Adopt-a-Student Program (AASP) - Dr. Ernesto Tuazon',
+    description: `The Dr. Ernesto Tuazon Scholarship is a merit-based financial assistance program for junior or senior students from Ilocos Sur or Laguna (preferably Calauan) pursuing degrees in Chemistry, Agricultural Chemistry, or Chemical Engineering.
+
+This scholarship honors the legacy of Dr. Ernesto Tuazon by supporting students from his home regions who demonstrate academic excellence and financial need in the chemical sciences.`,
+    sponsor: 'Dr. Ernesto Tuazon Foundation',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 40000,
+    awardDescription: '₱40,000 per academic year',
     eligibilityCriteria: {
-      minGWA: 1.50,
-      requiredYearLevels: [YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: [UPLBCollege.CAS],
-      mustNotHaveFailingGrade: true,
-      mustNotHaveDisciplinaryAction: true,
-      isFilipinoOnly: true,
+      eligibleClassifications: [Classification.JUNIOR, Classification.SENIOR],
+      eligibleProvinces: ['Ilocos Sur', 'Laguna'],
+      eligibleCourses: ['BS Chemistry', 'BS Agricultural Chemistry', 'BS Chemical Engineering'],
+      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CAFS, UPLBCollege.CEAT],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 150000,
+      mustNotHaveOtherScholarship: true,
+      minUnitsEnrolled: 15,
+      eligibleCitizenship: [Citizenship.FILIPINO],
       additionalRequirements: [
-        'Must be enrolled in CAS',
-        'Must have active participation in college activities'
+        { description: 'Must be from Ilocos Sur or Laguna (preferably Calauan)', isRequired: true },
+        { description: 'Must be enrolled in at least 15 units', isRequired: true }
       ]
     },
-    requirements: [
-      'Application Letter',
-      'Certified True Copy of Grades',
-      'Certificate of Good Moral Character',
-      'List of Extracurricular Activities'
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Certificate of Residency (from Ilocos Sur or Laguna)', isRequired: true },
+      { name: 'Income Tax Return or Certificate of No Income', isRequired: true },
+      { name: 'Personal Essay', isRequired: true }
     ],
-    applicationDeadline: new Date('2025-02-20'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 20,
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 3,
     status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['merit-based', 'college-specific', 'CAS'],
-    contactEmail: 'cas.uplb@up.edu.ph'
+    tags: ['chemistry', 'ilocos sur', 'laguna', 'calauan', 'tuazon']
   },
+
+  // =========================================================================
+  // 3. LBMFI Undergraduate Thesis Grant
+  // =========================================================================
   {
-    name: 'CEAT Engineering Excellence Award',
-    description: 'Recognizes top-performing engineering students who demonstrate exceptional academic achievement and leadership in the College of Engineering and Agro-Industrial Technology.',
-    sponsor: 'College of Engineering and Agro-Industrial Technology - UPLB',
-    type: ScholarshipType.COLLEGE,
-    awardAmount: 20000,
-    awardDescription: '₱20,000 per semester + priority internship placement',
+    name: 'Lifebank Microfinance Foundation, Inc. (LBMFI) Undergraduate Thesis Grant',
+    description: `The Lifebank Microfinance Foundation, Inc. (LBMFI) Undergraduate Thesis Grant supports UPLB students conducting thesis research in the basic, applied, or interdisciplinary aspects of organic agriculture.
+
+This grant promotes sustainable agricultural practices and supports student researchers who are passionate about organic farming methods and environmental sustainability.`,
+    sponsor: 'Lifebank Microfinance Foundation, Inc.',
+    type: ScholarshipType.THESIS_GRANT,
+    totalGrant: 20000,
+    awardDescription: '₱20,000 thesis research grant',
     eligibilityCriteria: {
-      minGWA: 1.45,
-      requiredYearLevels: [YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: [UPLBCollege.CEAT],
-      eligibleCourses: [
-        'BS Agricultural and Biosystems Engineering',
-        'BS Chemical Engineering',
-        'BS Civil Engineering',
-        'BS Electrical Engineering',
-        'BS Industrial Engineering'
-      ],
+      eligibleColleges: Object.values(UPLBCollege),
+      minUnitsPassed: 38,
       mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
       mustNotHaveDisciplinaryAction: true,
-      isFilipinoOnly: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
       additionalRequirements: [
-        'Must be enrolled in an engineering program',
-        'Must demonstrate leadership in engineering organizations'
+        { description: 'Must be interested in pursuing thesis in organic agriculture', isRequired: true },
+        { description: 'Thesis must focus on basic, applied, or interdisciplinary aspects of organic agriculture', isRequired: true }
       ]
     },
-    requirements: [
-      'Application Form',
-      'Certified True Copy of Grades',
-      'Recommendation Letter from Department Chair',
-      'Portfolio of Engineering Projects',
-      'Essay on Engineering Career Goals'
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Thesis Proposal related to Organic Agriculture', isRequired: true },
+      { name: 'Certificate of Good Moral Character', isRequired: true },
+      { name: 'Letter of Intent explaining interest in organic agriculture', isRequired: true }
     ],
-    applicationDeadline: new Date('2025-02-25'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 15,
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 10,
     status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['merit-based', 'college-specific', 'CEAT', 'engineering'],
-    contactEmail: 'ceat.uplb@up.edu.ph'
+    tags: ['thesis', 'organic agriculture', 'sustainability', 'research', 'lbmfi']
   },
+
+  // =========================================================================
+  // 4. Sterix HOPE Scholarship Program
+  // =========================================================================
   {
-    name: 'CEM Business Leaders Scholarship',
-    description: 'Scholarship for exceptional students in the College of Economics and Management who show promise in business and economic leadership.',
-    sponsor: 'College of Economics and Management - UPLB',
-    type: ScholarshipType.COLLEGE,
-    awardAmount: 18000,
-    awardDescription: '₱18,000 per semester',
+    name: 'Sterix Incorporated Gift of HOPE (Holistic Offerings to Promote Excellence) Scholarship Program',
+    description: `The Sterix Incorporated Gift of HOPE Scholarship Program provides comprehensive financial support to junior students pursuing BS Biology or BS Agriculture (Major in Entomology). This scholarship covers tuition and provides a stipend to help students focus on their studies.
+
+Sterix Incorporated is committed to developing the next generation of scientists who will advance agricultural pest management and biological research in the Philippines.`,
+    sponsor: 'Sterix Incorporated',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 80000,
+    awardDescription: '₱80,000 per year (tuition + stipend)',
     eligibilityCriteria: {
-      minGWA: 1.60,
-      requiredYearLevels: [YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: [UPLBCollege.CEM],
-      eligibleCourses: [
-        'BS Economics',
-        'BS Agribusiness Economics',
-        'BS Accountancy',
-        'BS Agricultural Economics'
-      ],
-      mustNotHaveFailingGrade: true,
-      isFilipinoOnly: true,
+      eligibleCourses: ['BS Biology', 'BS Agriculture'],
+      eligibleMajors: ['Entomology'],
+      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CAFS],
+      eligibleClassifications: [Classification.JUNIOR],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      minUnitsEnrolled: 15,
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveOtherScholarship: true,
       additionalRequirements: [
-        'Must be active in CEM student organizations',
-        'Must have entrepreneurship or business experience'
+        { description: 'Must be enrolling in at least 15 units for the semester', isRequired: true }
       ]
     },
-    requirements: [
-      'Application Form',
-      'Certified True Copy of Grades',
-      'Business Plan or Case Study',
-      'Recommendation Letter'
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Income Tax Return', isRequired: true },
+      { name: 'Certificate of Good Moral Character', isRequired: true },
+      { name: 'Personal Essay', isRequired: true }
     ],
-    applicationDeadline: new Date('2025-02-18'),
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['biology', 'agriculture', 'entomology', 'sterix', 'hope']
+  },
+
+  // =========================================================================
+  // 5. CHE Alumni Association Thesis Grant
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - College of Human Ecology Alumni Association Thesis Grant',
+    description: `The College of Human Ecology Alumni Association Thesis Grant supports graduating CHE students who demonstrate financial need and academic commitment. This grant helps cover thesis-related expenses for students in ST Bracket PD80 to Full Discount with Stipend.
+
+The CHE Alumni Association is dedicated to supporting current students and fostering a strong community of human ecology professionals.`,
+    sponsor: 'College of Human Ecology Alumni Association',
+    type: ScholarshipType.THESIS_GRANT,
+    totalGrant: 15000,
+    awardDescription: '₱15,000 thesis grant',
+    eligibilityCriteria: {
+      eligibleColleges: [UPLBCollege.CHE],
+      eligibleClassifications: [Classification.SENIOR],
+      mustBeGraduating: true,
+      eligibleSTBrackets: [STBracket.PD80, STBracket.FULL_DISCOUNT, STBracket.FULL_DISCOUNT_WITH_STIPEND],
+      mustNotHaveDisciplinaryAction: true,
+      requiresApprovedThesisOutline: true,
+      mustNotHaveThesisGrant: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be graduating this semester', isRequired: true },
+        { description: 'Thesis proposal must be approved by Thesis Adviser, Unit Head, and CHE Dean', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'Approved Thesis Proposal with certification', isRequired: true },
+      { name: 'ST Bracket Certification', isRequired: true },
+      { name: 'Certificate of Good Moral Character from CHE', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(1),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 8,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['thesis', 'che', 'human ecology', 'alumni', 'graduating']
+  },
+
+  // =========================================================================
+  // 6. Dr. Higino A. Ables Scholarship
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Dr. Higino A. Ables',
+    description: `The Dr. Higino A. Ables Scholarship supports UPLB students from Sorsogon or Camarines Sur who demonstrate academic excellence and financial need. This scholarship honors Dr. Ables' commitment to education in the Bicol region.`,
+    sponsor: 'Dr. Higino A. Ables Foundation',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 50000,
+    awardDescription: '₱50,000 per academic year',
+    eligibilityCriteria: {
+      eligibleProvinces: ['Sorsogon', 'Camarines Sur'],
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      minUnitsEnrolled: 15,
+      maxAnnualFamilyIncome: 150000,
+      mustNotHaveOtherScholarship: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      eligibleColleges: Object.values(UPLBCollege),
+      additionalRequirements: [
+        { description: 'Must be from Sorsogon or Camarines Sur', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Certificate of Residency from Sorsogon or Camarines Sur', isRequired: true },
+      { name: 'Income Tax Return', isRequired: true },
+      { name: 'Personal Essay', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 4,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['bicol', 'sorsogon', 'camarines sur', 'ables']
+  },
+
+  // =========================================================================
+  // 7. CDO Odyssey Foundation Scholarship
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) – Corazon Dayro Ong (CDO Odyssey Foundation, Inc.)',
+    description: `The Corazon Dayro Ong Scholarship through CDO Odyssey Foundation, Inc. supports junior and senior students in BS Nutrition, BS Agriculture major in Animal Science, and BS Forestry.`,
+    sponsor: 'CDO Odyssey Foundation, Inc.',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 60000,
+    awardDescription: '₱60,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.JUNIOR, Classification.SENIOR],
+      eligibleCourses: ['BS Nutrition', 'BS Agriculture', 'BS Forestry'],
+      eligibleMajors: ['Animal Science'],
+      eligibleColleges: [UPLBCollege.CHE, UPLBCollege.CAFS, UPLBCollege.CFNR],
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveOtherScholarship: true,
+      mustNotHaveDisciplinaryAction: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must not have been subject of disciplinary action worse than 5-day class suspension', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Income Tax Return or Certificate', isRequired: true },
+      { name: 'Certificate of Good Moral Character', isRequired: true },
+      { name: 'Personal Statement', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 6,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['nutrition', 'animal science', 'forestry', 'cdo', 'odyssey']
+  },
+
+  // =========================================================================
+  // 8. FDF Scholarship
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - FDF',
+    description: `The FDF Scholarship provides financial assistance to graduating students in their final semester at UPLB.`,
+    sponsor: 'FDF Foundation',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 30000,
+    awardDescription: '₱30,000 graduation grant',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SENIOR],
+      mustBeGraduating: true,
+      eligibleColleges: Object.values(UPLBCollege),
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be a graduating student this Second Semester, A.Y. 2024-2025', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Certificate of Candidacy for Graduation', isRequired: true },
+      { name: 'Personal Essay', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(1),
+    applicationStartDate: new Date(),
     academicYear: '2024-2025',
     semester: 'Second',
     slots: 10,
     status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['merit-based', 'college-specific', 'CEM', 'business'],
-    contactEmail: 'cem.uplb@up.edu.ph'
+    tags: ['graduating', 'fdf', 'graduation grant']
   },
+
+  // =========================================================================
+  // 9. Nicolas Nick Angel II Scholarship
+  // =========================================================================
   {
-    name: 'CAFS Agricultural Innovation Grant',
-    description: 'Supports students in agriculture-related programs who are conducting innovative research or projects that contribute to Philippine agricultural development.',
-    sponsor: 'College of Agriculture and Food Science - UPLB',
+    name: 'Adopt-a-Student Program (AASP) - Nicolas Nick Angel II',
+    description: `The Nicolas Nick Angel II Scholarship supports senior BS Agriculture and BS Forestry students who will graduate by the 2nd Semester of A.Y. 2025-2026.`,
+    sponsor: 'Nicolas Nick Angel II Foundation',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 45000,
+    awardDescription: '₱45,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SENIOR],
+      eligibleCourses: ['BS Agriculture', 'BS Forestry'],
+      eligibleColleges: [UPLBCollege.CAFS, UPLBCollege.CFNR],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveOtherScholarship: true,
+      minUnitsEnrolled: 15,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must graduate by 2nd Semester AY 2025-2026', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Income Tax Return', isRequired: true },
+      { name: 'Personal Essay', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 4,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['agriculture', 'forestry', 'angel', 'senior']
+  },
+
+  // =========================================================================
+  // 10. HUMEIN-Phils Scholarship
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Human Ecology Institute of the Philippines, Inc. (HUMEIN-Phils)',
+    description: `The Human Ecology Institute of the Philippines, Inc. (HUMEIN-Phils) Scholarship provides financial assistance to students who demonstrate significant financial need.`,
+    sponsor: 'Human Ecology Institute of the Philippines, Inc.',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 35000,
+    awardDescription: '₱35,000 per academic year',
+    eligibilityCriteria: {
+      maxAnnualFamilyIncome: 250000,
+      eligibleColleges: Object.values(UPLBCollege),
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must demonstrate financial need', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Income Tax Return or Certificate of No Income', isRequired: true },
+      { name: 'Personal Essay on financial need', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 15,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['financial need', 'humein', 'human ecology']
+  },
+
+  // =========================================================================
+  // 11. IMS Program Scholarship
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - IMS Program',
+    description: `The IMS Program Scholarship supports junior and senior students in BS Applied Mathematics, BS Mathematics, or BS Mathematics and Science Teaching (Major in Mathematics).`,
+    sponsor: 'Institute of Mathematical Sciences',
     type: ScholarshipType.COLLEGE,
-    awardAmount: 25000,
-    awardDescription: '₱25,000 research/project grant + mentorship',
+    totalGrant: 40000,
+    awardDescription: '₱40,000 per academic year',
     eligibilityCriteria: {
-      minGWA: 1.75,
-      requiredYearLevels: [YearLevel.JUNIOR, YearLevel.SENIOR],
+      eligibleCourses: ['BS Applied Mathematics', 'BS Mathematics', 'BS Mathematics and Science Teaching'],
+      eligibleMajors: ['Mathematics'],
+      eligibleColleges: [UPLBCollege.CAS],
+      eligibleClassifications: [Classification.JUNIOR, Classification.SENIOR],
+      minUnitsEnrolled: 15,
+      minGWA: 1.0,
+      maxGWA: 2.75,
+      eligibleSTBrackets: [STBracket.PD80, STBracket.FULL_DISCOUNT, STBracket.FULL_DISCOUNT_WITH_STIPEND],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must have good academic standing', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'ST Bracket Certification', isRequired: true },
+      { name: 'IMS Endorsement', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 6,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['mathematics', 'ims', 'applied math', 'math teaching']
+  },
+
+  // =========================================================================
+  // 12. Camilla Yandoc Ables Scholarship
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Camilla Yandoc Ables',
+    description: `The Camilla Yandoc Ables Scholarship supports junior and senior students pursuing BS Agriculture major in Plant Pathology.`,
+    sponsor: 'Camilla Yandoc Ables Foundation',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 45000,
+    awardDescription: '₱45,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.JUNIOR, Classification.SENIOR],
+      eligibleCourses: ['BS Agriculture'],
+      eligibleMajors: ['Plant Pathology'],
       eligibleColleges: [UPLBCollege.CAFS],
-      eligibleCourses: [
-        'BS Agriculture',
-        'BS Agricultural Chemistry',
-        'BS Agricultural Biotechnology',
-        'BS Food Technology'
-      ],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 150000,
+      mustNotHaveOtherScholarship: true,
+      minUnitsEnrolled: 15,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: []
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Income Tax Return', isRequired: true },
+      { name: 'Personal Essay', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 3,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['plant pathology', 'agriculture', 'ables', 'crop protection']
+  },
+
+  // =========================================================================
+  // 13. BASF Agricultural Research Foundation Scholarship
+  // =========================================================================
+  {
+    name: 'BASF Agricultural Research Foundation Inc. Scholarship Grant',
+    description: `The BASF Agricultural Research Foundation Inc. Scholarship Grant supports sophomore BS Agriculture students majoring in Crop Protection (Entomology, Plant Pathology, or Weed Science).`,
+    sponsor: 'BASF Agricultural Research Foundation Inc.',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 100000,
+    awardDescription: '₱100,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SOPHOMORE],
+      eligibleCourses: ['BS Agriculture'],
+      eligibleMajors: ['Entomology', 'Plant Pathology', 'Weed Science', 'Crop Protection'],
+      eligibleColleges: [UPLBCollege.CAFS],
+      minGWA: 1.0,
+      maxGWA: 2.5,
       mustNotHaveFailingGrade: true,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must have an approved research proposal',
-        'Must be endorsed by a faculty adviser'
-      ]
-    },
-    requirements: [
-      'Research Proposal',
-      'Certified True Copy of Grades',
-      'Faculty Endorsement Letter',
-      'Budget Breakdown'
-    ],
-    applicationDeadline: new Date('2025-03-01'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 25,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['research', 'college-specific', 'CAFS', 'agriculture'],
-    contactEmail: 'cafs.uplb@up.edu.ph'
-  },
-
-  // =========================================================================
-  // PRIVATE SCHOLARSHIPS
-  // =========================================================================
-  {
-    name: 'SM Foundation Scholarship',
-    description: 'Full scholarship program by SM Foundation for deserving Filipino students from low-income families. Covers tuition, allowance, and other educational expenses.',
-    sponsor: 'SM Foundation Inc.',
-    type: ScholarshipType.PRIVATE,
-    awardAmount: 80000,
-    awardDescription: 'Full tuition + ₱8,000 monthly allowance + book allowance',
-    eligibilityCriteria: {
-      minGWA: 2.0,
-      requiredYearLevels: [YearLevel.FRESHMAN, YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: Object.values(UPLBCollege),
-      maxAnnualFamilyIncome: 250000,
-      mustNotHaveOtherScholarship: true,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must be a Filipino citizen',
-        'Must come from a family with limited financial resources',
-        'Must be willing to participate in SM Foundation activities'
-      ]
-    },
-    requirements: [
-      'SM Foundation Application Form',
-      'Certified True Copy of Grades',
-      'Income Tax Return',
-      'Barangay Certificate',
-      'Essay on Career Goals',
-      '2x2 ID Photo'
-    ],
-    applicationDeadline: new Date('2025-03-15'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 50,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['private', 'need-based', 'full-scholarship', 'with-stipend'],
-    contactEmail: 'scholarship@sm-foundation.org',
-    websiteUrl: 'https://www.sm-foundation.org'
-  },
-  {
-    name: 'Ayala Foundation Scholarship',
-    description: 'Comprehensive scholarship for outstanding students pursuing degrees aligned with national development priorities. Includes tuition assistance and leadership development programs.',
-    sponsor: 'Ayala Foundation Inc.',
-    type: ScholarshipType.PRIVATE,
-    awardAmount: 100000,
-    awardDescription: 'Full tuition + ₱10,000 monthly stipend + leadership training',
-    eligibilityCriteria: {
-      minGWA: 1.75,
-      requiredYearLevels: [YearLevel.FRESHMAN, YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CEAT, UPLBCollege.CEM],
-      eligibleCourses: [
-        'BS Computer Science',
-        'BS Civil Engineering',
-        'BS Electrical Engineering',
-        'BS Economics',
-        'BS Accountancy'
-      ],
-      maxAnnualFamilyIncome: 400000,
-      mustNotHaveOtherScholarship: true,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must demonstrate leadership potential',
-        'Must be willing to participate in community service'
-      ]
-    },
-    requirements: [
-      'Online Application',
-      'Certified True Copy of Grades',
-      'Income Documentation',
-      'Essay on Leadership Experience',
-      'Two Recommendation Letters'
-    ],
-    applicationDeadline: new Date('2025-02-28'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 30,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['private', 'merit-based', 'leadership', 'with-stipend'],
-    contactEmail: 'scholarship@ayalafoundation.org',
-    websiteUrl: 'https://www.ayalafoundation.org'
-  },
-  {
-    name: 'PLDT-Smart Foundation Scholarship',
-    description: 'Technology-focused scholarship for students in IT and engineering fields. Provides financial support and industry exposure through internship opportunities.',
-    sponsor: 'PLDT-Smart Foundation',
-    type: ScholarshipType.PRIVATE,
-    awardAmount: 60000,
-    awardDescription: '₱60,000 annual grant + internship opportunity',
-    eligibilityCriteria: {
-      minGWA: 1.85,
-      requiredYearLevels: [YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CEAT],
-      eligibleCourses: [
-        'BS Computer Science',
-        'BS Electrical Engineering',
-        'BS Statistics',
-        'BS Applied Mathematics'
-      ],
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      minUnitsEnrolled: 15,
       maxAnnualFamilyIncome: 500000,
-      isFilipinoOnly: true,
+      mustNotHaveOtherScholarship: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
       additionalRequirements: [
-        'Must be pursuing a technology-related course',
-        'Must be interested in telecommunications industry'
+        { description: 'One slot for Entomology major', isRequired: false },
+        { description: 'One slot for Plant Pathology major', isRequired: false },
+        { description: 'One slot for Weed Science major', isRequired: false }
       ]
     },
-    requirements: [
-      'Application Form',
-      'Certified True Copy of Grades',
-      'Resume/CV',
-      'Essay on Technology Innovation',
-      'Income Documentation'
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Income Tax Return', isRequired: true },
+      { name: 'Certificate of Good Moral Character', isRequired: true },
+      { name: 'Personal Essay on interest in Crop Protection', isRequired: true }
     ],
-    applicationDeadline: new Date('2025-03-10'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 40,
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 3,
     status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['private', 'technology', 'STEM', 'with-internship'],
-    contactEmail: 'scholarship@pldtsmartfoundation.com',
-    websiteUrl: 'https://pldtsmartfoundation.com'
-  },
-  {
-    name: 'Jollibee Group Foundation Scholarship',
-    description: 'Supports students from entrepreneurial families or those interested in food service and business management. Provides comprehensive financial assistance.',
-    sponsor: 'Jollibee Group Foundation',
-    type: ScholarshipType.PRIVATE,
-    awardAmount: 50000,
-    awardDescription: '₱50,000 per academic year',
-    eligibilityCriteria: {
-      minGWA: 2.25,
-      requiredYearLevels: [YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: [UPLBCollege.CEM, UPLBCollege.CHE, UPLBCollege.CAFS],
-      eligibleCourses: [
-        'BS Agribusiness Economics',
-        'BS Food Technology',
-        'BS Human Ecology',
-        'BS Economics',
-        'BS Accountancy'
-      ],
-      maxAnnualFamilyIncome: 350000,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must have interest in food service or business',
-        'Preferably from entrepreneurial family background'
-      ]
-    },
-    requirements: [
-      'Application Form',
-      'Certified True Copy of Grades',
-      'Income Documentation',
-      'Essay on Entrepreneurship Goals',
-      'Barangay Certificate'
-    ],
-    applicationDeadline: new Date('2025-02-15'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 35,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['private', 'need-based', 'business', 'food-industry'],
-    contactEmail: 'jgfscholar@jollibee.com.ph'
+    tags: ['basf', 'crop protection', 'entomology', 'plant pathology', 'weed science', 'agriculture']
   },
 
   // =========================================================================
-  // THESIS/RESEARCH GRANTS
+  // 14. DOST-SEI Merit Scholarship (Government)
   // =========================================================================
   {
-    name: 'UPLB Undergraduate Thesis Grant',
-    description: 'Financial support for undergraduate students conducting thesis research. Covers research materials, equipment usage, and other thesis-related expenses.',
-    sponsor: 'University of the Philippines Los Baños',
-    type: ScholarshipType.THESIS_GRANT,
-    awardAmount: 15000,
-    awardDescription: '₱15,000 thesis research grant',
+    name: 'DOST-SEI Merit Scholarship Program',
+    description: `The Department of Science and Technology - Science Education Institute (DOST-SEI) Merit Scholarship Program provides comprehensive financial assistance to students pursuing priority science and technology courses.`,
+    sponsor: 'Department of Science and Technology - Science Education Institute',
+    type: ScholarshipType.GOVERNMENT,
+    totalGrant: 120000,
+    awardDescription: 'Full tuition + ₱7,000 monthly stipend + book allowance',
     eligibilityCriteria: {
-      minGWA: 2.0,
-      requiredYearLevels: [YearLevel.SENIOR],
-      eligibleColleges: Object.values(UPLBCollege),
-      requiresApprovedThesis: true,
-      mustNotHaveThesisGrant: true,
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must have approved thesis proposal',
-        'Must have thesis adviser endorsement'
-      ]
-    },
-    requirements: [
-      'Approved Thesis Proposal',
-      'Thesis Adviser Endorsement',
-      'Detailed Budget Breakdown',
-      'Certified True Copy of Grades',
-      'Certificate of Registration'
-    ],
-    applicationDeadline: new Date('2025-01-31'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 100,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['research', 'thesis', 'undergraduate'],
-    contactEmail: 'research.uplb@up.edu.ph'
-  },
-  {
-    name: 'DOST-ASTHRDP Thesis Support',
-    description: 'Research grant for students in science and technology fields. Part of the Accelerated Science and Technology Human Resource Development Program.',
-    sponsor: 'Department of Science and Technology',
-    type: ScholarshipType.THESIS_GRANT,
-    awardAmount: 30000,
-    awardDescription: '₱30,000 research grant + laboratory access',
-    eligibilityCriteria: {
-      minGWA: 1.75,
-      requiredYearLevels: [YearLevel.SENIOR],
-      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CEAT, UPLBCollege.CAFS],
       eligibleCourses: [
-        'BS Biology',
-        'BS Chemistry',
-        'BS Computer Science',
-        'BS Agricultural Biotechnology',
-        'BS Chemical Engineering'
+        'BS Biology', 'BS Chemistry', 'BS Mathematics', 'BS Applied Mathematics',
+        'BS Computer Science', 'BS Statistics', 'BS Physics', 'BS Agricultural Chemistry',
+        'BS Chemical Engineering', 'BS Civil Engineering', 'BS Electrical Engineering',
+        'BS Mechanical Engineering', 'BS Computer Engineering', 'BS Food Technology',
+        'BS Nutrition', 'BS Agricultural Engineering'
       ],
-      requiresApprovedThesis: true,
-      mustNotHaveThesisGrant: true,
-      isFilipinoOnly: true,
+      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CEAT, UPLBCollege.CAFS, UPLBCollege.CHE],
+      minGWA: 1.0,
+      maxGWA: 2.0,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveOtherScholarship: true,
       additionalRequirements: [
-        'Thesis must be in priority S&T area',
-        'Must have faculty endorsement'
+        { description: 'Must be enrolled in a priority S&T course', isRequired: true },
+        { description: 'Must maintain required GWA to retain scholarship', isRequired: true }
       ]
     },
-    requirements: [
-      'DOST Application Form',
-      'Approved Thesis Proposal',
-      'Faculty Endorsement',
-      'Research Timeline',
-      'Budget Proposal'
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'DOST-SEI Qualification Exam Result', isRequired: true },
+      { name: 'Birth Certificate', isRequired: true },
+      { name: 'Income Tax Return', isRequired: true }
     ],
-    applicationDeadline: new Date('2025-02-28'),
-    academicYear: '2024-2025',
-    semester: 'Second',
+    applicationDeadline: createDeadline(4),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
     slots: 50,
     status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['research', 'thesis', 'STEM', 'government'],
-    contactEmail: 'asthrdp@dost.gov.ph',
-    websiteUrl: 'https://www.dost.gov.ph'
+    tags: ['dost', 'sei', 'government', 'science', 'technology', 'merit']
   },
 
   // =========================================================================
-  // LOCATION-BASED SCHOLARSHIPS
+  // 15. SM Foundation Scholarship
   // =========================================================================
   {
-    name: 'Laguna Provincial Scholarship',
-    description: 'Scholarship for students who are bonafide residents of Laguna province. Supports local students in pursuing higher education at UPLB.',
-    sponsor: 'Provincial Government of Laguna',
-    type: ScholarshipType.GOVERNMENT,
-    awardAmount: 20000,
-    awardDescription: '₱20,000 per semester',
+    name: 'SM Foundation College Scholarship Program',
+    description: `The SM Foundation College Scholarship Program provides comprehensive support to deserving students who demonstrate financial need and academic potential.`,
+    sponsor: 'SM Foundation',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 150000,
+    awardDescription: 'Full tuition + ₱5,000 monthly allowance + book allowance',
     eligibilityCriteria: {
-      minGWA: 2.25,
-      requiredYearLevels: [YearLevel.FRESHMAN, YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
-      eligibleColleges: Object.values(UPLBCollege),
+      minGWA: 1.0,
+      maxGWA: 2.0,
       maxAnnualFamilyIncome: 300000,
-      eligibleProvinces: ['Laguna'],
-      isFilipinoOnly: true,
-      additionalRequirements: [
-        'Must be a bonafide resident of Laguna',
-        'Must have lived in Laguna for at least 3 years'
-      ]
-    },
-    requirements: [
-      'Application Form',
-      'Barangay Certificate of Residency',
-      'Certified True Copy of Grades',
-      'Income Documentation',
-      'PSA Birth Certificate'
-    ],
-    applicationDeadline: new Date('2025-02-10'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 100,
-    status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['government', 'location-based', 'Laguna'],
-    contactEmail: 'scholarship@laguna.gov.ph'
-  },
-  {
-    name: 'Batangas Provincial Educational Assistance',
-    description: 'Educational assistance for students from Batangas pursuing studies in any UPLB college. Part of the provincial government\'s education support program.',
-    sponsor: 'Provincial Government of Batangas',
-    type: ScholarshipType.GOVERNMENT,
-    awardAmount: 15000,
-    awardDescription: '₱15,000 per semester',
-    eligibilityCriteria: {
-      minGWA: 2.5,
-      requiredYearLevels: [YearLevel.FRESHMAN, YearLevel.SOPHOMORE, YearLevel.JUNIOR, YearLevel.SENIOR],
       eligibleColleges: Object.values(UPLBCollege),
-      maxAnnualFamilyIncome: 250000,
-      eligibleProvinces: ['Batangas'],
-      isFilipinoOnly: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveOtherScholarship: true,
+      mustNotHaveDisciplinaryAction: true,
       additionalRequirements: [
-        'Must be a registered voter of Batangas (or parents)',
-        'Must be a bonafide resident of Batangas'
+        { description: 'Must demonstrate significant financial need', isRequired: true },
+        { description: 'Must participate in SM Foundation activities', isRequired: true }
       ]
     },
-    requirements: [
-      'Application Form',
-      'Voter\'s Certificate or Parent\'s Voter ID',
-      'Barangay Certificate',
-      'Certified True Copy of Grades',
-      'Income Tax Return'
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Income Tax Return', isRequired: true },
+      { name: 'Barangay Certificate of Indigency', isRequired: true },
+      { name: 'Personal Essay', isRequired: true },
+      { name: 'Photo ID', isRequired: true }
     ],
-    applicationDeadline: new Date('2025-02-20'),
-    academicYear: '2024-2025',
-    semester: 'Second',
-    slots: 80,
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 20,
     status: ScholarshipStatus.ACTIVE,
-    isActive: true,
-    tags: ['government', 'location-based', 'Batangas'],
-    contactEmail: 'scholarship@batangas.gov.ph'
+    tags: ['sm foundation', 'private', 'financial need', 'comprehensive']
   }
 ];
 
@@ -729,49 +632,27 @@ const scholarshipsData = [
 // Seed Function
 // =============================================================================
 
-const seedScholarships = async () => {
+const seedScholarships = async (Scholarship, adminUserId) => {
   try {
-    console.log('🔌 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
-
-    // Clear existing scholarships
-    console.log('🗑️  Clearing existing scholarships...');
     await Scholarship.deleteMany({});
-    console.log('✅ Cleared existing scholarships');
+    console.log('Cleared existing scholarships');
 
-    // Create a temporary admin user ID for createdBy field
-    const tempAdminId = new mongoose.Types.ObjectId();
-
-    // Add createdBy to each scholarship
     const scholarshipsWithAdmin = scholarshipsData.map(scholarship => ({
       ...scholarship,
-      createdBy: tempAdminId
+      createdBy: adminUserId
     }));
 
-    // Insert scholarships
-    console.log('📚 Inserting scholarships...');
-    const result = await Scholarship.insertMany(scholarshipsWithAdmin);
-    console.log(`✅ Successfully inserted ${result.length} scholarships`);
+    const insertedScholarships = await Scholarship.insertMany(scholarshipsWithAdmin);
+    console.log(`Inserted ${insertedScholarships.length} scholarships`);
 
-    // Summary
-    console.log('\n📊 Scholarship Summary:');
-    const summary = await Scholarship.aggregate([
-      { $group: { _id: '$type', count: { $sum: 1 } } }
-    ]);
-    summary.forEach(item => {
-      console.log(`   ${item._id}: ${item.count}`);
-    });
-
-    console.log('\n🎉 Scholarship seeding completed successfully!');
-
+    return insertedScholarships;
   } catch (error) {
-    console.error('❌ Error seeding scholarships:', error);
-  } finally {
-    await mongoose.connection.close();
-    console.log('🔌 Disconnected from MongoDB');
+    console.error('Error seeding scholarships:', error);
+    throw error;
   }
 };
 
-// Run the seed
-seedScholarships();
+module.exports = {
+  scholarshipsData,
+  seedScholarships
+};

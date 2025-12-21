@@ -50,22 +50,35 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
     }).format(amount);
   };
 
-  // Format date
-  const formatDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('en-PH', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
+  // Format date - handles both Date objects and ISO strings from MongoDB
+  const formatDate = (date: Date | string | undefined | null): string => {
+    if (!date) return 'No deadline';
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) return 'Invalid date';
+      return new Intl.DateTimeFormat('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(dateObj);
+    } catch {
+      return 'Invalid date';
+    }
   };
 
-  // Calculate days until deadline
-  const getDaysUntil = (date: Date): number => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const deadline = new Date(date);
-    deadline.setHours(0, 0, 0, 0);
-    return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  // Calculate days until deadline - handles both Date objects and ISO strings
+  const getDaysUntil = (date: Date | string | undefined | null): number => {
+    if (!date) return -1;
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const deadline = typeof date === 'string' ? new Date(date) : new Date(date);
+      if (isNaN(deadline.getTime())) return -1;
+      deadline.setHours(0, 0, 0, 0);
+      return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    } catch {
+      return -1;
+    }
   };
 
   // Get type badge style

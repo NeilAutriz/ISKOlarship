@@ -1,223 +1,314 @@
 // ============================================================================
 // ISKOlarship - Admin Profile Page
-// View and manage administrator account and permissions
+// Manage administrator profile and settings
 // ============================================================================
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
+  User,
   Shield,
-  Building2,
   Mail,
   Phone,
+  MapPin,
   Calendar,
-  User,
+  Edit3,
+  Camera,
+  Key,
+  Bell,
+  Lock,
+  Building2,
   Award,
-  Users,
-  FileText,
-  CheckCircle,
   Settings,
-  Edit3
+  ChevronRight,
+  CheckCircle,
+  AlertCircle,
+  History,
+  FileText
 } from 'lucide-react';
 
-// Mock admin data
-const mockAdminData = {
-  name: 'Admin User',
-  role: 'System Administrator',
-  email: 'admin@iskolarship.ph',
-  phone: '+63 (2) 8123-4567',
-  organization: 'ISKOlarship Foundation',
-  department: 'Scholarship Management',
-  joinDate: '2024-01-15',
-  stats: {
-    totalScholarships: 12,
-    activeApplicants: 156,
-    pendingReviews: 24,
-    approvedThisMonth: 38,
-  },
-  permissions: [
-    { name: 'Scholarship Management', access: 'Full Access' },
-    { name: 'Applicant Review', access: 'Full Access' },
-    { name: 'Analytics Dashboard', access: 'Full Access' },
-    { name: 'User Management', access: 'Full Access' },
-  ],
+interface AdminData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  department: string;
+  role: string;
+  joinDate: string;
+  lastLogin: string;
+}
+
+const mockAdmin: AdminData = {
+  firstName: 'Admin',
+  lastName: 'User',
+  email: 'admin@iskolatship.edu.ph',
+  phone: '+63 917 987 6543',
+  department: 'Scholarship Office',
+  role: 'Super Administrator',
+  joinDate: 'January 15, 2023',
+  lastLogin: 'November 10, 2025, 9:45 AM'
 };
 
+const permissions = [
+  { name: 'Manage Scholarships', description: 'Create, edit, and delete scholarship programs', enabled: true },
+  { name: 'Review Applications', description: 'Approve or reject student applications', enabled: true },
+  { name: 'Manage Users', description: 'Add, edit, and remove user accounts', enabled: true },
+  { name: 'View Analytics', description: 'Access platform analytics and reports', enabled: true },
+  { name: 'System Settings', description: 'Configure platform settings', enabled: false },
+];
+
+const recentActivity = [
+  { action: 'Approved application', target: 'Maria Santos - Sterix HOPE Scholarship', time: '2 hours ago' },
+  { action: 'Created scholarship', target: 'New Engineering Merit Award', time: '5 hours ago' },
+  { action: 'Rejected application', target: 'Pedro Cruz - DOST Merit Scholarship', time: '1 day ago' },
+  { action: 'Updated scholarship', target: 'SM Foundation Scholarship deadline', time: '2 days ago' },
+];
+
 const AdminProfile: React.FC = () => {
+  const [activeSection, setActiveSection] = useState<'profile' | 'permissions' | 'security' | 'activity'>('profile');
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="container-app py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Admin Profile</h1>
-            <p className="text-slate-600">Manage your administrator account and permissions</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 font-medium rounded-lg hover:bg-slate-50 transition-all">
-              <Settings className="w-4 h-4" />
-              Settings
-            </button>
-            <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-all">
-              <Edit3 className="w-4 h-4" />
-              Edit Profile
+      {/* Hero Header */}
+      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gold-400 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+        </div>
+        
+        <div className="container-app py-8 md:py-10 relative z-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+            {/* Profile Avatar */}
+            <div className="relative">
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-slate-900 font-bold text-3xl shadow-lg shadow-gold-400/30">
+                {mockAdmin.firstName[0]}{mockAdmin.lastName[0]}
+              </div>
+              <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all">
+                <Camera className="w-5 h-5" />
+              </button>
+              <div className="absolute -top-2 -left-2 w-8 h-8 bg-gold-400 rounded-lg flex items-center justify-center shadow-lg">
+                <Shield className="w-4 h-4 text-slate-900" />
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 bg-gold-400/20 text-gold-400 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5">
+                  <Shield className="w-3 h-3" />{mockAdmin.role}
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{mockAdmin.firstName} {mockAdmin.lastName}</h1>
+              <p className="text-slate-400 flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                {mockAdmin.department}
+              </p>
+            </div>
+
+            <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all shadow-lg">
+              <Edit3 className="w-4 h-4" />Edit Profile
             </button>
           </div>
         </div>
+      </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left Sidebar */}
-          <div className="space-y-6">
-            {/* Avatar Card */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 text-center">
-              <div className="w-24 h-24 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-12 h-12 text-white" />
+      {/* Account Info */}
+      <div className="container-app -mt-6 relative z-20 mb-8">
+        <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg">
+                <Shield className="w-7 h-7 text-gold-400" />
               </div>
-              <h2 className="text-lg font-semibold text-slate-900">{mockAdminData.name}</h2>
-              <p className="text-slate-500 mb-4">{mockAdminData.role}</p>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-700">
-                Administrator
-              </span>
-
-              <div className="mt-6 pt-6 border-t border-slate-100 text-left space-y-3">
-                <div className="flex items-center gap-3 text-sm">
-                  <Building2 className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-600">{mockAdminData.organization}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-600">{mockAdminData.email}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-600">{mockAdminData.phone}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-600">Joined {mockAdminData.joinDate}</span>
-                </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">Administrator Account</h3>
+                <p className="text-sm text-slate-500">Last login: {mockAdmin.lastLogin}</p>
               </div>
             </div>
+            <div className="flex items-center gap-3">
+              <span className="px-3 py-1.5 bg-green-100 text-green-700 text-sm font-medium rounded-full flex items-center gap-1.5">
+                <CheckCircle className="w-4 h-4" />Account Active
+              </span>
+              <span className="px-3 py-1.5 bg-primary-100 text-primary-700 text-sm font-medium rounded-full flex items-center gap-1.5">
+                <Key className="w-4 h-4" />2FA Enabled
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Quick Statistics Card */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-4">Quick Statistics</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center">
-                      <Award className="w-4 h-4 text-primary-600" />
-                    </div>
-                    <span className="text-sm text-slate-600">Total Scholarships</span>
-                  </div>
-                  <span className="font-semibold text-slate-900">{mockAdminData.stats.totalScholarships}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Users className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <span className="text-sm text-slate-600">Active Applicants</span>
-                  </div>
-                  <span className="font-semibold text-slate-900">{mockAdminData.stats.activeApplicants}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <FileText className="w-4 h-4 text-orange-600" />
-                    </div>
-                    <span className="text-sm text-slate-600">Pending Reviews</span>
-                  </div>
-                  <span className="font-semibold text-slate-900">{mockAdminData.stats.pendingReviews}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                    </div>
-                    <span className="text-sm text-slate-600">Approved This Month</span>
-                  </div>
-                  <span className="font-semibold text-slate-900">{mockAdminData.stats.approvedThisMonth}</span>
-                </div>
-              </div>
+      <div className="container-app pb-12">
+        <div className="grid lg:grid-cols-4 gap-6">
+          {/* Sidebar Navigation */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sticky top-6">
+              <nav className="space-y-1">
+                {[
+                  { id: 'profile', label: 'Profile Info', icon: User },
+                  { id: 'permissions', label: 'Permissions', icon: Shield },
+                  { id: 'security', label: 'Security', icon: Lock },
+                  { id: 'activity', label: 'Activity Log', icon: History },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveSection(item.id as any)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${activeSection === item.id ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
+                    {activeSection === item.id && <ChevronRight className="w-4 h-4 ml-auto" />}
+                  </button>
+                ))}
+              </nav>
             </div>
           </div>
 
-          {/* Right Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Account Information */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary-600" />
+          {/* Main Content */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Profile Information */}
+            {activeSection === 'profile' && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <User className="w-5 h-5 text-slate-600" />
+                    </div>
+                    <h2 className="font-semibold text-slate-900">Profile Information</h2>
+                  </div>
+                  <button className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center gap-1.5">
+                    <Edit3 className="w-4 h-4" />Edit
+                  </button>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900">Account Information</h3>
-                  <p className="text-sm text-slate-500">Your administrator details</p>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Full Name</p>
-                  <p className="font-medium text-slate-900">{mockAdminData.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Email Address</p>
-                  <p className="font-medium text-slate-900">{mockAdminData.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Role</p>
-                  <p className="font-medium text-slate-900">{mockAdminData.role}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Department</p>
-                  <p className="font-medium text-slate-900">{mockAdminData.department}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Organization</p>
-                  <p className="font-medium text-slate-900">{mockAdminData.organization}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">Phone Number</p>
-                  <p className="font-medium text-slate-900">{mockAdminData.phone}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* System Permissions */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900">System Permissions</h3>
-                  <p className="text-sm text-slate-500">Your access levels</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {mockAdminData.permissions.map((permission, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 bg-slate-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
+                <div className="p-6 grid md:grid-cols-2 gap-6">
+                  {[
+                    { label: 'Full Name', value: `${mockAdmin.firstName} ${mockAdmin.lastName}`, icon: User },
+                    { label: 'Email Address', value: mockAdmin.email, icon: Mail },
+                    { label: 'Phone Number', value: mockAdmin.phone, icon: Phone },
+                    { label: 'Department', value: mockAdmin.department, icon: Building2 },
+                    { label: 'Role', value: mockAdmin.role, icon: Shield },
+                    { label: 'Member Since', value: mockAdmin.joinDate, icon: Calendar },
+                  ].map((field, index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                        <field.icon className="w-5 h-5 text-slate-500" />
                       </div>
                       <div>
-                        <p className="font-medium text-slate-900">{permission.name}</p>
-                        <p className="text-sm text-slate-500">{permission.access}</p>
+                        <div className="text-sm text-slate-500 mb-0.5">{field.label}</div>
+                        <div className="font-medium text-slate-900">{field.value}</div>
                       </div>
                     </div>
-                    <span className="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
-                      Granted
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Permissions */}
+            {activeSection === 'permissions' && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gold-100 flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-gold-600" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-slate-900">Permissions & Access</h2>
+                    <p className="text-sm text-slate-500">Manage your account permissions</p>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  {permissions.map((permission, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg ${permission.enabled ? 'bg-green-100' : 'bg-slate-100'} flex items-center justify-center`}>
+                          {permission.enabled ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-medium text-slate-900">{permission.name}</div>
+                          <div className="text-sm text-slate-500">{permission.description}</div>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${permission.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {permission.enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Security */}
+            {activeSection === 'security' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                      <Lock className="w-5 h-5 text-red-600" />
+                    </div>
+                    <h2 className="font-semibold text-slate-900">Security Settings</h2>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    <button className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all">
+                      <div className="flex items-center gap-3">
+                        <Key className="w-5 h-5 text-slate-500" />
+                        <div className="text-left">
+                          <div className="font-medium text-slate-900">Change Password</div>
+                          <div className="text-sm text-slate-500">Update your account password</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
+                    </button>
+                    <button className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all">
+                      <div className="flex items-center gap-3">
+                        <Shield className="w-5 h-5 text-slate-500" />
+                        <div className="text-left">
+                          <div className="font-medium text-slate-900">Two-Factor Authentication</div>
+                          <div className="text-sm text-green-600 flex items-center gap-1"><CheckCircle className="w-4 h-4" />Enabled</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
+                    </button>
+                    <button className="w-full flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all">
+                      <div className="flex items-center gap-3">
+                        <Bell className="w-5 h-5 text-slate-500" />
+                        <div className="text-left">
+                          <div className="font-medium text-slate-900">Notification Preferences</div>
+                          <div className="text-sm text-slate-500">Manage email and push notifications</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Activity Log */}
+            {activeSection === 'activity' && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                    <History className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <h2 className="font-semibold text-slate-900">Recent Activity</h2>
+                </div>
+                <div className="p-6">
+                  <div className="space-y-4">
+                    {recentActivity.map((activity, index) => (
+                      <div key={index} className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl">
+                        <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-5 h-5 text-slate-500" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-slate-900">{activity.action}</div>
+                          <div className="text-sm text-slate-600">{activity.target}</div>
+                          <div className="text-xs text-slate-400 mt-1">{activity.time}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
