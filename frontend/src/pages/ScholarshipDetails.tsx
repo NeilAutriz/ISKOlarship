@@ -284,8 +284,14 @@ const ScholarshipDetails: React.FC = () => {
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center min-w-[200px]">
               <div className="text-sm text-slate-300 mb-1">Grant Amount</div>
               <div className="text-3xl font-bold text-gold-400">
-                {formatCurrency(scholarship.awardAmount || 0)}
+                {(() => {
+                  const amount = scholarship.awardAmount ?? scholarship.totalGrant ?? 0;
+                  return amount > 0 ? formatCurrency(amount) : (scholarship.awardDescription || 'Varies');
+                })()}
               </div>
+              {scholarship.awardDescription && (scholarship.awardAmount ?? scholarship.totalGrant ?? 0) > 0 && (
+                <div className="text-sm text-slate-400 mt-1">{scholarship.awardDescription}</div>
+              )}
             </div>
           </div>
         </div>
@@ -315,75 +321,93 @@ const ScholarshipDetails: React.FC = () => {
               </h2>
 
               <div className="grid md:grid-cols-2 gap-4">
-                {/* GWA */}
-                {scholarship.eligibilityCriteria?.minGWA && (
-                  <div className={`p-4 rounded-xl border ${
-                    matchResult
-                      ? studentUser && studentUser.gwa >= scholarship.eligibilityCriteria.minGWA
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <TrendingUp className={`w-5 h-5 ${
-                        matchResult
-                          ? studentUser && studentUser.gwa >= scholarship.eligibilityCriteria.minGWA
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                          : 'text-slate-400'
-                      }`} />
-                      <div>
-                        <div className="text-sm text-slate-500">Minimum GWA</div>
-                        <div className="font-semibold text-slate-900">
-                          {scholarship.eligibilityCriteria.minGWA.toFixed(2)}
+                {/* GWA - handle both maxGWA (API) and minGWA */}
+                {(() => {
+                  const gwaReq = scholarship.eligibilityCriteria?.maxGWA || scholarship.eligibilityCriteria?.minGWA;
+                  if (!gwaReq) return null;
+                  
+                  // For UP GWA scale: lower is better, so student.gwa <= maxGWA means eligible
+                  const isGWAEligible = studentUser ? studentUser.gwa <= gwaReq : false;
+                  
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? isGWAEligible
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className={`w-5 h-5 ${
+                          matchResult
+                            ? isGWAEligible
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">GWA Requirement</div>
+                          <div className="font-semibold text-slate-900">
+                            {gwaReq.toFixed(2)} or better
+                          </div>
                         </div>
+                        {matchResult && studentUser && (
+                          isGWAEligible
+                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                        )}
                       </div>
-                      {matchResult && studentUser && (
-                        studentUser.gwa >= scholarship.eligibilityCriteria.minGWA
-                          ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                          : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
-                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
-                {/* Year Levels */}
-                {scholarship.eligibilityCriteria?.requiredYearLevels && scholarship.eligibilityCriteria.requiredYearLevels.length > 0 && (
-                  <div className={`p-4 rounded-xl border ${
-                    matchResult
-                      ? studentUser && scholarship.eligibilityCriteria.requiredYearLevels.includes(studentUser.yearLevel)
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <GraduationCap className={`w-5 h-5 ${
-                        matchResult
-                          ? studentUser && scholarship.eligibilityCriteria.requiredYearLevels.includes(studentUser.yearLevel)
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                          : 'text-slate-400'
-                      }`} />
-                      <div>
-                        <div className="text-sm text-slate-500">Year Level</div>
-                        <div className="font-semibold text-slate-900">
-                          {scholarship.eligibilityCriteria.requiredYearLevels.join(', ')}
+                {/* Year Levels - handle both requiredYearLevels and eligibleClassifications */}
+                {(() => {
+                  const yearLevels = scholarship.eligibilityCriteria?.requiredYearLevels || 
+                                    scholarship.eligibilityCriteria?.eligibleClassifications || [];
+                  if (yearLevels.length === 0) return null;
+                  
+                  const isYearEligible = studentUser ? yearLevels.some((y: string) => 
+                    y.toLowerCase() === studentUser.yearLevel?.toLowerCase()
+                  ) : false;
+                  
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? isYearEligible
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <GraduationCap className={`w-5 h-5 ${
+                          matchResult
+                            ? isYearEligible
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">Year Level</div>
+                          <div className="font-semibold text-slate-900">
+                            {yearLevels.map((y: string) => y.charAt(0).toUpperCase() + y.slice(1)).join(', ')}
+                          </div>
                         </div>
-                      </div>
-                      {matchResult && studentUser && (
-                        scholarship.eligibilityCriteria.requiredYearLevels.includes(studentUser.yearLevel)
+                        {matchResult && studentUser && (
+                          isYearEligible
                           ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
                           : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Colleges */}
                 {scholarship.eligibilityCriteria?.eligibleColleges && scholarship.eligibilityCriteria.eligibleColleges.length > 0 && (
                   <div className={`p-4 rounded-xl border ${
                     matchResult
-                      ? studentUser && scholarship.eligibilityCriteria.eligibleColleges.includes(studentUser.college)
+                      ? studentUser && (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
                         ? 'bg-green-50 border-green-200'
                         : 'bg-red-50 border-red-200'
                       : 'bg-slate-50 border-slate-200'
@@ -391,7 +415,7 @@ const ScholarshipDetails: React.FC = () => {
                     <div className="flex items-start gap-3">
                       <Users className={`w-5 h-5 mt-0.5 ${
                         matchResult
-                          ? studentUser && scholarship.eligibilityCriteria.eligibleColleges.includes(studentUser.college)
+                          ? studentUser && (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
                             ? 'text-green-600'
                             : 'text-red-600'
                           : 'text-slate-400'
@@ -400,12 +424,12 @@ const ScholarshipDetails: React.FC = () => {
                         <div className="text-sm text-slate-500">Eligible Colleges</div>
                         <div className="font-semibold text-slate-900">
                           {scholarship.eligibilityCriteria.eligibleColleges.length <= 2
-                            ? scholarship.eligibilityCriteria.eligibleColleges.join(', ')
+                            ? (scholarship.eligibilityCriteria.eligibleColleges as string[]).join(', ')
                             : `${scholarship.eligibilityCriteria.eligibleColleges.length} colleges`}
                         </div>
                       </div>
                       {matchResult && studentUser && (
-                        scholarship.eligibilityCriteria.eligibleColleges.includes(studentUser.college)
+                        (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
                           ? <CheckCircle className="w-5 h-5 text-green-600" />
                           : <XCircle className="w-5 h-5 text-red-600" />
                       )}
@@ -634,21 +658,24 @@ const ScholarshipDetails: React.FC = () => {
             <div className="card p-6">
               <h3 className="font-semibold text-slate-900 mb-4">Similar Scholarships</h3>
               <div className="space-y-3">
-                {relatedScholarships.length > 0 ? relatedScholarships.map((s: Scholarship) => (
-                    <Link
-                      key={(s as any)._id || s.id}
-                      to={`/scholarships/${(s as any)._id || s.id}`}
-                      className="block p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
-                    >
-                      <div className="font-medium text-slate-900 text-sm line-clamp-1">
-                        {s.name}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                        <Award className="w-3 h-3" />
-                        {formatCurrency(s.awardAmount || 0)}
-                      </div>
-                    </Link>
-                  )) : (
+                {relatedScholarships.length > 0 ? relatedScholarships.map((s: Scholarship) => {
+                    const amount = s.awardAmount ?? s.totalGrant ?? 0;
+                    return (
+                      <Link
+                        key={(s as any)._id || s.id}
+                        to={`/scholarships/${(s as any)._id || s.id}`}
+                        className="block p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="font-medium text-slate-900 text-sm line-clamp-1">
+                          {s.name}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                          <Award className="w-3 h-3" />
+                          {amount > 0 ? formatCurrency(amount) : (s.awardDescription || 'Varies')}
+                        </div>
+                      </Link>
+                    );
+                  }) : (
                     <p className="text-sm text-slate-500">No similar scholarships found</p>
                   )}
               </div>

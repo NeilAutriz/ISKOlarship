@@ -51,17 +51,20 @@ const AdminScholarships: React.FC = () => {
         setLoading(true);
         const response = await scholarshipApi.getAll({ limit: 100 });
         if (response.success && response.data?.scholarships) {
-          setScholarships(response.data.scholarships.map((s: any) => ({
-            id: s._id || s.id,
-            name: s.name,
-            sponsor: s.sponsor,
-            amount: s.awardAmount ? `₱${s.awardAmount.toLocaleString()}` : s.awardDescription || 'Varies',
-            slots: s.maxSlots || s.totalSlots || 0,
-            applicants: s.currentApplicants || 0,
-            deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A',
-            status: s.status === 'active' ? 'active' : s.status === 'closed' ? 'closed' : 'draft',
-            type: s.type?.includes('grant') ? 'grant' : s.coverageType === 'full' ? 'full' : 'partial'
-          })));
+          setScholarships(response.data.scholarships.map((s: any) => {
+            const amount = s.awardAmount ?? s.totalGrant ?? 0;
+            return {
+              id: s._id || s.id,
+              name: s.name,
+              sponsor: s.sponsor,
+              amount: amount > 0 ? `₱${amount.toLocaleString()}` : s.awardDescription || 'Varies',
+              slots: s.slots || s.maxSlots || s.totalSlots || 0,
+              applicants: s.filledSlots || s.currentApplicants || 0,
+              deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A',
+              status: s.status === 'open' || s.isActive ? 'active' : s.status === 'closed' ? 'closed' : 'draft',
+              type: s.type?.includes('grant') || s.type === 'thesis_grant' ? 'grant' : s.coverageType === 'full' ? 'full' : 'partial'
+            };
+          }));
         }
       } catch (error) {
         console.error('Failed to fetch scholarships:', error);

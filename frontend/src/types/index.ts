@@ -232,25 +232,33 @@ export interface EligibilityCriteria {
   minGWA?: number;
   maxGWA?: number;
   requiredYearLevels?: YearLevel[];
+  eligibleClassifications?: string[]; // API field name for year levels
   minUnitsEnrolled?: number;
-  eligibleColleges?: UPLBCollege[];
+  eligibleColleges?: UPLBCollege[] | string[];
   eligibleCourses?: string[];
   eligibleMajors?: (AgricultureMajor | string)[];
   requiresApprovedThesis?: boolean;
+  requireThesisApproval?: boolean; // API field name
   
   // Financial Requirements
   maxAnnualFamilyIncome?: number;
   minAnnualFamilyIncome?: number;
   requiredSTBrackets?: STBracket[];
+  eligibleSTBrackets?: string[]; // API field name
+  requireFinancialNeed?: boolean;
   
   // Location-based Requirements
   eligibleProvinces?: string[];
   
   // Other Requirements
   mustNotHaveOtherScholarship?: boolean;
+  noExistingScholarship?: boolean; // API field name
   mustNotHaveThesisGrant?: boolean;
+  noExistingThesisGrant?: boolean; // API field name
   mustNotHaveDisciplinaryAction?: boolean;
+  noDisciplinaryRecord?: boolean; // API field name
   isFilipinoOnly?: boolean;
+  filipinoOnly?: boolean; // API field name
   
   // Custom requirements (free text)
   additionalRequirements?: string[];
@@ -258,17 +266,29 @@ export interface EligibilityCriteria {
 
 export interface Scholarship {
   id: string;
+  _id?: string; // MongoDB ID (API returns this)
   name: string;
   description: string;
   sponsor: string;
   type: ScholarshipType;
   
-  // Financial Details
+  // Financial Details (API returns totalGrant, frontend uses awardAmount)
   awardAmount?: number;
+  totalGrant?: number; // API field name
   awardDescription?: string;
   
-  // Eligibility
-  eligibilityCriteria: EligibilityCriteria;
+  // Eligibility (API uses different field names)
+  eligibilityCriteria: EligibilityCriteria & {
+    // API field names
+    eligibleClassifications?: string[];
+    eligibleMajors?: string[];
+    requireThesisApproval?: boolean;
+    requireFinancialNeed?: boolean;
+    noExistingScholarship?: boolean;
+    noExistingThesisGrant?: boolean;
+    noDisciplinaryRecord?: boolean;
+    filipinoOnly?: boolean;
+  };
   requirements: string[]; // Documents/requirements to submit
   
   // Timeline
@@ -278,7 +298,11 @@ export interface Scholarship {
   
   // Metadata
   slots?: number;
+  filledSlots?: number;
+  remainingSlots?: number;
+  daysUntilDeadline?: number;
   isActive: boolean;
+  status?: 'open' | 'closed' | 'upcoming';
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

@@ -74,11 +74,14 @@ export const useScholarships = (options: UseScholarshipsOptions = {}): UseSchola
     return getActiveScholarships();
   }, [refreshKey]);
 
-  // Calculate match results for student
+  // Calculate match results for student - use both id and _id
   const matchResults = useMemo(() => {
     if (!studentProfile) return new Map<string, MatchResult>();
     const results = matchStudentToScholarships(studentProfile, scholarships);
-    return new Map(results.map(r => [r.scholarship.id, r]));
+    return new Map(results.map(r => {
+      const scholarshipId = r.scholarship.id || (r.scholarship as any)._id;
+      return [scholarshipId, r];
+    }));
   }, [studentProfile, scholarships]);
 
   // Filter scholarships
@@ -100,12 +103,18 @@ export const useScholarships = (options: UseScholarshipsOptions = {}): UseSchola
       filtered = filtered.filter(s => filters.scholarshipTypes!.includes(s.type));
     }
 
-    // Apply amount filter
+    // Apply amount filter - handle both awardAmount and totalGrant
     if (filters.minAmount !== undefined) {
-      filtered = filtered.filter(s => (s.awardAmount || 0) >= filters.minAmount!);
+      filtered = filtered.filter(s => {
+        const amount = s.awardAmount ?? (s as any).totalGrant ?? 0;
+        return amount >= filters.minAmount!;
+      });
     }
     if (filters.maxAmount !== undefined) {
-      filtered = filtered.filter(s => (s.awardAmount || 0) <= filters.maxAmount!);
+      filtered = filtered.filter(s => {
+        const amount = s.awardAmount ?? (s as any).totalGrant ?? 0;
+        return amount <= filters.maxAmount!;
+      });
     }
 
     // Apply college filter
@@ -114,29 +123,34 @@ export const useScholarships = (options: UseScholarshipsOptions = {}): UseSchola
         if (!s.eligibilityCriteria?.eligibleColleges || s.eligibilityCriteria.eligibleColleges.length === 0) {
           return true; // No restriction means all colleges allowed
         }
-        return filters.colleges!.some(c => s.eligibilityCriteria.eligibleColleges!.includes(c));
+        return filters.colleges!.some(c => (s.eligibilityCriteria.eligibleColleges as string[])!.includes(c as string));
       });
     }
 
-    // Apply year level filter
+    // Apply year level filter - handle both requiredYearLevels and eligibleClassifications
     if (filters.yearLevels && filters.yearLevels.length > 0) {
       filtered = filtered.filter(s => {
-        if (!s.eligibilityCriteria?.requiredYearLevels || s.eligibilityCriteria.requiredYearLevels.length === 0) {
+        const yearLevels = s.eligibilityCriteria?.requiredYearLevels || 
+                          s.eligibilityCriteria?.eligibleClassifications || [];
+        if (yearLevels.length === 0) {
           return true; // No restriction
         }
-        return filters.yearLevels!.some(y => s.eligibilityCriteria.requiredYearLevels!.includes(y));
+        return filters.yearLevels!.some((y: any) => 
+          (yearLevels as string[]).some(yl => yl.toLowerCase() === y.toLowerCase())
+        );
       });
     }
 
-    // Apply eligible only filter
+    // Apply eligible only filter - handle both id and _id
     if (filters.showEligibleOnly && studentProfile) {
       filtered = filtered.filter(s => {
-        const result = matchResults.get(s.id);
+        const scholarshipId = s.id || (s as any)._id;
+        const result = matchResults.get(scholarshipId);
         return result?.isEligible;
       });
     }
 
-    // Sort
+    // Sort - handle both id and _id, and both awardAmount and totalGrant
     switch (sortBy) {
       case 'deadline':
         filtered.sort((a, b) => {
@@ -146,7 +160,11 @@ export const useScholarships = (options: UseScholarshipsOptions = {}): UseSchola
         });
         break;
       case 'amount':
-        filtered.sort((a, b) => (b.awardAmount || 0) - (a.awardAmount || 0));
+        filtered.sort((a, b) => {
+          const amountA = a.awardAmount ?? (a as any).totalGrant ?? 0;
+          const amountB = b.awardAmount ?? (b as any).totalGrant ?? 0;
+          return amountB - amountA;
+        });
         break;
       case 'name':
         filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -154,8 +172,10 @@ export const useScholarships = (options: UseScholarshipsOptions = {}): UseSchola
       case 'match':
         if (studentProfile) {
           filtered.sort((a, b) => {
-            const aResult = matchResults.get(a.id);
-            const bResult = matchResults.get(b.id);
+            const aId = a.id || (a as any)._id;
+            const bId = b.id || (b as any)._id;
+            const aResult = matchResults.get(aId);
+            const bResult = matchResults.get(bId);
             if (aResult?.isEligible && !bResult?.isEligible) return -1;
             if (!aResult?.isEligible && bResult?.isEligible) return 1;
             return (bResult?.predictionScore ?? 0) - (aResult?.predictionScore ?? 0);

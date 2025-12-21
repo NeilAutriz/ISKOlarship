@@ -79,7 +79,11 @@ const StudentDashboard: React.FC = () => {
       const score = r.predictionScore ?? 0;
       return score >= 0.4 && score < 0.7;
     });
-    const totalFunding = eligible.reduce((sum: number, r: MatchResult) => sum + (r.scholarship?.awardAmount ?? 0), 0);
+    // Handle both awardAmount and totalGrant field names
+    const totalFunding = eligible.reduce((sum: number, r: MatchResult) => {
+      const amount = (r.scholarship as any)?.awardAmount ?? (r.scholarship as any)?.totalGrant ?? 0;
+      return sum + amount;
+    }, 0);
     return {
       total: matchResults.length,
       eligible: eligible.length,
@@ -114,7 +118,10 @@ const StudentDashboard: React.FC = () => {
     }
   }, [matchResults, activeTab, userApplications]);
 
-  const formatCurrency = (amount: number): string => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+  const formatCurrency = (amount: number | undefined | null): string => {
+    if (amount === undefined || amount === null) return 'N/A';
+    return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+  };
 
   if (loading) {
     return (
@@ -153,8 +160,12 @@ const StudentDashboard: React.FC = () => {
                   <span className="flex items-center gap-1"><GraduationCap className="w-4 h-4" />{studentUser.college}</span>
                   <span className="text-primary-300">•</span>
                   <span>{studentUser.yearLevel}</span>
-                  <span className="text-primary-300">•</span>
-                  <span>GWA: {studentUser.gwa.toFixed(2)}</span>
+                  {studentUser.gwa !== undefined && studentUser.gwa !== null && (
+                    <>
+                      <span className="text-primary-300">•</span>
+                      <span>GWA: {studentUser.gwa.toFixed(2)}</span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -254,7 +265,7 @@ const StudentDashboard: React.FC = () => {
                 {[
                   { icon: GraduationCap, label: 'College', value: studentUser.college },
                   { icon: BookOpen, label: 'Course', value: studentUser.course },
-                  { icon: TrendingUp, label: 'GWA', value: studentUser.gwa.toFixed(4) },
+                  { icon: TrendingUp, label: 'GWA', value: studentUser.gwa !== undefined && studentUser.gwa !== null ? studentUser.gwa.toFixed(4) : 'N/A' },
                   { icon: Calendar, label: 'Year Level', value: studentUser.yearLevel },
                   { icon: DollarSign, label: 'Annual Income', value: formatCurrency(studentUser.annualFamilyIncome) },
                 ].map((item, index) => (

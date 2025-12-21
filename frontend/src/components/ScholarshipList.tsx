@@ -26,6 +26,7 @@ interface ScholarshipListProps {
   studentProfile?: StudentProfile;
   showFilters?: boolean;
   showViewToggle?: boolean;
+  viewMode?: 'grid' | 'list';
   title?: string;
   emptyMessage?: string;
 }
@@ -38,11 +39,14 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   studentProfile,
   showFilters = true,
   showViewToggle = true,
+  viewMode: externalViewMode,
   title,
   emptyMessage = 'No scholarships found matching your criteria.'
 }) => {
   // State
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [internalViewMode, setInternalViewMode] = useState<ViewMode>('grid');
+  const viewMode = externalViewMode ?? internalViewMode;
+  const setViewMode = setInternalViewMode;
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('deadline');
   const [selectedTypes, setSelectedTypes] = useState<ScholarshipType[]>([]);
@@ -63,7 +67,10 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   const matchResults = useMemo(() => {
     if (!studentProfile) return new Map<string, MatchResult>();
     const results = matchStudentToScholarships(studentProfile, scholarships);
-    return new Map(results.map(r => [r.scholarship.id, r]));
+    return new Map(results.map(r => {
+      const id = r.scholarship.id || (r.scholarship as any)._id;
+      return [id, r];
+    }));
   }, [studentProfile, scholarships]);
 
   // Filter and sort scholarships
@@ -88,7 +95,8 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
     // Eligible only filter
     if (showEligibleOnly && studentProfile) {
       filtered = filtered.filter(s => {
-        const result = matchResults.get(s.id);
+        const id = s.id || (s as any)._id;
+        const result = matchResults.get(id);
         return result?.isEligible;
       });
     }
@@ -103,7 +111,11 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
         });
         break;
       case 'amount':
-        filtered.sort((a, b) => (b.awardAmount || 0) - (a.awardAmount || 0));
+        filtered.sort((a, b) => {
+          const amountA = a.awardAmount ?? (a as any).totalGrant ?? 0;
+          const amountB = b.awardAmount ?? (b as any).totalGrant ?? 0;
+          return amountB - amountA;
+        });
         break;
       case 'name':
         filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -111,8 +123,10 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
       case 'match':
         if (studentProfile) {
           filtered.sort((a, b) => {
-            const aResult = matchResults.get(a.id);
-            const bResult = matchResults.get(b.id);
+            const aId = a.id || (a as any)._id;
+            const bId = b.id || (b as any)._id;
+            const aResult = matchResults.get(aId);
+            const bResult = matchResults.get(bId);
             // Eligible first, then by prediction score
             if (aResult?.isEligible && !bResult?.isEligible) return -1;
             if (!aResult?.isEligible && bResult?.isEligible) return 1;
@@ -161,7 +175,10 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   // Calculate stats
   const eligibleCount = useMemo(() => {
     if (!studentProfile) return 0;
-    return scholarships.filter(s => matchResults.get(s.id)?.isEligible).length;
+    return scholarships.filter(s => {
+      const id = s.id || (s as any)._id;
+      return matchResults.get(id)?.isEligible;
+    }).length;
   }, [scholarships, matchResults, studentProfile]);
 
   return (
@@ -319,20 +336,23 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
       {filteredScholarships.length > 0 ? (
         <div className={
           viewMode === 'grid'
-            ? 'grid md:grid-cols-2 lg:grid-cols-3 gap-6'
+            ? 'grid grid-cols-1 xl:grid-cols-2 gap-6'
             : 'space-y-4'
         }>
-          {filteredScholarships.map(scholarship => (
-            <ScholarshipCard
-              key={scholarship.id}
-              scholarship={scholarship}
-              matchResult={matchResults.get(scholarship.id)}
-              showPrediction={!!studentProfile}
-              onBookmark={handleBookmark}
-              isBookmarked={bookmarkedIds.has(scholarship.id)}
-              variant={viewMode === 'list' ? 'compact' : 'default'}
-            />
-          ))}
+          {filteredScholarships.map(scholarship => {
+            const scholarshipId = scholarship.id || (scholarship as any)._id;
+            return (
+              <ScholarshipCard
+                key={scholarshipId}
+                scholarship={scholarship}
+                matchResult={matchResults.get(scholarshipId)}
+                showPrediction={!!studentProfile}
+                onBookmark={handleBookmark}
+                isBookmarked={bookmarkedIds.has(scholarshipId)}
+                variant={viewMode === 'list' ? 'compact' : 'default'}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-16">

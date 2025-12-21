@@ -440,21 +440,22 @@ export const filterScholarships = (
     if (criteria.colleges && criteria.colleges.length > 0) {
       const eligibleColleges = scholarship.eligibilityCriteria.eligibleColleges;
       if (eligibleColleges && eligibleColleges.length > 0) {
-        const hasMatchingCollege = criteria.colleges.some(c => eligibleColleges.includes(c));
+        const hasMatchingCollege = criteria.colleges.some(c => (eligibleColleges as string[]).includes(c as string));
         if (!hasMatchingCollege) {
           return false;
         }
       }
     }
     
-    // Amount range filter
-    if (criteria.minAmount !== undefined && scholarship.awardAmount) {
-      if (scholarship.awardAmount < criteria.minAmount) {
+    // Amount range filter - handle both awardAmount and totalGrant
+    const scholarshipAmount = scholarship.awardAmount ?? (scholarship as any).totalGrant ?? 0;
+    if (criteria.minAmount !== undefined && scholarshipAmount) {
+      if (scholarshipAmount < criteria.minAmount) {
         return false;
       }
     }
-    if (criteria.maxAmount !== undefined && scholarship.awardAmount) {
-      if (scholarship.awardAmount > criteria.maxAmount) {
+    if (criteria.maxAmount !== undefined && scholarshipAmount) {
+      if (scholarshipAmount > criteria.maxAmount) {
         return false;
       }
     }
@@ -471,11 +472,14 @@ export const filterScholarships = (
       }
     }
     
-    // Year level filter
+    // Year level filter - handle both requiredYearLevels and eligibleClassifications
     if (criteria.yearLevels && criteria.yearLevels.length > 0) {
-      const requiredLevels = scholarship.eligibilityCriteria.requiredYearLevels;
-      if (requiredLevels && requiredLevels.length > 0) {
-        const hasMatchingLevel = criteria.yearLevels.some(l => requiredLevels.includes(l));
+      const requiredLevels = scholarship.eligibilityCriteria.requiredYearLevels || 
+                            scholarship.eligibilityCriteria.eligibleClassifications || [];
+      if (requiredLevels.length > 0) {
+        const hasMatchingLevel = criteria.yearLevels.some((l: string) => 
+          (requiredLevels as string[]).some(rl => rl.toLowerCase() === l.toLowerCase())
+        );
         if (!hasMatchingLevel) {
           return false;
         }
@@ -500,10 +504,13 @@ export const sortScholarships = (
     
     switch (sortBy) {
       case 'deadline':
-        comparison = a.applicationDeadline.getTime() - b.applicationDeadline.getTime();
+        comparison = new Date(a.applicationDeadline).getTime() - new Date(b.applicationDeadline).getTime();
         break;
       case 'amount':
-        comparison = (a.awardAmount || 0) - (b.awardAmount || 0);
+        // Handle both awardAmount and totalGrant
+        const amountA = a.awardAmount ?? (a as any).totalGrant ?? 0;
+        const amountB = b.awardAmount ?? (b as any).totalGrant ?? 0;
+        comparison = amountA - amountB;
         break;
       case 'name':
         comparison = a.name.localeCompare(b.name);

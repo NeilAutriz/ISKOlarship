@@ -22,6 +22,115 @@ const api: AxiosInstance = axios.create({
 });
 
 // ============================================================================
+// Scholarship Normalization Utility
+// Transforms API response format to frontend format
+// ============================================================================
+
+/**
+ * Map API scholarship type to frontend ScholarshipType enum value
+ */
+const normalizeScholarshipType = (apiType: string): string => {
+  if (!apiType) return 'university';
+  
+  const typeMap: Record<string, string> = {
+    // API values -> Frontend enum values
+    'Thesis/Research Grant': 'thesis_grant',
+    'thesis_grant': 'thesis_grant',
+    'thesis grant': 'thesis_grant',
+    'Private Scholarship': 'private',
+    'private': 'private',
+    'Government Scholarship': 'government',
+    'government': 'government',
+    'University Scholarship': 'university',
+    'university': 'university',
+    'College Scholarship': 'college',
+    'college': 'college',
+    'DOST Scholarship': 'government',
+    'CHED Scholarship': 'government',
+  };
+  
+  // Try exact match first
+  if (typeMap[apiType]) {
+    return typeMap[apiType];
+  }
+  
+  // Try case-insensitive match
+  const lowerType = apiType.toLowerCase();
+  for (const [key, value] of Object.entries(typeMap)) {
+    if (key.toLowerCase() === lowerType) {
+      return value;
+    }
+  }
+  
+  // Try partial match
+  if (lowerType.includes('thesis') || lowerType.includes('grant') || lowerType.includes('research')) {
+    return 'thesis_grant';
+  }
+  if (lowerType.includes('private')) {
+    return 'private';
+  }
+  if (lowerType.includes('government') || lowerType.includes('dost') || lowerType.includes('ched')) {
+    return 'government';
+  }
+  if (lowerType.includes('college')) {
+    return 'college';
+  }
+  
+  return 'university'; // Default
+};
+
+/**
+ * Normalize a scholarship from API format to frontend format
+ * API returns: totalGrant, _id, eligibleClassifications, maxGWA
+ * Frontend expects: awardAmount, id, requiredYearLevels, minGWA
+ */
+export const normalizeScholarship = (scholarship: any): Scholarship => {
+  if (!scholarship) return scholarship;
+  
+  const criteria = scholarship.eligibilityCriteria || {};
+  
+  return {
+    ...scholarship,
+    // Map _id to id (keep both for compatibility)
+    id: scholarship.id || scholarship._id,
+    _id: scholarship._id || scholarship.id,
+    // Normalize the type to match frontend enum
+    type: normalizeScholarshipType(scholarship.type) as any,
+    // Map totalGrant to awardAmount (keep both for compatibility)
+    awardAmount: scholarship.awardAmount ?? scholarship.totalGrant ?? 0,
+    totalGrant: scholarship.totalGrant ?? scholarship.awardAmount ?? 0,
+    // Normalize eligibility criteria
+    eligibilityCriteria: {
+      ...criteria,
+      // Map API fields to frontend fields
+      requiredYearLevels: criteria.requiredYearLevels || criteria.eligibleClassifications || [],
+      eligibleClassifications: criteria.eligibleClassifications || criteria.requiredYearLevels || [],
+      minGWA: criteria.minGWA ?? criteria.maxGWA, // UP uses inverted scale (lower is better)
+      maxGWA: criteria.maxGWA ?? criteria.minGWA,
+      mustNotHaveOtherScholarship: criteria.mustNotHaveOtherScholarship ?? criteria.noExistingScholarship ?? false,
+      mustNotHaveThesisGrant: criteria.mustNotHaveThesisGrant ?? criteria.noExistingThesisGrant ?? false,
+      mustNotHaveDisciplinaryAction: criteria.mustNotHaveDisciplinaryAction ?? criteria.noDisciplinaryRecord ?? false,
+      isFilipinoOnly: criteria.isFilipinoOnly ?? criteria.filipinoOnly ?? false,
+      requiresApprovedThesis: criteria.requiresApprovedThesis ?? criteria.requireThesisApproval ?? false,
+    },
+    // Default values for missing fields
+    isActive: scholarship.isActive ?? (scholarship.status === 'open' || scholarship.status === 'active'),
+    slots: scholarship.slots ?? 0,
+    remainingSlots: scholarship.remainingSlots ?? scholarship.slots ?? 0,
+    filledSlots: scholarship.filledSlots ?? 0,
+    requirements: scholarship.requirements || scholarship.requiredDocuments || [],
+  };
+};
+
+/**
+ * Normalize an array of scholarships
+ */
+export const normalizeScholarships = (scholarships: any[]): Scholarship[] => {
+  if (!Array.isArray(scholarships)) return [];
+  return scholarships.map(normalizeScholarship);
+};
+
+// ============================================================================
 // Token Management
 // ============================================================================
 
@@ -247,11 +356,23 @@ export const scholarshipApi = {
         totalPages: number;
       };
     }>>(`/scholarships?${params.toString()}`);
+    
+    // Normalize scholarships to frontend format
+    if (response.data.success && response.data.data?.scholarships) {
+      response.data.data.scholarships = normalizeScholarships(response.data.data.scholarships);
+    }
+    
     return response.data;
   },
 
   getById: async (id: string) => {
     const response = await api.get<ApiResponse<Scholarship>>(`/scholarships/${id}`);
+    
+    // Normalize scholarship to frontend format
+    if (response.data.success && response.data.data) {
+      response.data.data = normalizeScholarship(response.data.data);
+    }
+    
     return response.data;
   },
 
@@ -267,17 +388,29 @@ export const scholarshipApi = {
       upcomingDeadlines: Scholarship[];
       totalFunding: number;
     }>>('/scholarships/stats');
+    
+    // Normalize upcoming deadlines
+    if (response.data.success && response.data.data?.upcomingDeadlines) {
+      response.data.data.upcomingDeadlines = normalizeScholarships(response.data.data.upcomingDeadlines);
+    }
+    
     return response.data;
   },
 
   // Admin endpoints
   create: async (scholarship: Partial<Scholarship>) => {
     const response = await api.post<ApiResponse<Scholarship>>('/scholarships', scholarship);
+    if (response.data.success && response.data.data) {
+      response.data.data = normalizeScholarship(response.data.data);
+    }
     return response.data;
   },
 
   update: async (id: string, updates: Partial<Scholarship>) => {
     const response = await api.put<ApiResponse<Scholarship>>(`/scholarships/${id}`, updates);
+    if (response.data.success && response.data.data) {
+      response.data.data = normalizeScholarship(response.data.data);
+    }
     return response.data;
   },
 
