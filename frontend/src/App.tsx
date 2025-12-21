@@ -4,7 +4,7 @@
 // ============================================================================
 
 import React, { useState, createContext, useContext, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import StudentHeader from './components/StudentHeader';
 import AdminHeader from './components/AdminHeader';
@@ -140,6 +140,8 @@ const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingRole, setPendingRole] = useState<'student' | 'admin'>('student');
+  const [navigateAfterLogin, setNavigateAfterLogin] = useState<string | null>(null);
 
   const login = (userData: User) => {
     setUser(userData);
@@ -168,6 +170,7 @@ const App: React.FC = () => {
       // Login as admin
       login(createMockAdmin());
       setShowAuthModal(false);
+      setNavigateAfterLogin('/admin/dashboard');
       return;
     }
     
@@ -176,12 +179,14 @@ const App: React.FC = () => {
     
     if (isNewUser) {
       setPendingEmail(email);
+      setPendingRole(role);
       setShowAuthModal(false);
       setShowProfileCompletion(true);
     } else {
       // Login with existing profile
       login(createMockStudent());
       setShowAuthModal(false);
+      setNavigateAfterLogin('/dashboard');
     }
   };
 
@@ -192,6 +197,7 @@ const App: React.FC = () => {
     
     // After signup, show profile completion
     setPendingEmail(email);
+    setPendingRole(role);
     setShowAuthModal(false);
     setShowProfileCompletion(true);
   };
@@ -200,58 +206,89 @@ const App: React.FC = () => {
   const handleProfileComplete = (profileData: ProfileData) => {
     console.log('Profile completed:', profileData);
     
-    // Create user profile from the form data
-    const newUser: StudentProfile = {
-      id: `student-${Date.now()}`,
-      email: profileData.email,
-      role: UserRole.STUDENT,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    if (pendingRole === 'admin') {
+      // Create admin profile
+      const newAdmin: AdminProfile = {
+        id: `admin-${Date.now()}`,
+        email: profileData.email,
+        role: UserRole.ADMIN,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        firstName: profileData.fullName.split(' ')[0],
+        lastName: profileData.fullName.split(' ').slice(-1)[0],
+        middleName: profileData.fullName.split(' ').slice(1, -1).join(' '),
+        contactNumber: profileData.contactNumber,
+        address: {
+          province: profileData.provinceOfOrigin,
+          city: '',
+          barangay: '',
+          street: profileData.address,
+          zipCode: ''
+        },
+        hometown: profileData.provinceOfOrigin,
+        department: 'Scholarship Office',
+        accessLevel: AdminAccessLevel.SUPER_ADMIN,
+        permissions: ['manage_scholarships', 'review_applications', 'view_analytics', 'manage_users']
+      };
+      login(newAdmin);
+      setShowProfileCompletion(false);
+      setNavigateAfterLogin('/admin/dashboard');
+    } else {
+      // Create student profile
+      const newUser: StudentProfile = {
+        id: `student-${Date.now()}`,
+        email: profileData.email,
+        role: UserRole.STUDENT,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        
+        firstName: profileData.fullName.split(' ')[0],
+        lastName: profileData.fullName.split(' ').slice(-1)[0],
+        middleName: profileData.fullName.split(' ').slice(1, -1).join(' '),
+        contactNumber: profileData.contactNumber,
+        address: {
+          province: profileData.provinceOfOrigin,
+          city: '',
+          barangay: '',
+          street: profileData.address,
+          zipCode: ''
+        },
+        hometown: profileData.provinceOfOrigin,
+        
+        studentNumber: '',
+        college: profileData.college as UPLBCollege,
+        course: profileData.course,
+        yearLevel: profileData.yearLevel as YearLevel,
+        gwa: parseFloat(profileData.gwa) || 2.0,
+        unitsEnrolled: parseInt(profileData.unitsEnrolled) || 18,
+        expectedGraduationDate: new Date('2026-06-30'),
+        hasApprovedThesis: false,
+        
+        annualFamilyIncome: parseInt(profileData.familyAnnualIncome) || 0,
+        householdSize: 5,
+        stBracket: STBracket.PD80,
+        
+        isScholarshipRecipient: profileData.hasOtherScholarships,
+        currentScholarships: [],
+        hasThesisGrant: false,
+        
+        hasDisciplinaryAction: false,
+        
+        profileCompleted: true,
+        lastUpdated: new Date()
+      };
       
-      firstName: profileData.fullName.split(' ')[0],
-      lastName: profileData.fullName.split(' ').slice(-1)[0],
-      middleName: profileData.fullName.split(' ').slice(1, -1).join(' '),
-      contactNumber: profileData.contactNumber,
-      address: {
-        province: profileData.provinceOfOrigin,
-        city: '',
-        barangay: '',
-        street: profileData.address,
-        zipCode: ''
-      },
-      hometown: profileData.provinceOfOrigin,
-      
-      studentNumber: '',
-      college: profileData.college as UPLBCollege,
-      course: profileData.course,
-      yearLevel: profileData.yearLevel as YearLevel,
-      gwa: parseFloat(profileData.gwa) || 2.0,
-      unitsEnrolled: parseInt(profileData.unitsEnrolled) || 18,
-      expectedGraduationDate: new Date('2026-06-30'),
-      hasApprovedThesis: false,
-      
-      annualFamilyIncome: parseInt(profileData.familyAnnualIncome) || 0,
-      householdSize: 5,
-      stBracket: STBracket.PD80,
-      
-      isScholarshipRecipient: profileData.hasOtherScholarships,
-      currentScholarships: [],
-      hasThesisGrant: false,
-      
-      hasDisciplinaryAction: false,
-      
-      profileCompleted: true,
-      lastUpdated: new Date()
-    };
-    
-    login(newUser);
-    setShowProfileCompletion(false);
+      login(newUser);
+      setShowProfileCompletion(false);
+      setNavigateAfterLogin('/dashboard');
+    }
   };
 
   // For demo purposes, auto-login with mock user
   const handleDemoLogin = () => {
     login(createMockStudent());
     setShowAuthModal(false);
+    setNavigateAfterLogin('/dashboard');
   };
 
   // Open auth modal from header
@@ -285,6 +322,8 @@ const App: React.FC = () => {
             userRole={userRole}
             onOpenAuthModal={handleOpenAuthModal}
             onRequireAuth={handleOpenAuthModal}
+            navigateAfterLogin={navigateAfterLogin}
+            clearNavigateAfterLogin={() => setNavigateAfterLogin(null)}
           />
         )}
 
@@ -310,10 +349,21 @@ interface AppContentProps {
   userRole: UserRole;
   onOpenAuthModal: () => void;
   onRequireAuth: () => void;
+  navigateAfterLogin: string | null;
+  clearNavigateAfterLogin: () => void;
 }
 
-const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOpenAuthModal, onRequireAuth }) => {
+const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOpenAuthModal, onRequireAuth, navigateAfterLogin, clearNavigateAfterLogin }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Handle navigation after login
+  React.useEffect(() => {
+    if (navigateAfterLogin) {
+      navigate(navigateAfterLogin);
+      clearNavigateAfterLogin();
+    }
+  }, [navigateAfterLogin, navigate, clearNavigateAfterLogin]);
   
   // Student portal routes that should show StudentHeader
   const studentPortalRoutes = ['/dashboard', '/scholarships', '/my-applications', '/my-profile'];

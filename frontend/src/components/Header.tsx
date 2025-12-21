@@ -49,12 +49,19 @@ const Header: React.FC<HeaderProps> = ({ onDemoLogin }) => {
       if (location.pathname !== '/') {
         navigate('/');
         setTimeout(() => {
-          document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+          const element = document.getElementById(id);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 150);
       } else {
-        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
     }
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -172,16 +179,16 @@ const Header: React.FC<HeaderProps> = ({ onDemoLogin }) => {
                   )}
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <button
                     onClick={onDemoLogin}
-                    className="hidden sm:block text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors"
+                    className="hidden sm:block px-4 py-2 text-sm font-medium text-slate-600 hover:text-primary-600 transition-colors rounded-lg hover:bg-primary-50"
                   >
                     Sign In
                   </button>
                   <button
                     onClick={onDemoLogin}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white font-semibold text-sm rounded-xl hover:bg-primary-700 transition-all shadow-sm"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white font-semibold text-sm rounded-xl hover:bg-primary-700 transition-colors shadow-sm hover:shadow-md"
                   >
                     Get Started
                     <ArrowRight className="w-4 h-4" />

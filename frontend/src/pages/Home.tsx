@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../App';
 import {
   GraduationCap,
   Search,
@@ -31,6 +32,7 @@ import { platformStatistics } from '../data/mockHistoricalData';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, openAuthModal } = useAuth();
   const stats = getScholarshipStats();
 
   // Animated counter hook
@@ -85,12 +87,12 @@ const Home: React.FC = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/UPLB_Oblation.jpg/1280px-UPLB_Oblation.jpg)'
+            backgroundImage: 'url(https://uplb.edu.ph/wp-content/uploads/2023/12/UPLB-receives-Environmental-Compliance-Certificate-from-DENR.webp)'
           }}
         />
         
         {/* Blue Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-600/90 via-primary-700/85 to-primary-800/90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-600/85 via-primary-700/80 to-primary-800/85" />
         
         {/* Dotted pattern background */}
         <div className="absolute inset-0 opacity-10">
@@ -110,9 +112,9 @@ const Home: React.FC = () => {
                 <span className="text-sm font-medium">AI-Powered Matching System</span>
               </div>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight text-white">
                 Find Your Perfect<br />
-                Scholarship Match
+                <span className="text-white">Scholarship Match</span>
               </h1>
 
               <p className="text-lg text-white/80 mb-8 max-w-xl">
@@ -124,14 +126,14 @@ const Home: React.FC = () => {
               <div className="flex flex-wrap gap-4 mb-12">
                 <Link
                   to="/scholarships"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-600 font-semibold rounded-xl hover:bg-gray-100 transition-all shadow-lg"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-600 font-semibold rounded-xl hover:bg-white/90 transition-colors shadow-lg"
                 >
                   Start Matching Now
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <button
                   onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="inline-flex items-center gap-2 px-6 py-3 border-2 border-white/50 text-white font-semibold rounded-xl hover:bg-white/10 transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-3 border-2 border-white/60 text-white font-semibold rounded-xl hover:bg-white/10 hover:border-white transition-colors"
                 >
                   See How It Works
                   <ChevronRight className="w-5 h-5" />
@@ -208,21 +210,21 @@ const Home: React.FC = () => {
       {/* ================================================================
           ABOUT SECTION
           ================================================================ */}
-      <section className="py-20 bg-white">
+      <section id="about" className="py-24 bg-white scroll-mt-20">
         <div className="container-app">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
             {/* Left Content */}
             <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-8">
                 About ISKOlarship
               </div>
 
-              <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
+              <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-6 leading-tight">
                 Connecting Dreams to<br />
                 <span className="text-primary-600">Opportunities</span>
               </h2>
 
-              <p className="text-lg text-slate-600 mb-8">
+              <p className="text-lg text-slate-600 mb-10 leading-relaxed">
                 ISKOlarship revolutionizes scholarship discovery for UPLB students. 
                 Our intelligent platform analyzes your academic achievements, 
                 financial needs, and personal background to match you with the most 
@@ -276,9 +278,9 @@ const Home: React.FC = () => {
             <div className="relative">
               <div className="bg-gradient-to-br from-primary-100 to-primary-200 rounded-3xl p-4 shadow-2xl">
                 <img 
-                  src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/UPLB_Main_Library_%28SU_Bldg%29.jpg/1280px-UPLB_Main_Library_%28SU_Bldg%29.jpg"
+                  src="https://up.edu.ph/wp-content/uploads/2024/09/Pegaraw-1024x538.png"
                   alt="UPLB Main Library - University of the Philippines Los Baños"
-                  className="rounded-2xl w-full aspect-[4/3] object-cover"
+                  className="rounded-2xl w-full aspect-[4/3] object-cover"  
                 />
               </div>
               {/* Floating Achievement Badge */}
@@ -313,10 +315,10 @@ const Home: React.FC = () => {
       {/* ================================================================
           FEATURES SECTION
           ================================================================ */}
-      <section className="py-20 bg-slate-50">
+      <section id="features" className="py-24 bg-slate-50 scroll-mt-20">
         <div className="container-app">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-medium mb-8">
               Platform Features
             </div>
             <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
@@ -406,10 +408,10 @@ const Home: React.FC = () => {
       {/* ================================================================
           HOW IT WORKS SECTION
           ================================================================ */}
-      <section id="how-it-works" className="py-20 bg-white">
+      <section id="how-it-works" className="py-24 bg-white scroll-mt-20">
         <div className="container-app">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
+            <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-6 leading-tight">
               Your Journey to <span className="text-primary-600">Success</span>
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
@@ -546,13 +548,19 @@ const Home: React.FC = () => {
           </div>
 
           <div className="text-center">
-            <Link
-              to="/dashboard"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-success-500 text-white font-semibold rounded-xl hover:bg-success-600 transition-all"
+            <button
+              onClick={() => {
+                if (isAuthenticated) {
+                  navigate('/dashboard');
+                } else {
+                  openAuthModal();
+                }
+              }}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors shadow-md hover:shadow-lg"
             >
               <Sparkles className="w-5 h-5" />
               Start Your Journey
-            </Link>
+            </button>
           </div>
         </div>
       </section>
@@ -560,10 +568,10 @@ const Home: React.FC = () => {
       {/* ================================================================
           FEATURED SCHOLARSHIPS SECTION
           ================================================================ */}
-      <section className="py-20 bg-white">
+      <section className="py-24 bg-white">
         <div className="container-app">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-8">
               Available Programs
             </div>
             <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
@@ -578,7 +586,13 @@ const Home: React.FC = () => {
             {featuredScholarships.map((scholarship, index) => (
               <div
                 key={scholarship.id}
-                onClick={() => navigate(`/scholarships/${scholarship.id}`)}
+                onClick={() => {
+                  if (isAuthenticated) {
+                    navigate(`/scholarships/${scholarship.id}`);
+                  } else {
+                    openAuthModal();
+                  }
+                }}
                 className={`bg-white rounded-2xl p-6 shadow-sm border border-slate-100 border-t-4 ${cardColors[index % cardColors.length]} cursor-pointer hover:shadow-md transition-all`}
               >
                 <div className="flex items-start justify-between mb-4">
@@ -612,7 +626,7 @@ const Home: React.FC = () => {
           <div className="text-center">
             <Link
               to="/scholarships"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors shadow-md hover:shadow-lg"
             >
               Explore All Scholarships
               <ArrowRight className="w-5 h-5" />
@@ -629,12 +643,12 @@ const Home: React.FC = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/UPLB_Carillon.jpg/1280px-UPLB_Carillon.jpg)'
+            backgroundImage: 'url(https://uplb.edu.ph/wp-content/uploads/2021/12/UPLB-gains-20-new-HEI-partners-for-2021-II.jpg)'
           }}
         />
         
         {/* Blue Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-600/90 via-primary-700/85 to-primary-800/90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-600/85 via-primary-700/80 to-primary-800/85" />
         
         {/* Dotted pattern background */}
         <div className="absolute inset-0 opacity-10">
@@ -645,37 +659,43 @@ const Home: React.FC = () => {
         </div>
 
         <div className="container-app relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white mb-8">
             <Sparkles className="w-4 h-4" />
             <span className="text-sm font-medium">Join Our Community</span>
           </div>
 
-          <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-6">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-8 leading-tight">
             Ready to Find Your Perfect<br />Scholarship?
           </h2>
 
-          <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">
+          <p className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
             Join hundreds of successful UPLB students who discovered their 
             scholarship opportunities through ISKOlarship
           </p>
 
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary-600 font-semibold rounded-xl hover:bg-gray-100 transition-all shadow-lg"
+          <button
+            onClick={() => {
+              if (isAuthenticated) {
+                navigate('/dashboard');
+              } else {
+                openAuthModal();
+              }
+            }}
+            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-primary-600 font-semibold rounded-xl hover:bg-white/90 transition-colors shadow-lg"
           >
             Create Free Account
             <ArrowRight className="w-5 h-5" />
-          </Link>
+          </button>
         </div>
       </section>
 
       {/* ================================================================
           CONTACT SECTION
           ================================================================ */}
-      <section className="py-20 bg-white">
+      <section id="contact" className="py-24 bg-white scroll-mt-20">
         <div className="container-app">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-8">
               Get In Touch
             </div>
             <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">

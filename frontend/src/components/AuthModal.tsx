@@ -3,7 +3,7 @@
 // Sign In / Sign Up modal with Student and Administrator views
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, GraduationCap, User, Settings, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 interface AuthModalProps {
@@ -33,6 +33,28 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Prevent body scroll when modal is open WITHOUT changing scroll position
+  useEffect(() => {
+    if (isOpen) {
+      // Simply prevent scrolling by adding overflow hidden to html and body
+      // This doesn't change the scroll position
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollBarWidth}px`; // Prevent layout shift
+    } else {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+    
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -77,25 +99,25 @@ const AuthModal: React.FC<AuthModalProps> = ({
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-primary-600 px-6 py-5 relative">
+        <div className="bg-primary-600 px-6 py-4 relative rounded-t-2xl">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+            className="absolute top-5 right-5 text-white/80 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
           
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <GraduationCap className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Welcome to ISKOlarship</h2>
-              <p className="text-white/80 text-sm">Your gateway to educational opportunities</p>
+              <h2 className="text-2xl font-bold text-white">Welcome to ISKOlarship</h2>
+              <p className="text-white/80 text-sm mt-1">Your gateway to educational opportunities</p>
             </div>
           </div>
         </div>
