@@ -1,9 +1,10 @@
 // ============================================================================
 // ISKOlarship - DataVisualization Component
 // Chart.js based visualizations for scholarship analytics
+// Now fetches data from API instead of mock data
 // ============================================================================
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -18,8 +19,8 @@ import {
   Filler
 } from 'chart.js';
 import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
-import { platformStatistics } from '../data/mockHistoricalData';
-import { scholarships, getScholarshipStats } from '../data/scholarships';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { statisticsApi, scholarshipApi } from '../services/apiClient';
 
 // Register Chart.js components
 ChartJS.register(
@@ -42,12 +43,25 @@ interface DataVisualizationProps {
   className?: string;
 }
 
+interface AnalyticsData {
+  gwaStats: Array<{ range: string; totalApplications: number; approved: number; successRate: number }>;
+  incomeStats: Array<{ bracket: string; totalApplications: number; approved: number; successRate: number }>;
+  collegeStats: Array<{ college: string; totalApplications: number; approved: number; rejected: number; successRate: number }>;
+  typeStats: Array<{ type: string; count: number; totalSlots: number; totalFunding: number }>;
+  yearlyTrends: Array<{ academicYear: string; totalApplications: number; approvedApplications: number; rejectedApplications: number; successRate: number }>;
+}
+
 const DataVisualization: React.FC<DataVisualizationProps> = ({
   type = 'successByGwa',
   title,
   height = 300,
   className = ''
 }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [scholarships, setScholarships] = useState<any[]>([]);
+
   // Blue Theme colors
   const colors = {
     primary: 'rgb(37, 99, 235)',
@@ -64,19 +78,56 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
     purpleLight: 'rgba(168, 85, 247, 0.5)',
   };
 
-  const scholarshipStats = getScholarshipStats();
+  // Fetch analytics data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  // Success Rate by GWA Chart - using platformStatistics.gwaDistribution
+        const [analyticsRes, scholarshipsRes] = await Promise.all([
+          statisticsApi.getAnalytics(),
+          scholarshipApi.getAll({ limit: 100 })
+        ]);
+
+        if (analyticsRes.success && analyticsRes.data) {
+          setAnalyticsData({
+            gwaStats: analyticsRes.data.gwaStats || [],
+            incomeStats: analyticsRes.data.incomeStats || [],
+            collegeStats: analyticsRes.data.collegeStats || [],
+            typeStats: analyticsRes.data.typeStats || [],
+            yearlyTrends: analyticsRes.data.yearlyTrends || []
+          });
+        }
+
+        if (scholarshipsRes.success && scholarshipsRes.data?.scholarships) {
+          setScholarships(scholarshipsRes.data.scholarships);
+        }
+      } catch (err) {
+        console.error('Failed to fetch analytics data:', err);
+        setError('Failed to load chart data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Success Rate by GWA Chart
   const successByGwaData = useMemo(() => {
-    const gwaData = platformStatistics.gwaDistribution;
-    const labels = Object.keys(gwaData);
-    const rates = Object.values(gwaData).map((d: any) => d.successRate);
-    
+    if (!analyticsData?.gwaStats?.length) {
+      return {
+        labels: ['1.0-1.5', '1.5-2.0', '2.0-2.5', '2.5-3.0'],
+        datasets: [{ label: 'Success Rate (%)', data: [0, 0, 0, 0], backgroundColor: colors.greenLight, borderColor: colors.green, borderWidth: 2 }]
+      };
+    }
+
     return {
-      labels,
+      labels: analyticsData.gwaStats.map(d => d.range),
       datasets: [{
         label: 'Success Rate (%)',
-        data: rates,
+        data: analyticsData.gwaStats.map(d => d.successRate),
         backgroundColor: [
           colors.greenLight,
           colors.blueLight,
@@ -92,94 +143,104 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
         borderWidth: 2,
       }]
     };
-  }, []);
+  }, [analyticsData]);
 
-  // Success Rate by Income Chart - using platformStatistics.incomeDistribution
+  // Success Rate by Income Chart
   const successByIncomeData = useMemo(() => {
-    const incomeData = platformStatistics.incomeDistribution;
-    const labels = Object.keys(incomeData);
-    const rates = Object.values(incomeData).map((d: any) => d.successRate);
-    
+    if (!analyticsData?.incomeStats?.length) {
+      return {
+        labels: ['Below 100k', '100k-200k', '200k-300k', '300k+'],
+        datasets: [{ label: 'Success Rate (%)', data: [0, 0, 0, 0], backgroundColor: colors.goldLight, borderColor: colors.gold, borderWidth: 2 }]
+      };
+    }
+
     return {
-      labels,
+      labels: analyticsData.incomeStats.map(d => d.bracket),
       datasets: [{
         label: 'Success Rate (%)',
-        data: rates,
+        data: analyticsData.incomeStats.map(d => d.successRate),
         backgroundColor: colors.goldLight,
         borderColor: colors.gold,
         borderWidth: 2,
       }]
     };
-  }, []);
+  }, [analyticsData]);
 
-  // Success Rate by College Chart - using platformStatistics.byCollege
+  // Success Rate by College Chart
   const successByCollegeData = useMemo(() => {
-    const collegeData = platformStatistics.byCollege;
-    const labels = Object.keys(collegeData);
-    const rates = Object.values(collegeData).map((d: any) => d.successRate);
-    
+    if (!analyticsData?.collegeStats?.length) {
+      return {
+        labels: ['CAS', 'CEAT', 'CAFS', 'CHE', 'CEM'],
+        datasets: [{ label: 'Success Rate (%)', data: [0, 0, 0, 0, 0], backgroundColor: colors.primaryLight, borderColor: colors.primary, borderWidth: 2 }]
+      };
+    }
+
+    const bgColors = [
+      colors.primaryLight, colors.goldLight, colors.greenLight,
+      colors.blueLight, colors.orangeLight, colors.purpleLight
+    ];
+    const borderColors = [
+      colors.primary, colors.gold, colors.green,
+      colors.blue, colors.orange, colors.purple
+    ];
+
     return {
-      labels,
+      labels: analyticsData.collegeStats.map(d => d.college),
       datasets: [{
         label: 'Success Rate (%)',
-        data: rates,
-        backgroundColor: [
-          colors.primaryLight,
-          colors.goldLight,
-          colors.greenLight,
-          colors.blueLight,
-          colors.orangeLight,
-          colors.purpleLight,
-          colors.primaryLight,
-          colors.goldLight,
-          colors.greenLight,
-        ],
-        borderColor: [
-          colors.primary,
-          colors.gold,
-          colors.green,
-          colors.blue,
-          colors.orange,
-          colors.purple,
-          colors.primary,
-          colors.gold,
-          colors.green,
-        ],
+        data: analyticsData.collegeStats.map(d => d.successRate),
+        backgroundColor: analyticsData.collegeStats.map((_, i) => bgColors[i % bgColors.length]),
+        borderColor: analyticsData.collegeStats.map((_, i) => borderColors[i % borderColors.length]),
         borderWidth: 2,
       }]
     };
-  }, []);
+  }, [analyticsData]);
 
-  // Scholarships by Type Chart - using scholarshipStats.byType
+  // Scholarships by Type Chart
   const scholarshipsByTypeData = useMemo(() => {
-    const typeData = scholarshipStats.byType;
+    if (!analyticsData?.typeStats?.length) {
+      return {
+        labels: ['University', 'College', 'Government', 'Private', 'Thesis Grant'],
+        datasets: [{ data: [0, 0, 0, 0, 0], backgroundColor: [colors.primary, colors.gold, colors.green, colors.blue, colors.orange], borderWidth: 0 }]
+      };
+    }
+
     return {
-      labels: ['University', 'College', 'Government', 'Private', 'Thesis Grant'],
+      labels: analyticsData.typeStats.map(d => d.type),
       datasets: [{
-        data: [
-          typeData.university,
-          typeData.college,
-          typeData.government,
-          typeData.private,
-          typeData.thesisGrant
-        ],
+        data: analyticsData.typeStats.map(d => d.count),
         backgroundColor: [
           colors.primary,
           colors.gold,
           colors.green,
           colors.blue,
           colors.orange,
+          colors.purple
         ],
         borderWidth: 0,
       }]
     };
-  }, [scholarshipStats]);
+  }, [analyticsData]);
 
   // Funding Distribution Chart
   const fundingDistributionData = useMemo(() => {
+    if (!scholarships.length) {
+      return {
+        labels: [],
+        datasets: [{ label: 'Grant Amount (₱)', data: [], backgroundColor: colors.primaryLight, borderColor: colors.primary, borderWidth: 1 }]
+      };
+    }
+
     const sortedScholarships = [...scholarships]
-      .filter(s => s.awardAmount && s.awardAmount > 0)
-      .sort((a, b) => (b.awardAmount || 0) - (a.awardAmount || 0))
+      .filter(s => {
+        const amount = s.awardAmount ?? s.totalGrant ?? 0;
+        return amount > 0;
+      })
+      .sort((a, b) => {
+        const amountA = a.awardAmount ?? a.totalGrant ?? 0;
+        const amountB = b.awardAmount ?? b.totalGrant ?? 0;
+        return amountB - amountA;
+      })
       .slice(0, 10);
     
     return {
@@ -188,27 +249,32 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
       ),
       datasets: [{
         label: 'Grant Amount (₱)',
-        data: sortedScholarships.map(s => s.awardAmount || 0),
+        data: sortedScholarships.map(s => s.awardAmount ?? s.totalGrant ?? 0),
         backgroundColor: colors.primaryLight,
         borderColor: colors.primary,
         borderWidth: 1,
       }]
     };
-  }, []);
+  }, [scholarships]);
 
   // Application Trend Chart
   const applicationTrendData = useMemo(() => {
-    const yearData = platformStatistics.byAcademicYear;
-    const labels = Object.keys(yearData);
-    const approved = Object.values(yearData).map((d: any) => d.approved);
-    const rejected = Object.values(yearData).map((d: any) => d.rejected);
-    
+    if (!analyticsData?.yearlyTrends?.length) {
+      return {
+        labels: ['2021-2022', '2022-2023', '2023-2024', '2024-2025'],
+        datasets: [
+          { label: 'Approved', data: [0, 0, 0, 0], backgroundColor: colors.greenLight, borderColor: colors.green, borderWidth: 2, fill: true },
+          { label: 'Rejected', data: [0, 0, 0, 0], backgroundColor: colors.orangeLight, borderColor: colors.orange, borderWidth: 2, fill: true }
+        ]
+      };
+    }
+
     return {
-      labels,
+      labels: analyticsData.yearlyTrends.map(d => d.academicYear),
       datasets: [
         {
           label: 'Approved',
-          data: approved,
+          data: analyticsData.yearlyTrends.map(d => d.approvedApplications),
           backgroundColor: colors.greenLight,
           borderColor: colors.green,
           borderWidth: 2,
@@ -216,7 +282,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
         },
         {
           label: 'Rejected',
-          data: rejected,
+          data: analyticsData.yearlyTrends.map(d => d.rejectedApplications),
           backgroundColor: colors.orangeLight,
           borderColor: colors.orange,
           borderWidth: 2,
@@ -224,7 +290,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
         }
       ]
     };
-  }, []);
+  }, [analyticsData]);
 
   // Chart options
   const barOptions = {
@@ -313,6 +379,36 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
     }
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className={`bg-white rounded-xl p-6 shadow-sm \${className}`} style={{ height: height + 40 }}>
+        {title && <h3 className="text-lg font-semibold text-slate-900 mb-4">{title}</h3>}
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+            <p className="text-sm text-slate-500">Loading chart data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className={`bg-white rounded-xl p-6 shadow-sm \${className}`} style={{ height: height + 40 }}>
+        {title && <h3 className="text-lg font-semibold text-slate-900 mb-4">{title}</h3>}
+        <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <AlertCircle className="w-8 h-8 text-amber-500" />
+            <p className="text-sm text-slate-500">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Render chart based on type
   const renderChart = () => {
     switch (type) {
@@ -333,7 +429,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
               ...barOptions.scales.y,
               max: undefined,
               ticks: {
-                callback: (value: any) => `₱${(value/1000).toFixed(0)}k`
+                callback: (value: any) => `₱\${(value/1000).toFixed(0)}k`
               }
             }
           }
@@ -346,7 +442,7 @@ const DataVisualization: React.FC<DataVisualizationProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-xl p-6 shadow-sm ${className}`}>
+    <div className={`bg-white rounded-xl p-6 shadow-sm \${className}`}>
       {title && (
         <h3 className="text-lg font-semibold text-slate-900 mb-4">{title}</h3>
       )}

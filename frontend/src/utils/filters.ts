@@ -171,8 +171,8 @@ export const getFilterOptions = (scholarships: Scholarship[]) => {
   scholarships.forEach(s => {
     types.add(s.type);
     
-    s.eligibilityCriteria?.eligibleColleges?.forEach(c => colleges.add(c));
-    s.eligibilityCriteria?.requiredYearLevels?.forEach(y => yearLevels.add(y));
+    s.eligibilityCriteria?.eligibleColleges?.forEach(c => colleges.add(c as UPLBCollege));
+    s.eligibilityCriteria?.requiredYearLevels?.forEach(y => yearLevels.add(y as YearLevel));
     
     const amount = s.awardAmount || 0;
     if (amount < minAmount) minAmount = amount;

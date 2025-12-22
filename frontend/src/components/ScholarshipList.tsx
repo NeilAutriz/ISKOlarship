@@ -15,7 +15,8 @@ import {
   X,
   ChevronDown,
   Award,
-  GraduationCap
+  GraduationCap,
+  Loader2
 } from 'lucide-react';
 import ScholarshipCard from './ScholarshipCard';
 import { Scholarship, MatchResult, ScholarshipType, StudentProfile } from '../types';
@@ -29,6 +30,7 @@ interface ScholarshipListProps {
   viewMode?: 'grid' | 'list';
   title?: string;
   emptyMessage?: string;
+  loading?: boolean;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -41,7 +43,8 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   showViewToggle = true,
   viewMode: externalViewMode,
   title,
-  emptyMessage = 'No scholarships found matching your criteria.'
+  emptyMessage = 'No scholarships found matching your criteria.',
+  loading = false
 }) => {
   // State
   const [internalViewMode, setInternalViewMode] = useState<ViewMode>('grid');
@@ -333,7 +336,54 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
       )}
 
       {/* Results */}
-      {filteredScholarships.length > 0 ? (
+      {loading ? (
+        // Loading skeleton
+        <div className={
+          viewMode === 'grid'
+            ? 'grid grid-cols-1 xl:grid-cols-2 gap-6'
+            : 'space-y-4'
+        }>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div 
+              key={i} 
+              className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 animate-pulse"
+              style={{ animationDelay: `${i * 100}ms` }}
+            >
+              {/* Color bar skeleton */}
+              <div className="h-2 bg-gradient-to-r from-slate-200 to-slate-300" />
+              
+              <div className="p-6">
+                {/* Header skeleton */}
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-14 h-14 bg-slate-200 rounded-xl flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="h-5 bg-slate-200 rounded w-3/4 mb-2" />
+                    <div className="h-4 bg-slate-100 rounded w-1/2" />
+                  </div>
+                </div>
+
+                {/* Badge skeleton */}
+                <div className="flex gap-2 mb-4">
+                  <div className="h-6 bg-slate-100 rounded-full w-20" />
+                  <div className="h-6 bg-slate-100 rounded-full w-24" />
+                </div>
+
+                {/* Description skeleton */}
+                <div className="space-y-2 mb-4">
+                  <div className="h-3 bg-slate-100 rounded w-full" />
+                  <div className="h-3 bg-slate-100 rounded w-5/6" />
+                </div>
+
+                {/* Footer skeleton */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                  <div className="h-6 bg-slate-200 rounded w-24" />
+                  <div className="h-9 bg-slate-200 rounded-lg w-24" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredScholarships.length > 0 ? (
         <div className={
           viewMode === 'grid'
             ? 'grid grid-cols-1 xl:grid-cols-2 gap-6'

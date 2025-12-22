@@ -1,50 +1,68 @@
 // ============================================================================
 // ISKOlarship - API Service
-// API client for backend communication (currently using mock data)
+// API client for backend communication - now uses real API client
 // ============================================================================
 
-import { scholarships, getScholarshipById, getActiveScholarships } from '../data/scholarships';
-import { historicalApplications, scholarshipStatistics, platformStatistics } from '../data/mockHistoricalData';
+import { 
+  scholarshipApi, 
+  applicationApi, 
+  authApi, 
+  userApi, 
+  statisticsApi,
+  predictionApi 
+} from './apiClient';
 import { Scholarship, StudentProfile, HistoricalApplication } from '../types';
-
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
-
-// Simulate network delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ============================================================================
 // Scholarship API
 // ============================================================================
 
 /**
- * Fetch all scholarships
- * Currently uses mock data - will connect to backend in production
+ * Fetch all scholarships from the API
  */
 export const fetchScholarships = async (): Promise<Scholarship[]> => {
-  await delay(100); // Simulate network delay
-  return getActiveScholarships();
+  try {
+    const response = await scholarshipApi.getAll({ limit: 100 });
+    if (response.success && response.data?.scholarships) {
+      return response.data.scholarships;
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch scholarships:', error);
+    return [];
+  }
 };
 
 /**
  * Fetch scholarship by ID
  */
 export const fetchScholarshipDetails = async (id: string): Promise<Scholarship | null> => {
-  await delay(100);
-  return getScholarshipById(id) || null;
+  try {
+    const response = await scholarshipApi.getById(id);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch scholarship details:', error);
+    return null;
+  }
 };
 
 /**
  * Search scholarships
  */
 export const searchScholarships = async (query: string): Promise<Scholarship[]> => {
-  await delay(100);
-  const lowercaseQuery = query.toLowerCase();
-  return scholarships.filter(s =>
-    s.name.toLowerCase().includes(lowercaseQuery) ||
-    s.sponsor.toLowerCase().includes(lowercaseQuery) ||
-    s.description?.toLowerCase().includes(lowercaseQuery)
-  );
+  try {
+    const response = await scholarshipApi.getAll({ search: query, limit: 100 });
+    if (response.success && response.data?.scholarships) {
+      return response.data.scholarships;
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to search scholarships:', error);
+    return [];
+  }
 };
 
 // ============================================================================
@@ -55,44 +73,67 @@ export const searchScholarships = async (query: string): Promise<Scholarship[]> 
  * Fetch user information
  */
 export const fetchUserInformation = async (userId: string): Promise<StudentProfile | null> => {
-  await delay(100);
-  // Mock user data - in production, this would fetch from the database
-  return null;
+  try {
+    const response = await userApi.getProfile();
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch user info:', error);
+    return null;
+  }
 };
 
 /**
  * Register a new user
  */
 export const registerUser = async (userData: Partial<StudentProfile>): Promise<{ success: boolean; user?: StudentProfile; error?: string }> => {
-  await delay(200);
-  // Mock registration - in production, this would create a user in the database
-  return {
-    success: true,
-    user: userData as StudentProfile
-  };
+  try {
+    const response = await authApi.register({
+      email: (userData as any).email || '',
+      password: (userData as any).password || '',
+      firstName: (userData as any).firstName || '',
+      lastName: (userData as any).lastName || '',
+      role: 'student'
+    });
+    if (response.success) {
+      return { success: true, user: response.data.user };
+    }
+    return { success: false, error: response.message || 'Registration failed' };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Registration failed' };
+  }
 };
 
 /**
  * Login user
  */
 export const loginUser = async (email: string, password: string): Promise<{ success: boolean; user?: StudentProfile; error?: string }> => {
-  await delay(200);
-  // Mock login - in production, this would authenticate against the backend
-  return {
-    success: false,
-    error: 'Invalid credentials. Try using the demo login.'
-  };
+  try {
+    const response = await authApi.login(email, password);
+    if (response.success) {
+      return { success: true, user: response.data.user };
+    }
+    return { success: false, error: response.message || 'Login failed' };
+  } catch (error: any) {
+    return { success: false, error: error.response?.data?.message || error.message || 'Login failed' };
+  }
 };
 
 /**
  * Update user profile
  */
 export const updateUserProfile = async (userId: string, updates: Partial<StudentProfile>): Promise<{ success: boolean; user?: StudentProfile; error?: string }> => {
-  await delay(200);
-  return {
-    success: true,
-    user: updates as StudentProfile
-  };
+  try {
+    const response = await userApi.updateProfile(updates);
+    if (response.success) {
+      return { success: true, user: response.data };
+    }
+    return { success: false, error: response.message || 'Update failed' };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Update failed' };
+  }
 };
 
 // ============================================================================
@@ -107,22 +148,38 @@ export const submitApplication = async (
   scholarshipId: string,
   applicationData: Record<string, unknown>
 ): Promise<{ success: boolean; applicationId?: string; error?: string }> => {
-  await delay(300);
-  return {
-    success: true,
-    applicationId: `app-${Date.now()}`
-  };
+  try {
+    const response = await applicationApi.create(scholarshipId, {
+      personalStatement: applicationData.personalStatement as string,
+      additionalInfo: applicationData.additionalInfo as string
+    });
+    if (response.success && response.data?.application) {
+      const app = response.data.application as any;
+      return { 
+        success: true, 
+        applicationId: app.id || app._id 
+      };
+    }
+    return { success: false, error: response.message || 'Application failed' };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Application failed' };
+  }
 };
 
 /**
  * Get user applications
- * Note: In a real implementation, this would filter by userId
- * For now, returns all historical applications as demo data
  */
-export const getUserApplications = async (userId: string): Promise<HistoricalApplication[]> => {
-  await delay(100);
-  // Return mock data - in real implementation, would filter by user
-  return historicalApplications.slice(0, 5);
+export const getUserApplications = async (userId: string): Promise<any[]> => {
+  try {
+    const response = await applicationApi.getMyApplications();
+    if (response.success && response.data?.applications) {
+      return response.data.applications;
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch user applications:', error);
+    return [];
+  }
 };
 
 // ============================================================================
@@ -133,24 +190,41 @@ export const getUserApplications = async (userId: string): Promise<HistoricalApp
  * Fetch platform statistics
  */
 export const fetchPlatformStatistics = async () => {
-  await delay(100);
-  return platformStatistics;
+  try {
+    const response = await statisticsApi.getAnalytics();
+    if (response.success && response.data) {
+      return response.data.platformStatistics;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch platform statistics:', error);
+    return null;
+  }
 };
 
 /**
  * Fetch scholarship statistics
  */
 export const fetchScholarshipStatistics = async () => {
-  await delay(100);
-  return scholarshipStatistics;
+  try {
+    const response = await statisticsApi.getScholarshipStats();
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch scholarship statistics:', error);
+    return null;
+  }
 };
 
 /**
  * Fetch historical applications for analytics
  */
 export const fetchHistoricalApplications = async (): Promise<HistoricalApplication[]> => {
-  await delay(100);
-  return historicalApplications;
+  // Historical applications are managed by the backend
+  // This returns an empty array as analytics now come from the API
+  return [];
 };
 
 // ============================================================================
@@ -164,13 +238,24 @@ export const getPrediction = async (
   studentId: string,
   scholarshipId: string
 ): Promise<{ probability: number; factors: Array<{ factor: string; weight: number; impact: string }> }> => {
-  await delay(150);
-  // This would call the backend prediction service in production
-  // Currently, prediction is done client-side
-  return {
-    probability: 0.75,
-    factors: []
-  };
+  try {
+    const response = await predictionApi.getProbability(scholarshipId);
+    if (response.success && response.data) {
+      const data = response.data as any;
+      return {
+        probability: data.probability || 0.5,
+        factors: data.factors?.map((f: any) => ({
+          factor: f.factor,
+          weight: f.weight,
+          impact: f.contribution > 0 ? 'positive' : 'negative'
+        })) || []
+      };
+    }
+    return { probability: 0.5, factors: [] };
+  } catch (error) {
+    console.error('Failed to get prediction:', error);
+    return { probability: 0.5, factors: [] };
+  }
 };
 
 // ============================================================================

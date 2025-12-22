@@ -1,16 +1,18 @@
 // ============================================================================
 // ISKOlarship - useScholarships Hook
 // Custom hook for managing scholarship data, filtering, and matching
+// Now uses API client instead of mock data
 // ============================================================================
 
-import { useState, useMemo, useCallback, useContext } from 'react';
-import { scholarships as allScholarships, getScholarshipById, getActiveScholarships, getUpcomingDeadlines } from '../data/scholarships';
-import { matchStudentToScholarships, filterScholarships, sortScholarships } from '../services/filterEngine';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { scholarshipApi } from '../services/apiClient';
+import { matchStudentToScholarships } from '../services/filterEngine';
 import { Scholarship, MatchResult, FilterCriteria, StudentProfile, ScholarshipType } from '../types';
 
 interface UseScholarshipsOptions {
   studentProfile?: StudentProfile;
   initialFilters?: Partial<FilterCriteria>;
+  autoFetch?: boolean;
 }
 
 interface UseScholarshipsReturn {
@@ -56,10 +58,11 @@ const defaultFilters: FilterCriteria = {
 };
 
 export const useScholarships = (options: UseScholarshipsOptions = {}): UseScholarshipsReturn => {
-  const { studentProfile, initialFilters } = options;
+  const { studentProfile, initialFilters, autoFetch = true } = options;
   
   // State
-  const [loading, setLoading] = useState(false);
+  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFiltersState] = useState<FilterCriteria>({
     ...defaultFilters,
@@ -69,14 +72,34 @@ export const useScholarships = (options: UseScholarshipsOptions = {}): UseSchola
   const [sortBy, setSortBy] = useState<'deadline' | 'amount' | 'name' | 'match'>('deadline');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Get all scholarships
-  const scholarships = useMemo(() => {
-    return getActiveScholarships();
-  }, [refreshKey]);
+  // Fetch scholarships from API
+  useEffect(() => {
+    if (!autoFetch) return;
+    
+    const fetchScholarships = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await scholarshipApi.getAll({ limit: 100 });
+        if (response.success && response.data?.scholarships) {
+          setScholarships(response.data.scholarships);
+        } else {
+          setError('Failed to load scholarships');
+        }
+      } catch (err) {
+        console.error('Failed to fetch scholarships:', err);
+        setError('Failed to connect to server. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchScholarships();
+  }, [refreshKey, autoFetch]);
 
   // Calculate match results for student - use both id and _id
   const matchResults = useMemo(() => {
-    if (!studentProfile) return new Map<string, MatchResult>();
+    if (!studentProfile || scholarships.length === 0) return new Map<string, MatchResult>();
     const results = matchStudentToScholarships(studentProfile, scholarships);
     return new Map(results.map(r => {
       const scholarshipId = r.scholarship.id || (r.scholarship as any)._id;
@@ -198,10 +221,10 @@ export const useScholarships = (options: UseScholarshipsOptions = {}): UseSchola
     setSearchQuery('');
   }, []);
 
-  // Get scholarship by ID
+  // Get scholarship by ID - now searches in fetched data
   const getScholarship = useCallback((id: string) => {
-    return getScholarshipById(id);
-  }, []);
+    return scholarships.find(s => s.id === id || (s as any)._id === id);
+  }, [scholarships]);
 
   // Get match result by scholarship ID
   const getMatchResult = useCallback((scholarshipId: string) => {
