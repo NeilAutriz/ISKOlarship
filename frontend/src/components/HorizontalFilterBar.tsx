@@ -24,6 +24,7 @@ interface HorizontalFilterBarProps {
   onClearFilters: () => void;
   showEligibleToggle?: boolean;
   resultCount?: number;
+  totalCount?: number;
   className?: string;
 }
 
@@ -33,6 +34,7 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
   onClearFilters,
   showEligibleToggle = true,
   resultCount,
+  totalCount,
   className = ''
 }) => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -50,13 +52,13 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Scholarship types
-  const scholarshipTypes: { value: ScholarshipType; label: string; color: string }[] = [
-    { value: ScholarshipType.UNIVERSITY, label: 'University', color: 'bg-emerald-100 text-emerald-700' },
-    { value: ScholarshipType.COLLEGE, label: 'College', color: 'bg-blue-100 text-blue-700' },
-    { value: ScholarshipType.GOVERNMENT, label: 'Government', color: 'bg-amber-100 text-amber-700' },
-    { value: ScholarshipType.PRIVATE, label: 'Private', color: 'bg-purple-100 text-purple-700' },
-    { value: ScholarshipType.THESIS_GRANT, label: 'Thesis Grant', color: 'bg-rose-100 text-rose-700' }
+  // Scholarship types - Clean color scheme with good contrast
+  const scholarshipTypes: { value: ScholarshipType; label: string; color: string; activeColor: string }[] = [
+    { value: ScholarshipType.UNIVERSITY, label: 'University', color: 'bg-blue-50 text-blue-700 border-blue-200', activeColor: 'bg-blue-600 text-white border-blue-600' },
+    { value: ScholarshipType.COLLEGE, label: 'College', color: 'bg-teal-50 text-teal-700 border-teal-200', activeColor: 'bg-teal-600 text-white border-teal-600' },
+    { value: ScholarshipType.GOVERNMENT, label: 'Government', color: 'bg-amber-50 text-amber-700 border-amber-200', activeColor: 'bg-amber-600 text-white border-amber-600' },
+    { value: ScholarshipType.PRIVATE, label: 'Private', color: 'bg-purple-50 text-purple-700 border-purple-200', activeColor: 'bg-purple-600 text-white border-purple-600' },
+    { value: ScholarshipType.THESIS_GRANT, label: 'Thesis Grant', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', activeColor: 'bg-emerald-600 text-white border-emerald-600' }
   ];
 
   // Year levels
@@ -142,12 +144,13 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-4 ${className}`} ref={dropdownRef}>
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Filter Icon */}
-        <div className="flex items-center gap-2 text-slate-500 pr-3 border-r border-slate-200">
-          <SlidersHorizontal className="w-5 h-5" />
-          <span className="text-sm font-medium hidden sm:inline">Filters</span>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Filter Icon */}
+          <div className="flex items-center gap-2 text-slate-600 pr-3 border-r border-slate-200">
+            <SlidersHorizontal className="w-5 h-5" />
+            <span className="text-sm font-medium hidden sm:inline">Filters</span>
+          </div>
 
         {/* Eligible Only Toggle */}
         {showEligibleToggle && (
@@ -178,24 +181,27 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                 Scholarship Type
               </div>
-              {scholarshipTypes.map(type => (
-                <label
-                  key={type.value}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.scholarshipTypes?.includes(type.value) ?? false}
-                    onChange={() => onFilterChange({
-                      scholarshipTypes: toggleArrayValue(filters.scholarshipTypes, type.value)
-                    })}
-                    className="w-4 h-4 rounded border-slate-300 text-uplb-600 focus:ring-uplb-500"
-                  />
-                  <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${type.color}`}>
-                    {type.label}
-                  </span>
-                </label>
-              ))}
+              {scholarshipTypes.map(type => {
+                const isSelected = filters.scholarshipTypes?.includes(type.value) ?? false;
+                return (
+                  <label
+                    key={type.value}
+                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition-all"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onFilterChange({
+                        scholarshipTypes: toggleArrayValue(filters.scholarshipTypes, type.value)
+                      })}
+                      className="w-4 h-4 rounded border-slate-300 text-uplb-600 focus:ring-uplb-500"
+                    />
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide transition-all ${isSelected ? type.activeColor : type.color} border`}>
+                      {type.label}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </Dropdown>
         </div>
@@ -321,20 +327,30 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
             <span className="text-xs text-slate-500">{activeFilterCount} active</span>
             <button
               onClick={onClearFilters}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-3.5 h-3.5" />
               Clear All
             </button>
           </div>
         )}
+        </div>
 
-        {/* Results Count */}
-        {resultCount !== undefined && (
-          <div className="text-sm text-slate-500">
-            <span className="font-semibold text-slate-900">{resultCount}</span> scholarships
-          </div>
-        )}
+        {/* Inline Stats */}
+        <div className="flex items-center gap-4 pl-4 border-l border-slate-200">
+          {totalCount !== undefined && (
+            <div className="text-center px-3">
+              <div className="text-lg font-bold text-slate-900">{totalCount}</div>
+              <div className="text-xs text-slate-500">Total</div>
+            </div>
+          )}
+          {resultCount !== undefined && (
+            <div className="text-center px-3 py-1 bg-primary-50 rounded-lg">
+              <div className="text-lg font-bold text-primary-700">{resultCount}</div>
+              <div className="text-xs text-primary-600">Showing</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Selected Filter Pills */}

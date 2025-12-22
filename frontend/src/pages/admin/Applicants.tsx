@@ -138,51 +138,111 @@ const Applicants: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="container-app py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">Application Review</h1>
-          <p className="text-slate-600">Review and process scholarship applications</p>
+      {/* Hero Header */}
+      <div className="relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/UPLB_Academic_Heritage_Monument%2C_June_2023.jpg/2560px-UPLB_Academic_Heritage_Monument%2C_June_2023.jpg" 
+            alt="UPLB Heritage Monument" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 border-l-4 border-l-yellow-500">
-            <p className="text-sm text-slate-500">Pending Review</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.pendingReview}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 border-l-4 border-l-blue-500">
-            <p className="text-sm text-slate-500">Under Review</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.underReview}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 border-l-4 border-l-green-500">
-            <p className="text-sm text-slate-500">Approved</p>
-            <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4 border-l-4 border-l-red-500">
-            <p className="text-sm text-slate-500">Rejected</p>
-            <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
+        
+        <div className="container-app py-8 md:py-10 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-blue-200 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-white/10">
+                  <User className="w-3.5 h-3.5" />Application Management
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Application Review</h1>
+              <p className="text-primary-100">Review and process scholarship applications</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden md:block">
+                <div className="text-sm text-primary-200">Total Applications</div>
+                <div className="text-2xl font-bold text-white">{applications.length}</div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Stats Cards */}
+      <div className="container-app -mt-6 relative z-20 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Pending Review Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Pending</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.pendingReview}</div>
+            <div className="text-sm text-slate-500">Needs Review</div>
+          </div>
+          
+          {/* Under Review Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
+                <Eye className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">In Progress</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.underReview}</div>
+            <div className="text-sm text-slate-500">Under Review</div>
+          </div>
+          
+          {/* Approved Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Approved</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.approved}</div>
+            <div className="text-sm text-slate-500">Successful</div>
+          </div>
+          
+          {/* Rejected Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center shadow-lg">
+                <XCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">Rejected</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.rejected}</div>
+            <div className="text-sm text-slate-500">Not Approved</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container-app pb-12">
         {/* Search and Filter */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search by student name or scholarship..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               />
             </div>
-            <div className="relative w-full md:w-48">
+            <div className="relative w-full md:w-56">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus)}
-                className="w-full appearance-none px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white pr-10"
+                className="w-full appearance-none px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white pr-10 text-slate-700"
               >
                 <option value="all">All Statuses</option>
                 <option value="pending">Pending</option>

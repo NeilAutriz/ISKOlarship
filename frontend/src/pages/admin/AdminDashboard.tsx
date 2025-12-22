@@ -129,22 +129,27 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary-400 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gold-400 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
+      <div className="relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://international.uplb.edu.ph/wp-content/uploads/2022/02/M40A9936-min-scaled.jpg" 
+            alt="UPLB Campus" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />
         </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-gold-400/20 text-gold-400 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5">
-                  <Shield className="w-3 h-3" />Administrator
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-gold-300 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-white/10">
+                  <Shield className="w-3.5 h-3.5" />Administrator Portal
                 </span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
-              <p className="text-slate-400">Manage scholarships, applications, and platform analytics</p>
+              <p className="text-primary-100">Manage scholarships, applications, and platform analytics</p>
             </div>
             <div className="flex items-center gap-3">
               <Link to="/admin/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-600 text-slate-200 font-semibold rounded-xl hover:bg-slate-800 transition-all">
@@ -161,23 +166,53 @@ const AdminDashboard: React.FC = () => {
       {/* Stats Cards */}
       <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Students', sublabel: 'Registered', value: stats.totalStudents.toLocaleString(), color: 'primary', icon: Users },
-            { label: 'Scholarships', sublabel: 'Active Programs', value: stats.totalScholarships, color: 'green', icon: GraduationCap },
-            { label: 'Applications', sublabel: 'Total Submitted', value: stats.totalApplications, color: 'amber', icon: FileText },
-            { label: 'Pending Review', sublabel: 'Needs Attention', value: stats.pendingReviews, color: 'red', icon: AlertCircle },
-          ].map((stat, index) => (
-            <div key={index} className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-${stat.color}-400 to-${stat.color}-600 flex items-center justify-center shadow-lg shadow-${stat.color}-500/30`}>
-                  <stat.icon className="w-6 h-6 text-white" />
-                </div>
-                <span className={`text-xs font-medium text-${stat.color}-600 bg-${stat.color}-50 px-2 py-1 rounded-full`}>{stat.label}</span>
+          {/* Total Students Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
+                <Users className="w-6 h-6 text-white" />
               </div>
-              <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-              <div className="text-sm text-slate-500">{stat.sublabel}</div>
+              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Total Students</span>
             </div>
-          ))}
+            <div className="text-3xl font-bold text-slate-900">{stats.totalStudents.toLocaleString()}</div>
+            <div className="text-sm text-slate-500">Registered</div>
+          </div>
+          
+          {/* Scholarships Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
+                <GraduationCap className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Scholarships</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.totalScholarships}</div>
+            <div className="text-sm text-slate-500">Active Programs</div>
+          </div>
+          
+          {/* Applications Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Applications</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.totalApplications}</div>
+            <div className="text-sm text-slate-500">Total Submitted</div>
+          </div>
+          
+          {/* Pending Review Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center shadow-lg">
+                <AlertCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">Pending Review</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.pendingReviews}</div>
+            <div className="text-sm text-slate-500">Needs Attention</div>
+          </div>
         </div>
       </div>
 

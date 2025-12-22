@@ -35,78 +35,105 @@ interface ScholarshipCardProps {
   variant?: 'default' | 'compact' | 'detailed';
 }
 
-// Color schemes for different scholarship types
+// Color schemes for different scholarship types - Clean design with good contrast
 const typeColorSchemes: Record<string, {
   gradient: string;
   accent: string;
   badge: string;
+  badgeGradient: string;
   icon: string;
+  iconBg: string;
   border: string;
   headerBg: string;
+  tagIcon: string;
 }> = {
   'university': {
     gradient: 'from-blue-600 to-blue-700',
     accent: 'blue',
-    badge: 'bg-blue-100 text-blue-700 border border-blue-200',
+    badge: 'bg-blue-600 text-white',
+    badgeGradient: 'from-blue-500 to-blue-600',
     icon: 'text-blue-600',
+    iconBg: 'bg-blue-100',
     border: 'border-l-blue-500',
-    headerBg: 'bg-gradient-to-r from-blue-50 to-blue-100/50',
+    headerBg: 'bg-gradient-to-r from-blue-50 via-blue-100/50 to-white',
+    tagIcon: 'GraduationCap',
   },
   'government': {
     gradient: 'from-amber-500 to-amber-600',
     accent: 'amber',
-    badge: 'bg-amber-100 text-amber-700 border border-amber-200',
+    badge: 'bg-amber-600 text-white',
+    badgeGradient: 'from-amber-500 to-amber-600',
     icon: 'text-amber-600',
+    iconBg: 'bg-amber-100',
     border: 'border-l-amber-500',
-    headerBg: 'bg-gradient-to-r from-amber-50 to-amber-100/50',
+    headerBg: 'bg-gradient-to-r from-amber-50 via-amber-100/50 to-white',
+    tagIcon: 'Building2',
   },
   'thesis_grant': {
     gradient: 'from-emerald-500 to-emerald-600',
     accent: 'emerald',
-    badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+    badge: 'bg-emerald-600 text-white',
+    badgeGradient: 'from-emerald-500 to-teal-600',
     icon: 'text-emerald-600',
+    iconBg: 'bg-emerald-100',
     border: 'border-l-emerald-500',
-    headerBg: 'bg-gradient-to-r from-emerald-50 to-emerald-100/50',
+    headerBg: 'bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-white',
+    tagIcon: 'FileText',
   },
   'Thesis/Research Grant': {
     gradient: 'from-emerald-500 to-emerald-600',
     accent: 'emerald',
-    badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+    badge: 'bg-emerald-600 text-white',
+    badgeGradient: 'from-emerald-500 to-teal-600',
     icon: 'text-emerald-600',
+    iconBg: 'bg-emerald-100',
     border: 'border-l-emerald-500',
-    headerBg: 'bg-gradient-to-r from-emerald-50 to-emerald-100/50',
+    headerBg: 'bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-white',
+    tagIcon: 'FileText',
   },
   'private': {
     gradient: 'from-purple-500 to-purple-600',
     accent: 'purple',
-    badge: 'bg-purple-100 text-purple-700 border border-purple-200',
+    badge: 'bg-purple-600 text-white',
+    badgeGradient: 'from-purple-500 to-violet-600',
     icon: 'text-purple-600',
+    iconBg: 'bg-purple-100',
     border: 'border-l-purple-500',
-    headerBg: 'bg-gradient-to-r from-purple-50 to-purple-100/50',
+    headerBg: 'bg-gradient-to-r from-purple-50 via-purple-100/50 to-white',
+    tagIcon: 'Sparkles',
   },
   'Private Scholarship': {
     gradient: 'from-purple-500 to-purple-600',
     accent: 'purple',
-    badge: 'bg-purple-100 text-purple-700 border border-purple-200',
+    badge: 'bg-purple-600 text-white',
+    badgeGradient: 'from-purple-500 to-violet-600',
     icon: 'text-purple-600',
+    iconBg: 'bg-purple-100',
     border: 'border-l-purple-500',
-    headerBg: 'bg-gradient-to-r from-purple-50 to-purple-100/50',
+    headerBg: 'bg-gradient-to-r from-purple-50 via-purple-100/50 to-white',
+    tagIcon: 'Sparkles',
   },
   'college': {
     gradient: 'from-teal-500 to-teal-600',
     accent: 'teal',
-    badge: 'bg-teal-100 text-teal-700 border border-teal-200',
+    badge: 'bg-teal-600 text-white',
+    badgeGradient: 'from-teal-500 to-cyan-600',
     icon: 'text-teal-600',
+    iconBg: 'bg-teal-100',
     border: 'border-l-teal-500',
-    headerBg: 'bg-gradient-to-r from-teal-50 to-teal-100/50',
+    headerBg: 'bg-gradient-to-r from-teal-50 via-teal-100/50 to-white',
+    tagIcon: 'GraduationCap',
   },
   'default': {
     gradient: 'from-slate-500 to-slate-600',
     accent: 'slate',
-    badge: 'bg-slate-100 text-slate-700 border border-slate-200',
+    badge: 'bg-slate-600 text-white',
+    badgeGradient: 'from-slate-500 to-slate-600',
     icon: 'text-slate-600',
+    iconBg: 'bg-slate-100',
     border: 'border-l-slate-500',
-    headerBg: 'bg-gradient-to-r from-slate-50 to-slate-100/50',
+    headerBg: 'bg-gradient-to-r from-slate-50 via-slate-100/50 to-white',
+    tagIcon: 'Award',
   },
 };
 
@@ -233,19 +260,20 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         <div className="p-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorScheme.badge}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colorScheme.badge}`}>
+                  <FileText className="w-3 h-3" />
                   {formatType(scholarship.type)}
                 </span>
               </div>
               <h4 className="font-semibold text-slate-900 truncate text-base">{scholarship.name}</h4>
               <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-                <span className="flex items-center gap-1.5 font-medium text-gold-700">
+                <span className="flex items-center gap-1.5 font-semibold text-gold-700">
                   <Award className="w-4 h-4" />
                   {amount > 0 ? formatCurrency(amount) : 'Varies'}
                 </span>
                 {scholarship.applicationDeadline && (
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1.5 text-slate-400">
                     <Clock className="w-4 h-4" />
                     {formatDate(scholarship.applicationDeadline)}
                   </span>
@@ -253,7 +281,7 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
               </div>
             </div>
             {matchResult && (
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+              <div className={`flex items-center justify-center w-11 h-11 rounded-xl shadow-sm ${
                 matchResult.isEligible ? 'bg-green-100' : 'bg-red-100'
               }`}>
                 {matchResult.isEligible ? (
@@ -276,23 +304,24 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                     border-l-4 ${colorScheme.border}`}>
       
       {/* Color-coded Header */}
-      <div className={`${colorScheme.headerBg} px-6 py-5`}>
+      <div className={`${colorScheme.headerBg} px-6 py-5 border-b border-slate-100`}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            {/* Type & Status Badges */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${colorScheme.badge}`}>
-                <FileText className="w-3.5 h-3.5" />
+            {/* Type & Status Badges - Enhanced Design */}
+            <div className="flex flex-wrap items-center gap-2.5 mb-4">
+              {/* Type Badge - Clean Gradient Style */}
+              <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide ${colorScheme.badge}`}>
+                <Award className="w-4 h-4" />
                 {formatType(scholarship.type)}
               </span>
               {eligibilityStatus && (
-                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${eligibilityStatus.className}`}>
-                  <eligibilityStatus.icon className="w-3.5 h-3.5" />
+                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 ${eligibilityStatus.className}`}>
+                  <eligibilityStatus.icon className="w-4 h-4" />
                   {eligibilityStatus.text}
                 </span>
               )}
               {daysUntil !== null && daysUntil > 0 && daysUntil <= 7 && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md shadow-orange-200">
                   <Clock className="w-3.5 h-3.5" />
                   {daysUntil} days left
                 </span>
@@ -300,14 +329,16 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
             </div>
             
             {/* Title */}
-            <h3 className="text-xl font-bold text-slate-900 leading-tight mb-1">
+            <h3 className="text-xl font-bold text-slate-900 leading-tight mb-2">
               {scholarship.name}
             </h3>
             
             {/* Sponsor */}
-            <p className="text-sm text-slate-600 flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-slate-400" />
-              {scholarship.sponsor}
+            <p className="text-sm text-slate-600 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
+                <Building2 className="w-3.5 h-3.5 text-slate-500" />
+              </span>
+              <span className="font-medium">{scholarship.sponsor}</span>
             </p>
           </div>
           

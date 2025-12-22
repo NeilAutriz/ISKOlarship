@@ -107,16 +107,22 @@ const StudentApplications: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
-      <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+      <div className="relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://international.uplb.edu.ph/wp-content/uploads/2022/02/M40A9936-min-scaled.jpg" 
+            alt="UPLB Campus" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-700/95 via-primary-600/90 to-primary-800/95" />
         </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-white/20 text-white text-xs font-semibold rounded-full uppercase tracking-wide">Applications</span>
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-gold-300 text-xs font-semibold rounded-full uppercase tracking-wide border border-white/10">Applications</span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">My Applications</h1>
               <p className="text-primary-100">Track and manage your scholarship applications</p>
@@ -131,23 +137,53 @@ const StudentApplications: React.FC = () => {
       {/* Stats Cards */}
       <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total', sublabel: 'Applications', value: stats.total, color: 'primary', icon: FileText },
-            { label: 'In Progress', sublabel: 'Being Reviewed', value: stats.inProgress, color: 'amber', icon: Clock },
-            { label: 'Approved', sublabel: 'Successful', value: stats.approved, color: 'green', icon: CheckCircle },
-            { label: 'Drafts', sublabel: 'Not Submitted', value: stats.drafts, color: 'slate', icon: AlertCircle },
-          ].map((stat, index) => (
-            <div key={index} className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-${stat.color}-400 to-${stat.color}-600 flex items-center justify-center shadow-lg shadow-${stat.color}-500/30`}>
-                  <stat.icon className="w-6 h-6 text-white" />
-                </div>
-                <span className={`text-xs font-medium text-${stat.color}-600 bg-${stat.color}-50 px-2 py-1 rounded-full`}>{stat.label}</span>
+          {/* Total Applications Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
+                <FileText className="w-6 h-6 text-white" />
               </div>
-              <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-              <div className="text-sm text-slate-500">{stat.sublabel}</div>
+              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Total</span>
             </div>
-          ))}
+            <div className="text-3xl font-bold text-slate-900">{stats.total}</div>
+            <div className="text-sm text-slate-500">Applications</div>
+          </div>
+          
+          {/* In Progress Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">In Progress</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.inProgress}</div>
+            <div className="text-sm text-slate-500">Being Reviewed</div>
+          </div>
+          
+          {/* Approved Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Approved</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.approved}</div>
+            <div className="text-sm text-slate-500">Successful</div>
+          </div>
+          
+          {/* Drafts Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-slate-500 flex items-center justify-center shadow-lg">
+                <AlertCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-full">Drafts</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.drafts}</div>
+            <div className="text-sm text-slate-500">Not Submitted</div>
+          </div>
         </div>
       </div>
 

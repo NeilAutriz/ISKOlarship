@@ -110,21 +110,27 @@ const AdminScholarships: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-green-400 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+      <div className="relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://upload.wikimedia.org/wikipedia/commons/6/66/Freedom_Park%2C_UPLB%2C_June_2023.jpg" 
+            alt="UPLB Freedom Park" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />
         </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-green-400/20 text-green-400 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5">
-                  <GraduationCap className="w-3 h-3" />Scholarship Management
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-green-300 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-white/10">
+                  <GraduationCap className="w-3.5 h-3.5" />Scholarship Management
                 </span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Manage Scholarships</h1>
-              <p className="text-slate-400">Create, edit, and manage scholarship programs</p>
+              <p className="text-primary-100">Create, edit, and manage scholarship programs</p>
             </div>
             <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-400 transition-all shadow-lg shadow-green-500/25">
               <Plus className="w-5 h-5" />New Scholarship
@@ -136,23 +142,53 @@ const AdminScholarships: React.FC = () => {
       {/* Stats Cards */}
       <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total', sublabel: 'Scholarships', value: stats.total, color: 'primary', icon: GraduationCap },
-            { label: 'Active', sublabel: 'Open for Applications', value: stats.active, color: 'green', icon: CheckCircle },
-            { label: 'Closed', sublabel: 'Application Ended', value: stats.closed, color: 'slate', icon: Clock },
-            { label: 'Drafts', sublabel: 'Not Published', value: stats.drafts, color: 'amber', icon: AlertTriangle },
-          ].map((stat, index) => (
-            <div key={index} className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-${stat.color}-400 to-${stat.color}-600 flex items-center justify-center shadow-lg shadow-${stat.color}-500/30`}>
-                  <stat.icon className="w-6 h-6 text-white" />
-                </div>
-                <span className={`text-xs font-medium text-${stat.color}-600 bg-${stat.color}-50 px-2 py-1 rounded-full`}>{stat.label}</span>
+          {/* Total Scholarships Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
+                <GraduationCap className="w-6 h-6 text-white" />
               </div>
-              <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-              <div className="text-sm text-slate-500">{stat.sublabel}</div>
+              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Total</span>
             </div>
-          ))}
+            <div className="text-3xl font-bold text-slate-900">{stats.total}</div>
+            <div className="text-sm text-slate-500">Scholarships</div>
+          </div>
+          
+          {/* Active Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Active</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.active}</div>
+            <div className="text-sm text-slate-500">Open for Applications</div>
+          </div>
+          
+          {/* Closed Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-slate-500 flex items-center justify-center shadow-lg">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-full">Closed</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.closed}</div>
+            <div className="text-sm text-slate-500">Application Ended</div>
+          </div>
+          
+          {/* Drafts Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <AlertTriangle className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Drafts</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.drafts}</div>
+            <div className="text-sm text-slate-500">Not Published</div>
+          </div>
         </div>
       </div>
 

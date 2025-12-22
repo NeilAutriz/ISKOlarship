@@ -139,10 +139,15 @@ const StudentDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
-      <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gold-400 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
+      <div className="relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://upload.wikimedia.org/wikipedia/commons/6/66/Freedom_Park%2C_UPLB%2C_June_2023.jpg" 
+            alt="UPLB Freedom Park" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-700/95 via-primary-600/90 to-primary-800/95" />
         </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
@@ -153,16 +158,16 @@ const StudentDashboard: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="px-3 py-1 bg-gold-400/20 text-gold-300 text-xs font-semibold rounded-full uppercase tracking-wide">Student Portal</span>
+                  <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-gold-300 text-xs font-semibold rounded-full uppercase tracking-wide border border-white/10">Student Portal</span>
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Welcome back, {studentUser.firstName}!</h1>
                 <p className="text-primary-100 flex items-center gap-2 flex-wrap">
                   <span className="flex items-center gap-1"><GraduationCap className="w-4 h-4" />{studentUser.college}</span>
-                  <span className="text-primary-300">•</span>
+                  <span className="text-primary-200">•</span>
                   <span>{studentUser.yearLevel}</span>
                   {studentUser.gwa !== undefined && studentUser.gwa !== null && (
                     <>
-                      <span className="text-primary-300">•</span>
+                      <span className="text-primary-200">•</span>
                       <span>GWA: {studentUser.gwa.toFixed(2)}</span>
                     </>
                   )}
@@ -184,23 +189,53 @@ const StudentDashboard: React.FC = () => {
       {/* Stats Cards */}
       <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { icon: CheckCircle, label: 'Eligible', sublabel: 'Scholarships Available', value: stats.eligible, color: 'green' },
-            { icon: Sparkles, label: 'High Match', sublabel: 'Best Matches', value: stats.highMatch, color: 'gold' },
-            { icon: TrendingUp, label: 'Avg Score', sublabel: 'Match Rate', value: `${(stats.averageScore * 100).toFixed(0)}%`, color: 'primary' },
-            { icon: DollarSign, label: 'Potential', sublabel: 'Total Funding', value: formatCurrency(stats.totalFunding), color: 'blue', isSmall: true },
-          ].map((stat, index) => (
-            <div key={index} className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-${stat.color}-400 to-${stat.color}-600 flex items-center justify-center shadow-lg shadow-${stat.color}-500/30`}>
-                  <stat.icon className="w-6 h-6 text-white" />
-                </div>
-                <span className={`text-xs font-medium text-${stat.color}-600 bg-${stat.color}-50 px-2 py-1 rounded-full`}>{stat.label}</span>
+          {/* Eligible Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="w-6 h-6 text-white" />
               </div>
-              <div className={`${stat.isSmall ? 'text-2xl' : 'text-3xl'} font-bold text-slate-900`}>{stat.value}</div>
-              <div className="text-sm text-slate-500">{stat.sublabel}</div>
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Eligible</span>
             </div>
-          ))}
+            <div className="text-3xl font-bold text-slate-900">{stats.eligible}</div>
+            <div className="text-sm text-slate-500">Scholarships Available</div>
+          </div>
+          
+          {/* High Match Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">High Match</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{stats.highMatch}</div>
+            <div className="text-sm text-slate-500">Best Matches</div>
+          </div>
+          
+          {/* Avg Score Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
+                <TrendingUp className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Avg Score</span>
+            </div>
+            <div className="text-3xl font-bold text-slate-900">{(stats.averageScore * 100).toFixed(0)}%</div>
+            <div className="text-sm text-slate-500">Match Rate</div>
+          </div>
+          
+          {/* Potential Funding Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
+                <DollarSign className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">Potential</span>
+            </div>
+            <div className="text-2xl font-bold text-slate-900">{formatCurrency(stats.totalFunding)}</div>
+            <div className="text-sm text-slate-500">Total Funding</div>
+          </div>
         </div>
       </div>
 
