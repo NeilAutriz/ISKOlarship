@@ -18,6 +18,9 @@ const { seedUsers } = require('./users.seed');
 const { seedScholarships } = require('./scholarships.seed');
 const { seedApplications, generateTrainingData } = require('./applications.seed');
 
+// Import Logistic Regression Service for training
+const logisticRegression = require('../services/logisticRegression.service');
+
 // =============================================================================
 // Main Seed Function
 // =============================================================================
@@ -86,6 +89,28 @@ const runAllSeeds = async () => {
     console.log(`   📊 Total Training Samples: ${trainingData.length}`);
     console.log(`   ✅ Approved: ${approvedCount} (${((approvedCount/trainingData.length)*100).toFixed(1)}%)`);
     console.log(`   ❌ Rejected: ${rejectedCount} (${((rejectedCount/trainingData.length)*100).toFixed(1)}%)`);
+    console.log('');
+
+    // =========================================================================
+    // Step 5: Train Logistic Regression Model
+    // =========================================================================
+    console.log('════════════════════════════════════════════════════════════════');
+    console.log('Step 5: Training Logistic Regression Model');
+    console.log('════════════════════════════════════════════════════════════════');
+    
+    const trainingResult = await logisticRegression.trainModel();
+    
+    if (trainingResult.success) {
+      console.log(`   ✅ Model trained successfully!`);
+      console.log(`   📊 Training samples: ${trainingResult.model.trainingSize}`);
+      console.log(`   🎯 Accuracy: ${(trainingResult.model.metrics.accuracy * 100).toFixed(2)}%`);
+      console.log(`   📈 Precision: ${(trainingResult.model.metrics.precision * 100).toFixed(2)}%`);
+      console.log(`   📉 Recall: ${(trainingResult.model.metrics.recall * 100).toFixed(2)}%`);
+      console.log(`   ⚖️  F1 Score: ${trainingResult.model.metrics.f1Score.toFixed(4)}`);
+    } else {
+      console.log(`   ⚠️  Model training skipped: ${trainingResult.message}`);
+      console.log(`   📋 Using default weights based on domain knowledge`);
+    }
     console.log('');
 
     // =========================================================================

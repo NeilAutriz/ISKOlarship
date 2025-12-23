@@ -236,7 +236,12 @@ const ScholarshipDetails: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-gradient-to-br from-primary-600 to-primary-700">
+      <div 
+        className="relative bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `linear-gradient(rgba(30, 58, 138, 0.88), rgba(29, 78, 216, 0.92)), url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/UPLB_Academic_Heritage_Monument%2C_June_2023.jpg/2560px-UPLB_Academic_Heritage_Monument%2C_June_2023.jpg')`
+        }}
+      >
         <div className="container-app py-6">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-sm text-slate-400 mb-6">
@@ -315,10 +320,29 @@ const ScholarshipDetails: React.FC = () => {
 
             {/* Eligibility Requirements */}
             <div className="card p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 mb-2 flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-primary-600" />
                 Eligibility Requirements
               </h2>
+              <p className="text-sm text-slate-600 mb-4">
+                You must meet ALL requirements below to be eligible for this scholarship.
+              </p>
+
+              {/* Explanation Box */}
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex gap-2">
+                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-900">
+                    <p className="font-semibold mb-1">Understanding Eligibility:</p>
+                    <ul className="space-y-1 text-blue-800 ml-4 list-disc">
+                      <li><strong className="text-green-600">✓ Eligible</strong> means you meet this specific requirement</li>
+                      <li><strong className="text-red-600">✗ Not Met</strong> means you don't meet this requirement and are not eligible to apply</li>
+                      <li>All requirements are mandatory - missing even one makes you ineligible</li>
+                      <li>Update your profile to see which scholarships match your qualifications</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 {/* GWA - handle both maxGWA (API) and minGWA */}
@@ -328,33 +352,59 @@ const ScholarshipDetails: React.FC = () => {
                   
                   // For UP GWA scale: lower is better, so student.gwa <= maxGWA means eligible
                   const isGWAEligible = studentUser ? studentUser.gwa <= gwaReq : false;
+                  const studentGwa = studentUser?.gwa;
                   
                   return (
-                    <div className={`p-4 rounded-xl border ${
+                    <div className={`p-4 rounded-xl border-2 transition-all ${
                       matchResult
                         ? isGWAEligible
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
-                        : 'bg-slate-50 border-slate-200'
+                          ? 'bg-green-50 border-green-300 hover:border-green-400'
+                          : 'bg-red-50 border-red-300 hover:border-red-400'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
-                      <div className="flex items-center gap-3">
-                        <TrendingUp className={`w-5 h-5 ${
-                          matchResult
-                            ? isGWAEligible
-                              ? 'text-green-600'
-                              : 'text-red-600'
-                            : 'text-slate-400'
-                        }`} />
-                        <div>
-                          <div className="text-sm text-slate-500">GWA Requirement</div>
-                          <div className="font-semibold text-slate-900">
-                            {gwaReq.toFixed(2)} or better
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className={`p-2 rounded-lg ${
+                            matchResult
+                              ? isGWAEligible ? 'bg-green-100' : 'bg-red-100'
+                              : 'bg-slate-100'
+                          }`}>
+                            <TrendingUp className={`w-5 h-5 ${
+                              matchResult
+                                ? isGWAEligible ? 'text-green-600' : 'text-red-600'
+                                : 'text-slate-400'
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                              GWA Requirement
+                            </div>
+                            <div className="font-bold text-slate-900 text-lg">
+                              {gwaReq.toFixed(2)} or better
+                            </div>
+                            {studentUser && studentGwa && (
+                              <div className={`text-xs mt-1 ${
+                                isGWAEligible ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                Your GWA: {studentGwa.toFixed(2)}
+                              </div>
+                            )}
                           </div>
                         </div>
                         {matchResult && studentUser && (
-                          isGWAEligible
-                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                          <div className="flex-shrink-0">
+                            {isGWAEligible ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <CheckCircle className="w-6 h-6 text-green-600" />
+                                <span className="text-xs font-bold text-green-600">✓ Eligible</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <XCircle className="w-6 h-6 text-red-600" />
+                                <span className="text-xs font-bold text-red-600">✗ Not Met</span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -372,31 +422,56 @@ const ScholarshipDetails: React.FC = () => {
                   ) : false;
                   
                   return (
-                    <div className={`p-4 rounded-xl border ${
+                    <div className={`p-4 rounded-xl border-2 transition-all ${
                       matchResult
                         ? isYearEligible
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
-                        : 'bg-slate-50 border-slate-200'
+                          ? 'bg-green-50 border-green-300 hover:border-green-400'
+                          : 'bg-red-50 border-red-300 hover:border-red-400'
+                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
-                      <div className="flex items-center gap-3">
-                        <GraduationCap className={`w-5 h-5 ${
-                          matchResult
-                            ? isYearEligible
-                              ? 'text-green-600'
-                              : 'text-red-600'
-                            : 'text-slate-400'
-                        }`} />
-                        <div>
-                          <div className="text-sm text-slate-500">Year Level</div>
-                          <div className="font-semibold text-slate-900">
-                            {yearLevels.map((y: string) => y.charAt(0).toUpperCase() + y.slice(1)).join(', ')}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className={`p-2 rounded-lg ${
+                            matchResult
+                              ? isYearEligible ? 'bg-green-100' : 'bg-red-100'
+                              : 'bg-slate-100'
+                          }`}>
+                            <GraduationCap className={`w-5 h-5 ${
+                              matchResult
+                                ? isYearEligible ? 'text-green-600' : 'text-red-600'
+                                : 'text-slate-400'
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                              Year Level
+                            </div>
+                            <div className="font-bold text-slate-900">
+                              {yearLevels.map((y: string) => y.charAt(0).toUpperCase() + y.slice(1)).join(', ')}
+                            </div>
+                            {studentUser && studentUser.yearLevel && (
+                              <div className={`text-xs mt-1 ${
+                                isYearEligible ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                Your level: {studentUser.yearLevel}
+                              </div>
+                            )}
                           </div>
                         </div>
                         {matchResult && studentUser && (
-                          isYearEligible
-                          ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                          : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                          <div className="flex-shrink-0">
+                            {isYearEligible ? (
+                              <div className="flex flex-col items-center gap-1">
+                                <CheckCircle className="w-6 h-6 text-green-600" />
+                                <span className="text-xs font-bold text-green-600">✓ Eligible</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <XCircle className="w-6 h-6 text-red-600" />
+                                <span className="text-xs font-bold text-red-600">✗ Not Met</span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -405,33 +480,61 @@ const ScholarshipDetails: React.FC = () => {
 
                 {/* Colleges */}
                 {scholarship.eligibilityCriteria?.eligibleColleges && scholarship.eligibilityCriteria.eligibleColleges.length > 0 && (
-                  <div className={`p-4 rounded-xl border ${
+                  <div className={`p-4 rounded-xl border-2 transition-all ${
                     matchResult
                       ? studentUser && (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200'
+                        ? 'bg-green-50 border-green-300 hover:border-green-400'
+                        : 'bg-red-50 border-red-300 hover:border-red-400'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                   }`}>
-                    <div className="flex items-start gap-3">
-                      <Users className={`w-5 h-5 mt-0.5 ${
-                        matchResult
-                          ? studentUser && (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                          : 'text-slate-400'
-                      }`} />
-                      <div className="flex-1">
-                        <div className="text-sm text-slate-500">Eligible Colleges</div>
-                        <div className="font-semibold text-slate-900">
-                          {scholarship.eligibilityCriteria.eligibleColleges.length <= 2
-                            ? (scholarship.eligibilityCriteria.eligibleColleges as string[]).join(', ')
-                            : `${scholarship.eligibilityCriteria.eligibleColleges.length} colleges`}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className={`p-2 rounded-lg ${
+                          matchResult
+                            ? studentUser && (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
+                              ? 'bg-green-100' : 'bg-red-100'
+                            : 'bg-slate-100'
+                        }`}>
+                          <Users className={`w-5 h-5 ${
+                            matchResult
+                              ? studentUser && (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
+                                ? 'text-green-600' : 'text-red-600'
+                              : 'text-slate-400'
+                          }`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">
+                            Eligible Colleges
+                          </div>
+                          <div className="font-bold text-slate-900">
+                            {scholarship.eligibilityCriteria.eligibleColleges.length <= 3
+                              ? (scholarship.eligibilityCriteria.eligibleColleges as string[]).join(', ')
+                              : `${scholarship.eligibilityCriteria.eligibleColleges.length} colleges`}
+                          </div>
+                          {studentUser && studentUser.college && (
+                            <div className={`text-xs mt-1 ${
+                              (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
+                                ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              Your college: {studentUser.college}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {matchResult && studentUser && (
-                        (scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college)
-                          ? <CheckCircle className="w-5 h-5 text-green-600" />
-                          : <XCircle className="w-5 h-5 text-red-600" />
+                        <div className="flex-shrink-0">
+                          {(scholarship.eligibilityCriteria.eligibleColleges as string[]).some(c => c === studentUser.college) ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <CheckCircle className="w-6 h-6 text-green-600" />
+                              <span className="text-xs font-bold text-green-600">✓ Eligible</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1">
+                              <XCircle className="w-6 h-6 text-red-600" />
+                              <span className="text-xs font-bold text-red-600">✗ Not Met</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -521,7 +624,7 @@ const ScholarshipDetails: React.FC = () => {
               <div className="card p-6">
                 <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                   <BarChart2 className="w-5 h-5 text-primary-600" />
-                  Success Prediction Factors
+                  Success Prediction Analysis
                 </h2>
 
                 <div className="mb-6">
@@ -538,35 +641,85 @@ const ScholarshipDetails: React.FC = () => {
                     />
                   </div>
                   <p className="text-sm text-slate-500 mt-2">
-                    Based on historical data analysis
+                    Based on historical application data and machine learning analysis
                   </p>
                 </div>
 
-                <div className="space-y-3">
-                  {prediction.featureContributions && Object.entries(prediction.featureContributions).map(([key, value], index) => {
-                    const contribution = value as number || 0;
-                    const isPositive = contribution > 0;
-                    const factorName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                    return (
-                      <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${
-                            isPositive ? 'bg-green-500' : 'bg-red-500'
-                          }`} />
-                          <span className="text-sm text-slate-700">{factorName}</span>
+                {/* Categorized Factors */}
+                {prediction.factors && typeof prediction.factors === 'object' && !Array.isArray(prediction.factors) ? (
+                  <div className="space-y-6">
+                    {Object.entries(prediction.factors).map(([category, factors]) => {
+                      const categoryFactors = factors as any[];
+                      if (!Array.isArray(categoryFactors) || categoryFactors.length === 0) return null;
+                      
+                      return (
+                        <div key={category} className="space-y-3">
+                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                            {category === 'Academic Performance' && <BookOpen className="w-4 h-4 text-blue-600" />}
+                            {category === 'Financial Need' && <DollarSign className="w-4 h-4 text-green-600" />}
+                            {category === 'Overall Match' && <Target className="w-4 h-4 text-purple-600" />}
+                            {category}
+                          </h3>
+                          {categoryFactors.map((factor: any, idx: number) => (
+                            <div key={idx} className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-semibold text-slate-900">{factor.factor}</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                      factor.impact === 'high' ? 'bg-amber-100 text-amber-700' :
+                                      factor.impact === 'medium' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-slate-100 text-slate-600'
+                                    }`}>
+                                      {factor.impact} impact
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-600 leading-relaxed">{factor.description}</p>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className={`text-lg font-bold ${
+                                    factor.contribution > 0 ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {factor.contribution > 0 ? '+' : ''}
+                                    {(factor.contributionPercentage * 100).toFixed(0)}%
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          factor.contribution > 0 ? 'bg-green-500' : 'bg-red-500'
+                                        }`}
+                                        style={{ width: `${Math.min(Math.abs(factor.contributionPercentage) * 100, 100)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-2">
+                      );
+                    })}
+                  </div>
+                ) : (
+                  // Fallback for old format
+                  <div className="space-y-3">
+                    {prediction.featureContributions && Object.entries(prediction.featureContributions).map(([key, value], index) => {
+                      const contribution = value as number || 0;
+                      const factorName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm text-slate-700">{factorName}</span>
                           <span className={`text-sm font-medium ${
-                            isPositive ? 'text-green-600' : 'text-red-600'
+                            contribution > 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {isPositive ? '+' : ''}
                             {(contribution * 100).toFixed(0)}%
                           </span>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

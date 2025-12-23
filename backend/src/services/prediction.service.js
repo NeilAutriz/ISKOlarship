@@ -1,42 +1,36 @@
 // =============================================================================
 // ISKOlarship - Prediction Service
-// Implements Logistic Regression for scholarship matching
-// Based on Research Paper Section III.C: Logistic Regression Model
+// Implements Hybrid Matching: Rule-Based Filtering + Logistic Regression
+// Based on Research Paper: "ISKOlarship: Web-Based Scholarship Platform"
+// 
+// Two-Stage Approach:
+// 1. RULE-BASED FILTERING: Binary eligibility checks (pass/fail)
+//    - Academic: GWA, year level, college, course (BOOLEAN)
+//    - Financial: Income threshold, ST bracket (RANGE-BASED for income, BOOLEAN for bracket)
+//    - Special: Thesis requirement, no other scholarship (BOOLEAN)
+//
+// 2. LOGISTIC REGRESSION: Success probability prediction (0-100%)
+//    - Uses 7 continuous features from eligible applications
+//    - Trained on historical UPLB scholarship data
+//    - Accuracy: 91% (Philippine education context)
+//
+// Field Naming Convention:
+// - User.studentProfile.annualFamilyIncome (canonical)
+// - User.studentProfile.classification (year level)
+// - User.studentProfile.stBracket (ST bracket: FDS, FD, PD80, etc.)
 // =============================================================================
 
 const { Application, Scholarship } = require('../models');
+const logisticRegression = require('./logisticRegression.service');
 
 // =============================================================================
-// Pre-trained Model Weights (from research paper methodology)
-// These weights are based on historical data analysis
+// Model Version and State
 // =============================================================================
 
-const MODEL_WEIGHTS = {
-  intercept: -2.5,
-  
-  // Academic factors (highest importance per research)
-  gwa: 1.8,                    // Strong positive correlation
-  yearLevel: 0.3,              // Higher year = slightly more likely
-  unitsEnrolled: 0.1,          // Full load = positive
-  
-  // Financial factors
-  financialNeed: 1.2,          // Higher need = higher priority for need-based
-  stBracket: 0.8,              // Lower bracket = higher priority
-  
-  // Match factors
-  collegeMatch: 0.6,           // Matching college = positive
-  courseMatch: 0.4,            // Matching course = positive
-  
-  // Application quality
-  profileCompleteness: 0.5,    // Complete profile = positive
-  documentsComplete: 0.7,      // All documents = positive
-  
-  // Historical factors
-  previousApprovals: 0.9,      // Past approvals = positive signal
-  previousRejections: -0.4     // Past rejections = negative signal
-};
+const MODEL_VERSION = '2.0.0';
 
-const MODEL_VERSION = '1.0.0';
+// Re-export logistic regression weights for backward compatibility
+const MODEL_WEIGHTS = logisticRegression.DEFAULT_WEIGHTS;
 
 // =============================================================================
 // Eligibility Checking (Rule-Based Filtering)
@@ -44,70 +38,108 @@ const MODEL_VERSION = '1.0.0';
 // =============================================================================
 
 /**
- * Stage 1: Academic Eligibility Check
+ * Stage 1: Academic Eligibility Check (BINARY CHECKS)
+ * Research: "For eligibility requirements, most of it is boolean value like if you are 
+ * included in the course, if you are in this level like senior, freshman, junior, etc. 
+ * That should always be binary or boolean values and if you are not included there then 
+ * you are not eligible."
  */
 function checkAcademicEligibility(user, scholarship) {
   const checks = [];
-  const academic = user.studentProfile?.academicInfo || {};
+  // Student profile stores data directly (NOT nested in academicInfo)
+  const profile = user.studentProfile || {};
   const criteria = scholarship.eligibilityCriteria || {};
 
-  // GWA Check
-  if (criteria.minGWA) {
-    const passed = academic.currentGWA && academic.currentGWA <= criteria.minGWA;
+  // GWA Check (RANGE-BASED: scholarship uses maxGWA, lower is better in UP system)
+  if (criteria.minGWA || criteria.maxGWA) {
+    const requiredGWA = criteria.maxGWA || criteria.minGWA;
+    const passed = profile.gwa && profile.gwa <= requiredGWA;
     checks.push({
       criterion: 'Minimum GWA',
       passed,
-      applicantValue: academic.currentGWA || 'Not provided',
-      requiredValue: `≤ ${criteria.minGWA}`,
-      notes: passed ? 'Meets GWA requirement' : 'Does not meet GWA requirement'
+      applicantValue: profile.gwa ? profile.gwa.toFixed(2) : 'Not provided',
+      requiredValue: `≤ ${requiredGWA.toFixed(2)}`,
+      notes: passed ? 'Meets GWA requirement' : 'Does not meet GWA requirement',
+      type: 'range' // For distinction
     });
   }
 
-  // Year Level Check
-  if (criteria.requiredYearLevels?.length > 0) {
-    const passed = criteria.requiredYearLevels.includes(academic.yearLevel);
+  // Year Level/Classification Check (BINARY: in list or not)
+  if (criteria.requiredYearLevels?.length > 0 || criteria.eligibleClassifications?.length > 0) {
+    const eligibleLevels = criteria.requiredYearLevels || criteria.eligibleClassifications || [];
+    const passed = eligibleLevels.includes(profile.classification);
     checks.push({
       criterion: 'Year Level',
       passed,
-      applicantValue: academic.yearLevel || 'Not provided',
-      requiredValue: criteria.requiredYearLevels.join(', '),
-      notes: passed ? 'Year level matches' : 'Year level does not match'
+      applicantValue: profile.classification || 'Not provided',
+      requiredValue: eligibleLevels.join(', '),
+      notes: passed ? 'Year level matches' : 'Year level does not match',
+      type: 'binary' // Must be in the list
     });
   }
 
-  // College Check
+  // College Check (BINARY: in list or not)
   if (criteria.eligibleColleges?.length > 0) {
-    const passed = criteria.eligibleColleges.includes(academic.college);
+    const passed = criteria.eligibleColleges.includes(profile.college);
     checks.push({
       criterion: 'College',
       passed,
-      applicantValue: academic.college || 'Not provided',
+      applicantValue: profile.college || 'Not provided',
       requiredValue: criteria.eligibleColleges.join(', '),
-      notes: passed ? 'College is eligible' : 'College is not eligible'
+      notes: passed ? 'College is eligible' : 'College is not eligible',
+      type: 'binary'
     });
   }
 
-  // Course Check
+  // Course Check (BINARY: in list or not)
   if (criteria.eligibleCourses?.length > 0) {
-    const passed = criteria.eligibleCourses.includes(academic.course);
+    const passed = criteria.eligibleCourses.includes(profile.course);
     checks.push({
       criterion: 'Course',
       passed,
-      applicantValue: academic.course || 'Not provided',
+      applicantValue: profile.course || 'Not provided',
       requiredValue: `${criteria.eligibleCourses.length} eligible courses`,
-      notes: passed ? 'Course is eligible' : 'Course is not eligible'
+      notes: passed ? 'Course is eligible' : 'Course is not eligible',
+      type: 'binary'
     });
   }
 
-  // Units Check
+  // Major Check (BINARY: in list or not)
+  if (criteria.eligibleMajors?.length > 0) {
+    const passed = profile.major && criteria.eligibleMajors.includes(profile.major);
+    checks.push({
+      criterion: 'Major',
+      passed,
+      applicantValue: profile.major || 'Not provided',
+      requiredValue: criteria.eligibleMajors.join(', '),
+      notes: passed ? 'Major is eligible' : 'Major is not eligible',
+      type: 'binary'
+    });
+  }
+
+  // Units Check (RANGE-BASED: >= threshold)
   if (criteria.minUnitsEnrolled) {
-    const passed = academic.unitsEnrolled && academic.unitsEnrolled >= criteria.minUnitsEnrolled;
+    const passed = profile.unitsEnrolled && profile.unitsEnrolled >= criteria.minUnitsEnrolled;
     checks.push({
       criterion: 'Enrolled Units',
       passed,
-      applicantValue: academic.unitsEnrolled || 'Not provided',
+      applicantValue: profile.unitsEnrolled || 'Not provided',
       requiredValue: `≥ ${criteria.minUnitsEnrolled}`,
-      notes: passed ? 'Meets minimum units' : 'Does not meet minimum units'
+      notes: passed ? 'Meets minimum units' : 'Does not meet minimum units',
+      type: 'range'
+    });
+  }
+
+  // Units Passed Check (RANGE-BASED: for thesis grants)
+  if (criteria.minUnitsPassed) {
+    const passed = profile.unitsPassed && profile.unitsPassed >= criteria.minUnitsPassed;
+    checks.push({
+      criterion: 'Units Passed',
+      passed,
+      applicantValue: profile.unitsPassed || 'Not provided',
+      requiredValue: `≥ ${criteria.minUnitsPassed}`,
+      notes: passed ? 'Meets minimum units passed' : 'Does not meet minimum units passed',
+      type: 'range'
     });
   }
 
@@ -115,37 +147,44 @@ function checkAcademicEligibility(user, scholarship) {
 }
 
 /**
- * Stage 2: Financial Eligibility Check
+ * Stage 2: Financial Eligibility Check (RANGE + BINARY)
+ * Research: "While for the GWA, Family Income, ST Bracket as long as it is within 
+ * the range, you can use the previous data in creating your projections."
  */
 function checkFinancialEligibility(user, scholarship) {
   const checks = [];
-  const financial = user.studentProfile?.financialInfo || {};
+  // Student profile stores financial data directly (NOT nested)
+  const profile = user.studentProfile || {};
   const criteria = scholarship.eligibilityCriteria || {};
 
-  // Income Check
+  // Income Check (RANGE-BASED: <= threshold)
+  // CANONICAL FIELD: annualFamilyIncome (not familyAnnualIncome)
   if (criteria.maxAnnualFamilyIncome) {
-    const passed = financial.annualFamilyIncome && 
-                   financial.annualFamilyIncome <= criteria.maxAnnualFamilyIncome;
+    const income = profile.annualFamilyIncome; // Use canonical field name
+    const passed = income && income <= criteria.maxAnnualFamilyIncome;
     checks.push({
       criterion: 'Maximum Family Income',
       passed,
-      applicantValue: financial.annualFamilyIncome 
-        ? `₱${financial.annualFamilyIncome.toLocaleString()}` 
+      applicantValue: income 
+        ? `₱${income.toLocaleString()}` 
         : 'Not provided',
       requiredValue: `≤ ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}`,
-      notes: passed ? 'Within income limit' : 'Exceeds income limit'
+      notes: passed ? 'Within income limit' : 'Exceeds income limit',
+      type: 'range' // Income is range-based, not binary
     });
   }
 
-  // ST Bracket Check
-  if (criteria.requiredSTBrackets?.length > 0) {
-    const passed = criteria.requiredSTBrackets.includes(financial.stBracket);
+  // ST Bracket Check (BINARY: in list or not)
+  if (criteria.requiredSTBrackets?.length > 0 || criteria.eligibleSTBrackets?.length > 0) {
+    const eligibleBrackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
+    const passed = profile.stBracket && eligibleBrackets.includes(profile.stBracket);
     checks.push({
       criterion: 'ST Bracket',
       passed,
-      applicantValue: financial.stBracket || 'Not provided',
-      requiredValue: criteria.requiredSTBrackets.join(', '),
-      notes: passed ? 'ST bracket matches' : 'ST bracket does not match'
+      applicantValue: profile.stBracket || 'Not provided',
+      requiredValue: eligibleBrackets.join(', '),
+      notes: passed ? 'ST bracket matches' : 'ST bracket does not match',
+      type: 'binary' // Must be in the eligible list
     });
   }
 
@@ -153,57 +192,115 @@ function checkFinancialEligibility(user, scholarship) {
 }
 
 /**
- * Stage 3: Additional Requirements Check
+ * Stage 3: Additional Requirements Check (ALL BINARY)
+ * Research: These are hard boolean requirements - either you meet them or you don't
  */
 function checkAdditionalRequirements(user, scholarship) {
   const checks = [];
+  const profile = user.studentProfile || {};
   const criteria = scholarship.eligibilityCriteria || {};
 
-  // Thesis Approval Check
-  if (criteria.requiresApprovedThesis) {
-    const passed = user.studentProfile?.academicInfo?.hasApprovedThesis === true;
+  // Thesis Approval Check (BINARY)
+  if (criteria.requiresApprovedThesis || criteria.requiresApprovedThesisOutline) {
+    const passed = profile.hasApprovedThesisOutline === true;
     checks.push({
-      criterion: 'Approved Thesis',
+      criterion: 'Approved Thesis Outline',
       passed,
       applicantValue: passed ? 'Yes' : 'No',
       requiredValue: 'Required',
-      notes: passed ? 'Has approved thesis' : 'No approved thesis'
+      notes: passed ? 'Has approved thesis outline' : 'No approved thesis outline',
+      type: 'binary'
     });
   }
 
-  // No Other Scholarship Check
+  // No Other Scholarship Check (BINARY)
   if (criteria.mustNotHaveOtherScholarship) {
-    const passed = user.studentProfile?.financialInfo?.currentScholarship === null;
+    const passed = !profile.hasExistingScholarship;
     checks.push({
       criterion: 'No Other Scholarship',
       passed,
       applicantValue: passed ? 'No current scholarship' : 'Has scholarship',
       requiredValue: 'Must not have other scholarship',
-      notes: passed ? 'No conflicting scholarship' : 'Already has scholarship'
+      notes: passed ? 'No conflicting scholarship' : 'Already has scholarship',
+      type: 'binary'
     });
   }
 
-  // No Disciplinary Action Check
+  // No Disciplinary Action Check (BINARY)
   if (criteria.mustNotHaveDisciplinaryAction) {
-    const passed = user.studentProfile?.academicInfo?.hasDisciplinaryAction !== true;
+    const passed = !profile.hasDisciplinaryAction;
     checks.push({
       criterion: 'No Disciplinary Action',
       passed,
       applicantValue: passed ? 'None' : 'Has record',
       requiredValue: 'Must not have disciplinary action',
-      notes: passed ? 'Clean record' : 'Has disciplinary record'
+      notes: passed ? 'Clean record' : 'Has disciplinary record',
+      type: 'binary'
     });
   }
 
-  // No Failing Grade Check
+  // No Failing Grade Check (BINARY)
   if (criteria.mustNotHaveFailingGrade) {
-    const passed = user.studentProfile?.academicInfo?.hasFailingGrade !== true;
+    const passed = !profile.hasFailingGrade;
     checks.push({
       criterion: 'No Failing Grade',
       passed,
       applicantValue: passed ? 'None' : 'Has failing grade',
       requiredValue: 'Must not have failing grade',
-      notes: passed ? 'No failing grades' : 'Has failing grades'
+      notes: passed ? 'No failing grades' : 'Has failing grades',
+      type: 'binary'
+    });
+  }
+
+  // No Grade of 4 Check (BINARY)
+  if (criteria.mustNotHaveGradeOf4) {
+    const passed = !profile.hasGradeOf4;
+    checks.push({
+      criterion: 'No Grade of 4',
+      passed,
+      applicantValue: passed ? 'None' : 'Has grade of 4',
+      requiredValue: 'Must not have grade of 4',
+      notes: passed ? 'No conditional grades' : 'Has conditional grades',
+      type: 'binary'
+    });
+  }
+
+  // No Incomplete Grade Check (BINARY)
+  if (criteria.mustNotHaveIncompleteGrade) {
+    const passed = !profile.hasIncompleteGrade;
+    checks.push({
+      criterion: 'No Incomplete Grade',
+      passed,
+      applicantValue: passed ? 'None' : 'Has incomplete',
+      requiredValue: 'Must not have incomplete grades',
+      notes: passed ? 'No incomplete grades' : 'Has incomplete grades',
+      type: 'binary'
+    });
+  }
+
+  // Must Be Graduating Check (BINARY)
+  if (criteria.mustBeGraduating) {
+    const passed = profile.isGraduating === true;
+    checks.push({
+      criterion: 'Graduating Student',
+      passed,
+      applicantValue: passed ? 'Yes' : 'No',
+      requiredValue: 'Must be graduating',
+      notes: passed ? 'Is a graduating student' : 'Not a graduating student',
+      type: 'binary'
+    });
+  }
+
+  // Province Check (BINARY: in list or not)
+  if (criteria.eligibleProvinces?.length > 0) {
+    const passed = profile.provinceOfOrigin && criteria.eligibleProvinces.includes(profile.provinceOfOrigin);
+    checks.push({
+      criterion: 'Province of Origin',
+      passed,
+      applicantValue: profile.provinceOfOrigin || 'Not provided',
+      requiredValue: criteria.eligibleProvinces.join(', '),
+      notes: passed ? 'Province matches requirement' : 'Province does not match',
+      type: 'binary'
     });
   }
 
@@ -343,57 +440,275 @@ function extractFeatures(user, scholarship) {
  * Predict approval probability using logistic regression
  */
 async function predictApprovalProbability(user, scholarship) {
-  // Extract features
-  const features = extractFeatures(user, scholarship);
-
-  // Check for previous applications
+  // Use the trained logistic regression model
+  const prediction = logisticRegression.predict(user, scholarship);
+  const factors = logisticRegression.getPredictionFactors(user, scholarship);
+  
+  // Check for previous applications to adjust confidence
   const previousApps = await Application.find({
     applicant: user._id,
     status: { $in: ['approved', 'rejected'] }
   });
 
-  features.previousApprovals = previousApps.filter(a => a.status === 'approved').length;
-  features.previousRejections = previousApps.filter(a => a.status === 'rejected').length;
+  const previousApprovals = previousApps.filter(a => a.status === 'approved').length;
+  const previousRejections = previousApps.filter(a => a.status === 'rejected').length;
 
-  // Calculate linear combination
-  let z = MODEL_WEIGHTS.intercept;
+  // Adjust probability slightly based on history (but keep within bounds)
+  let adjustedProbability = prediction.probability;
+  if (previousApprovals > 0) {
+    adjustedProbability = Math.min(0.90, adjustedProbability + 0.02 * previousApprovals);
+  }
+  if (previousRejections > 0) {
+    adjustedProbability = Math.max(0.10, adjustedProbability - 0.01 * previousRejections);
+  }
+
+  // Get eligibility check results for detailed factor analysis
+  const eligibility = await checkEligibility(user, scholarship);
   
-  const featureContributions = {};
-  
-  for (const [feature, value] of Object.entries(features)) {
-    if (MODEL_WEIGHTS[feature]) {
-      const contribution = MODEL_WEIGHTS[feature] * value;
-      z += contribution;
-      featureContributions[feature] = contribution;
+  // Analyze factors in favor and areas to consider
+  const detailedFactors = analyzeDetailedFactors(user, scholarship, eligibility, prediction);
+
+  return {
+    probability: Math.round(adjustedProbability * 100) / 100,
+    probabilityPercentage: Math.round(adjustedProbability * 100),
+    predictedOutcome: adjustedProbability >= 0.5 ? 'approved' : 'rejected',
+    confidence: prediction.confidence,
+    matchLevel: getMatchLevel(adjustedProbability),
+    factors,
+    detailedFactors, // New: comprehensive factor breakdown for UI
+    features: prediction.features,
+    modelVersion: MODEL_VERSION,
+    trainedModel: prediction.trainedModel,
+    previousApprovals,
+    previousRejections,
+    recommendation: generateRecommendation(adjustedProbability, detailedFactors),
+    generatedAt: new Date()
+  };
+}
+
+/**
+ * Determine match level based on probability
+ */
+function getMatchLevel(probability) {
+  if (probability >= 0.75) return 'Strong Match';
+  if (probability >= 0.60) return 'Good Match';
+  if (probability >= 0.45) return 'Moderate Match';
+  return 'Weak Match';
+}
+
+/**
+ * Analyze detailed factors for comprehensive UI display
+ */
+function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
+  const profile = user.studentProfile || {};
+  const criteria = scholarship.eligibilityCriteria || {};
+  const workingInFavor = [];
+  const areasToConsider = [];
+
+  // Analyze Family Income
+  if (profile.annualFamilyIncome != null && criteria.maxAnnualFamilyIncome) {
+    const isEligible = profile.annualFamilyIncome <= criteria.maxAnnualFamilyIncome;
+    const percentOfMax = (profile.annualFamilyIncome / criteria.maxAnnualFamilyIncome) * 100;
+    
+    const factor = {
+      title: 'Family Income Level',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible 
+        ? 'Your family income is within the scholarship\'s eligibility range.'
+        : `Your family income of ₱${profile.annualFamilyIncome.toLocaleString()} exceeds the required ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}.`,
+      details: {
+        typicalRange: `₱0 - ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}`,
+        yourValue: profile.annualFamilyIncome ? `₱${profile.annualFamilyIncome.toLocaleString()}` : 'N/A',
+        percentOfMax: Math.round(percentOfMax)
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
     }
   }
 
-  // Apply sigmoid
-  const probability = sigmoid(z);
-
-  // Determine confidence level
-  let confidence;
-  if (probability > 0.7 || probability < 0.3) {
-    confidence = 'high';
-  } else if (probability > 0.55 || probability < 0.45) {
-    confidence = 'medium';
-  } else {
-    confidence = 'low';
+  // Analyze Year Level
+  if (criteria.requiredYearLevels?.length > 0 || criteria.eligibleClassifications?.length > 0) {
+    const eligibleLevels = criteria.requiredYearLevels || criteria.eligibleClassifications || [];
+    const isEligible = eligibleLevels.includes(profile.classification);
+    
+    const factor = {
+      title: 'Year Level',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible
+        ? 'Your year level is eligible for this scholarship.'
+        : `This scholarship is only for ${eligibleLevels.join(', ')} students.`,
+      details: {
+        required: eligibleLevels.join(', '),
+        yourValue: profile.classification || 'Not provided'
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
+    }
   }
 
-  // Determine predicted outcome
-  const predictedOutcome = probability >= 0.5 ? 'approved' : 'rejected';
+  // Analyze Course Alignment
+  if (criteria.eligibleCourses?.length > 0) {
+    const isEligible = criteria.eligibleCourses.includes(profile.course);
+    
+    const factor = {
+      title: 'Course Alignment',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible
+        ? 'Your course is one of the preferred programs for this scholarship.'
+        : 'Your course is not among the preferred programs.',
+      details: {
+        typicalRange: criteria.eligibleCourses.join(', '),
+        yourValue: profile.course || 'Not provided'
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
+    }
+  }
+
+  // Analyze Academic Performance (GWA)
+  if (criteria.maxGWA || criteria.minGWA) {
+    const requiredGWA = criteria.maxGWA || criteria.minGWA;
+    const isEligible = profile.gwa && profile.gwa <= requiredGWA;
+    const gap = profile.gwa ? (profile.gwa - requiredGWA).toFixed(2) : 'N/A';
+    
+    const factor = {
+      title: 'Academic Performance (GWA)',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible
+        ? 'Your GWA meets the scholarship requirement.'
+        : `Your GWA of ${profile.gwa?.toFixed(2) || 'N/A'} is ${gap > 0 ? 'above' : 'below'} the required ${requiredGWA.toFixed(2)}.`,
+      details: {
+        typicalRange: `1.00 - ${requiredGWA.toFixed(2)}`,
+        yourValue: profile.gwa ? profile.gwa.toFixed(2) : 'N/A',
+        gap: gap
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
+    }
+  }
+
+  // Analyze ST Bracket
+  if (criteria.eligibleSTBrackets?.length > 0) {
+    const isEligible = criteria.eligibleSTBrackets.includes(profile.stBracket);
+    
+    const factor = {
+      title: 'Socialized Tuition Bracket',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible
+        ? 'Your ST bracket qualifies for this scholarship.'
+        : 'Your ST bracket does not meet the requirement.',
+      details: {
+        required: criteria.eligibleSTBrackets.join(', '),
+        yourValue: profile.stBracket || 'Not provided'
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
+    }
+  }
+
+  // Check profile completeness
+  const requiredFields = ['gwa', 'classification', 'college', 'course', 'annualFamilyIncome', 'stBracket', 'householdSize'];
+  const missingFields = requiredFields.filter(field => !profile[field]);
+  
+  if (missingFields.length > 0) {
+    areasToConsider.push({
+      title: 'Profile Completeness',
+      status: 'negative',
+      message: 'Consider completing all profile fields to improve your match score.',
+      details: {
+        missingFields: missingFields.map(f => formatFactorName(f)).join(', ')
+      }
+    });
+  }
 
   return {
-    probability: Math.round(probability * 100) / 100,
-    probabilityPercentage: Math.round(probability * 100),
-    predictedOutcome,
-    confidence,
-    featureContributions,
-    features,
-    modelVersion: MODEL_VERSION,
-    generatedAt: new Date()
+    workingInFavor,
+    areasToConsider,
+    summary: {
+      totalPositive: workingInFavor.length,
+      totalNegative: areasToConsider.length,
+      overallStrength: workingInFavor.length > areasToConsider.length ? 'strong' : 'needs_improvement'
+    }
   };
+}
+
+/**
+ * Format factor name for display
+ */
+function formatFactorName(name) {
+  const nameMap = {
+    'gwa': 'GWA',
+    'classification': 'Year Level',
+    'college': 'College',
+    'course': 'Course',
+    'annualFamilyIncome': 'Annual Family Income',
+    'stBracket': 'ST Bracket',
+    'householdSize': 'Household Size',
+    'unitsPassed': 'Units Passed',
+    'unitsEnrolled': 'Units Enrolled'
+  };
+  return nameMap[name] || name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+}
+
+/**
+ * Generate recommendation text based on analysis
+ */
+function generateRecommendation(probability, detailedFactors) {
+  const { workingInFavor, areasToConsider } = detailedFactors;
+  
+  if (probability >= 0.75) {
+    return {
+      shouldApply: true,
+      level: 'highly_recommended',
+      message: '✅ Yes! You have a strong chance based on historical patterns.',
+      details: 'We highly recommend applying for this scholarship. Your profile strongly matches past awardees of this scholarship. Remember: this prediction helps you make informed decisions, but your unique qualities, essay, and recommendations also matter.',
+      actionText: 'When in doubt, apply! Every application is a learning opportunity.'
+    };
+  } else if (probability >= 0.60) {
+    return {
+      shouldApply: true,
+      level: 'recommended',
+      message: '✅ Yes! You have a good chance based on your profile.',
+      details: 'We recommend applying for this scholarship. Your profile aligns well with requirements, though there may be some areas to strengthen. Remember: this prediction helps you make informed decisions, but your unique qualities, essay, and recommendations also matter.',
+      actionText: 'When in doubt, apply! Every application is a learning opportunity.'
+    };
+  } else if (probability >= 0.45) {
+    return {
+      shouldApply: true,
+      level: 'consider',
+      message: '⚠️ Consider applying, but strengthen weak areas if possible.',
+      details: `You meet the basic requirements and have a moderate chance. Consider addressing the following areas: ${areasToConsider.map(a => a.title).join(', ')}. Your essays, recommendations, and personal circumstances also play important roles.`,
+      actionText: 'When in doubt, apply! Every application is a learning opportunity.'
+    };
+  } else {
+    return {
+      shouldApply: false,
+      level: 'not_recommended',
+      message: '⚠️ Your current profile may not be competitive for this scholarship.',
+      details: `Based on historical patterns, this may not be the best match. Focus on improving: ${areasToConsider.slice(0, 3).map(a => a.title).join(', ')}. Consider other scholarships that better match your profile.`,
+      actionText: 'Look for scholarships that align better with your current profile, or work on strengthening your weak areas first.'
+    };
+  }
 }
 
 // =============================================================================
@@ -456,30 +771,39 @@ async function getRecommendations(user, limit = 10) {
  * Get model performance statistics
  */
 async function getModelStats() {
+  // Get the trained model state
+  const modelState = logisticRegression.getModelState();
+  
   // Get applications with predictions that have been decided
   const decidedApps = await Application.find({
     status: { $in: ['approved', 'rejected'] },
-    'prediction.predictedOutcome': { $exists: true }
+    'prediction.probability': { $exists: true }
   }).lean();
 
   if (decidedApps.length === 0) {
     return {
       totalPredictions: 0,
-      accuracy: null,
-      precision: null,
-      recall: null,
-      message: 'Not enough data for statistics'
+      accuracy: modelState.metrics?.accuracy || null,
+      precision: modelState.metrics?.precision || null,
+      recall: modelState.metrics?.recall || null,
+      f1Score: modelState.metrics?.f1Score || null,
+      message: 'Not enough data for statistics',
+      modelVersion: MODEL_VERSION,
+      trained: modelState.trained,
+      trainingDate: modelState.trainingDate,
+      trainingSize: modelState.trainingSize
     };
   }
 
-  // Calculate metrics
+  // Calculate metrics from actual predictions
   let truePositives = 0;
   let trueNegatives = 0;
   let falsePositives = 0;
   let falseNegatives = 0;
 
   for (const app of decidedApps) {
-    const predicted = app.prediction.predictedOutcome;
+    const predictedProb = app.prediction?.probability || 0.5;
+    const predicted = predictedProb >= 0.5 ? 'approved' : 'rejected';
     const actual = app.status;
 
     if (predicted === 'approved' && actual === 'approved') {
@@ -512,6 +836,9 @@ async function getModelStats() {
       falsePositives,
       falseNegatives
     },
+    trained: modelState.trained,
+    trainingDate: modelState.trainingDate,
+    trainingSize: modelState.trainingSize,
     lastUpdated: new Date()
   };
 }
@@ -520,56 +847,43 @@ async function getModelStats() {
  * Get feature importance analysis
  */
 async function getFeatureImportance() {
-  // Return normalized absolute weights as importance
-  const absoluteWeights = {};
-  let totalAbsolute = 0;
-
-  for (const [feature, weight] of Object.entries(MODEL_WEIGHTS)) {
-    if (feature !== 'intercept') {
-      const absWeight = Math.abs(weight);
-      absoluteWeights[feature] = absWeight;
-      totalAbsolute += absWeight;
-    }
-  }
-
-  const importance = {};
-  for (const [feature, absWeight] of Object.entries(absoluteWeights)) {
-    importance[feature] = {
-      weight: MODEL_WEIGHTS[feature],
-      absoluteWeight: absWeight,
-      importance: Math.round((absWeight / totalAbsolute) * 100) / 100,
-      direction: MODEL_WEIGHTS[feature] > 0 ? 'positive' : 'negative'
-    };
-  }
-
-  // Sort by importance
-  const sorted = Object.entries(importance)
-    .sort((a, b) => b[1].absoluteWeight - a[1].absoluteWeight)
-    .map(([feature, data]) => ({ feature, ...data }));
+  const importance = logisticRegression.getFeatureImportance();
+  const modelState = logisticRegression.getModelState();
 
   return {
-    factors: sorted,
+    factors: importance,
     modelVersion: MODEL_VERSION,
-    description: 'Feature importance based on logistic regression weights'
+    trained: modelState.trained,
+    trainingSize: modelState.trainingSize,
+    description: 'Feature importance based on logistic regression weights trained on historical data'
   };
 }
 
 /**
- * Train model with new data (placeholder for future implementation)
+ * Train model with historical application data
  */
-async function trainModel(historicalData) {
-  // In a production system, this would:
-  // 1. Preprocess the historical data
-  // 2. Split into training/validation sets
-  // 3. Train the logistic regression model
-  // 4. Validate and calculate new weights
-  // 5. Update MODEL_WEIGHTS
-
+async function trainModel() {
+  console.log('Starting model training...');
+  
+  // Train the logistic regression model on historical data
+  const result = await logisticRegression.trainModel();
+  
+  if (!result.success) {
+    return {
+      status: 'failed',
+      message: result.message,
+      samplesAvailable: result.samplesAvailable
+    };
+  }
+  
   return {
-    status: 'initiated',
-    samplesUsed: historicalData.length,
-    message: 'Model training initiated. This is a placeholder for production implementation.',
-    estimatedCompletion: new Date(Date.now() + 60000)
+    status: 'completed',
+    message: 'Model training completed successfully',
+    samplesUsed: result.model.trainingSize,
+    accuracy: result.model.metrics?.accuracy,
+    f1Score: result.model.metrics?.f1Score,
+    modelVersion: MODEL_VERSION,
+    trainingDate: result.model.trainingDate
   };
 }
 
@@ -585,5 +899,11 @@ module.exports = {
   getFeatureImportance,
   trainModel,
   MODEL_WEIGHTS,
-  MODEL_VERSION
+  MODEL_VERSION,
+  // Re-export logistic regression utilities
+  logisticRegression: {
+    getModelState: logisticRegression.getModelState,
+    resetModel: logisticRegression.resetModel,
+    predict: logisticRegression.predict
+  }
 };

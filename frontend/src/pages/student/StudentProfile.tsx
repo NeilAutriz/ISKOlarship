@@ -1,9 +1,9 @@
- // ============================================================================
+// ============================================================================
 // ISKOlarship - Student Profile Page
 // Manage student profile and academic information
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User,
   GraduationCap,
@@ -21,73 +21,210 @@ import {
   CheckCircle,
   ChevronRight,
   Upload,
-  Shield
+  Shield,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
+import { userApi } from '../../services/apiClient';
 
-interface ProfileData {
-  firstName: string;
-  lastName: string;
+// API Response structure from backend
+interface StudentProfileData {
+  _id: string;
   email: string;
-  phone: string;
-  address: string;
-  dateOfBirth: string;
-  studentId: string;
-  university: string;
-  college: string;
-  program: string;
-  yearLevel: string;
-  gpa: number;
-  expectedGraduation: string;
-  familyIncome: string;
-  householdSize: number;
-  financialAidStatus: string;
+  role: string;
+  studentProfile: {
+    studentNumber: string;
+    firstName: string;
+    middleName?: string;
+    lastName: string;
+    homeAddress?: {
+      street?: string;
+      barangay?: string;
+      city?: string;
+      province?: string;
+      zipCode?: string;
+      fullAddress?: string;
+    };
+    provinceOfOrigin?: string;
+    college: string;
+    course: string;
+    major?: string;
+    classification: string;
+    gwa: number;
+    unitsEnrolled?: number;
+    unitsPassed?: number;
+    stBracket?: string;
+    hasThesisGrant?: boolean;
+    hasApprovedThesisOutline?: boolean;
+    hasDisciplinaryAction?: boolean;
+    hasExistingScholarship?: boolean;
+    profileCompleted?: boolean;
+    annualFamilyIncome?: number;
+    householdSize?: number;
+    contactNumber?: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-const mockProfile: ProfileData = {
-  firstName: 'Juan',
-  lastName: 'Dela Cruz',
-  email: 'juan.delacruz@iskolar.edu.ph',
-  phone: '+63 917 123 4567',
-  address: 'Quezon City, Metro Manila',
-  dateOfBirth: '2002-05-15',
-  studentId: '2021-12345',
-  university: 'Polytechnic University of the Philippines',
-  college: 'College of Engineering',
-  program: 'Bachelor of Science in Computer Engineering',
-  yearLevel: '3rd Year',
-  gpa: 1.45,
-  expectedGraduation: 'June 2025',
-  familyIncome: '₱150,000 - ₱250,000',
-  householdSize: 5,
-  financialAidStatus: 'Partial Scholarship'
+// Format income as currency
+const formatIncome = (income: number): string => {
+  if (income >= 1000000) {
+    return `₱${(income / 1000000).toFixed(1)}M`;
+  } else if (income >= 1000) {
+    return `₱${(income / 1000).toFixed(0)}K`;
+  }
+  return `₱${income.toLocaleString()}`;
 };
 
-const documents = [
-  { name: 'Certificate of Registration', status: 'verified', date: '10/15/2024' },
-  { name: 'Grade Report (Latest Sem)', status: 'verified', date: '10/10/2024' },
-  { name: 'Income Tax Return', status: 'pending', date: '11/01/2024' },
-  { name: 'Barangay Certificate', status: 'verified', date: '10/12/2024' },
+// Format year level/classification for display
+const formatYearLevel = (classification: string): string => {
+  const yearMap: Record<string, string> = {
+    'freshman': '1st Year',
+    'sophomore': '2nd Year',
+    'junior': '3rd Year',
+    'senior': '4th Year',
+    'graduate': 'Graduate'
+  };
+  return yearMap[classification.toLowerCase()] || classification;
+};
+
+// Get ST Bracket display name
+const getSTBracketDisplay = (bracket?: string): string => {
+  if (!bracket) return 'Not Set';
+  const bracketMap: Record<string, string> = {
+    'FDS': 'Full Discount with Stipend',
+    'FD': 'Full Discount',
+    'PD80': '80% Partial Discount',
+    'PD60': '60% Partial Discount',
+    'PD40': '40% Partial Discount',
+    'PD20': '20% Partial Discount',
+    'ND': 'No Discount'
+  };
+  return bracketMap[bracket] || bracket;
+};
+
+// Document type (would come from API in a real implementation)
+interface Document {
+  name: string;
+  status: 'verified' | 'pending';
+  date: string;
+}
+
+// Mock documents - in a real implementation, these would come from the API
+const getDefaultDocuments = (): Document[] => [
+  { name: 'Certificate of Registration', status: 'pending', date: 'Not uploaded' },
+  { name: 'Grade Report (Latest Sem)', status: 'pending', date: 'Not uploaded' },
+  { name: 'Income Tax Return', status: 'pending', date: 'Not uploaded' },
+  { name: 'Barangay Certificate', status: 'pending', date: 'Not uploaded' },
 ];
 
 const StudentProfile: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'personal' | 'academic' | 'financial' | 'documents'>('personal');
+  const [profile, setProfile] = useState<StudentProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [documents, setDocuments] = useState<Document[]>(getDefaultDocuments());
 
-  const profileCompletion = 85;
+  // Fetch profile data on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const [profileResponse, completenessResponse] = await Promise.all([
+          userApi.getProfile(),
+          userApi.getProfileCompleteness()
+        ]);
+        
+        if (profileResponse.success && profileResponse.data) {
+          // Cast to our expected structure
+          setProfile(profileResponse.data as unknown as StudentProfileData);
+        } else {
+          setError('Failed to load profile data');
+        }
+        
+        if (completenessResponse.success && completenessResponse.data) {
+          setProfileCompletion(completenessResponse.data.percentage);
+        }
+      } catch (err: any) {
+        console.error('Error fetching profile:', err);
+        setError(err.message || 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Unable to Load Profile</h2>
+          <p className="text-slate-600 mb-4">{error || 'Profile data not found'}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Format address for display
+  const formatAddress = () => {
+    const addr = profile.studentProfile?.homeAddress;
+    if (addr) {
+      if (addr.fullAddress) return addr.fullAddress;
+      const parts = [
+        addr.street,
+        addr.barangay,
+        addr.city,
+        addr.province
+      ].filter(Boolean);
+      return parts.join(', ') || 'Not provided';
+    }
+    return 'Not provided';
+  };
+
+  // Helper to access student profile data
+  const sp = profile.studentProfile;
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
-      <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
-        </div>
-        
+      <div 
+        className="relative bg-cover bg-center bg-no-repeat overflow-hidden"
+        style={{
+          backgroundImage: `linear-gradient(rgba(30, 58, 138, 0.88), rgba(29, 78, 216, 0.92)), url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/UPLB_Academic_Heritage_Monument%2C_June_2023.jpg/2560px-UPLB_Academic_Heritage_Monument%2C_June_2023.jpg')`
+        }}
+      >
         <div className="container-app py-8 md:py-10 relative z-10">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             {/* Profile Avatar */}
             <div className="relative">
               <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-bold text-3xl shadow-lg shadow-gold-400/30">
-                {mockProfile.firstName[0]}{mockProfile.lastName[0]}
+                {sp?.firstName?.[0] || 'S'}{sp?.lastName?.[0] || 'T'}
               </div>
               <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-primary-600 hover:bg-primary-50 transition-all">
                 <Camera className="w-5 h-5" />
@@ -97,14 +234,16 @@ const StudentProfile: React.FC = () => {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <span className="px-3 py-1 bg-white/20 text-white text-xs font-semibold rounded-full uppercase tracking-wide">Student Profile</span>
-                <span className="px-3 py-1 bg-green-500/20 text-green-100 text-xs font-semibold rounded-full flex items-center gap-1">
-                  <Shield className="w-3 h-3" />Verified
-                </span>
+                {sp?.profileCompleted && (
+                  <span className="px-3 py-1 bg-green-500/20 text-green-100 text-xs font-semibold rounded-full flex items-center gap-1">
+                    <Shield className="w-3 h-3" />Verified
+                  </span>
+                )}
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{mockProfile.firstName} {mockProfile.lastName}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{sp?.firstName} {sp?.lastName}</h1>
               <p className="text-primary-100 flex items-center gap-2">
                 <GraduationCap className="w-4 h-4" />
-                {mockProfile.program} • {mockProfile.yearLevel}
+                {sp?.course} • {formatYearLevel(sp?.classification || '')}
               </p>
             </div>
 
@@ -182,12 +321,12 @@ const StudentProfile: React.FC = () => {
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
-                    { label: 'Full Name', value: `${mockProfile.firstName} ${mockProfile.lastName}`, icon: User },
-                    { label: 'Email Address', value: mockProfile.email, icon: Mail },
-                    { label: 'Phone Number', value: mockProfile.phone, icon: Phone },
-                    { label: 'Address', value: mockProfile.address, icon: MapPin },
-                    { label: 'Date of Birth', value: new Date(mockProfile.dateOfBirth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), icon: Calendar },
-                    { label: 'Student ID', value: mockProfile.studentId, icon: Award },
+                    { label: 'Full Name', value: `${sp?.firstName || ''} ${sp?.middleName ? sp.middleName + ' ' : ''}${sp?.lastName || ''}`.trim(), icon: User },
+                    { label: 'Email Address', value: profile.email, icon: Mail },
+                    { label: 'Phone Number', value: sp?.contactNumber || 'Not provided', icon: Phone },
+                    { label: 'Address', value: formatAddress(), icon: MapPin },
+                    { label: 'Province of Origin', value: sp?.provinceOfOrigin || 'Not provided', icon: MapPin },
+                    { label: 'Student Number', value: sp?.studentNumber || 'N/A', icon: Award },
                   ].map((field, index) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
@@ -219,12 +358,14 @@ const StudentProfile: React.FC = () => {
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
-                    { label: 'University', value: mockProfile.university, icon: Building2 },
-                    { label: 'College', value: mockProfile.college, icon: Building2 },
-                    { label: 'Program', value: mockProfile.program, icon: BookOpen },
-                    { label: 'Year Level', value: mockProfile.yearLevel, icon: GraduationCap },
-                    { label: 'GPA', value: mockProfile.gpa.toFixed(2), icon: Award },
-                    { label: 'Expected Graduation', value: mockProfile.expectedGraduation, icon: Calendar },
+                    { label: 'University', value: 'University of the Philippines Los Baños', icon: Building2 },
+                    { label: 'College', value: sp?.college || 'N/A', icon: Building2 },
+                    { label: 'Course', value: sp?.course || 'N/A', icon: BookOpen },
+                    { label: 'Major', value: sp?.major || 'N/A', icon: BookOpen },
+                    { label: 'Year Level', value: formatYearLevel(sp?.classification || ''), icon: GraduationCap },
+                    { label: 'GWA', value: sp?.gwa?.toFixed(2) || 'Not provided', icon: Award },
+                    { label: 'Units Enrolled', value: sp?.unitsEnrolled?.toString() || 'N/A', icon: BookOpen },
+                    { label: 'Units Passed', value: sp?.unitsPassed?.toString() || 'N/A', icon: BookOpen },
                   ].map((field, index) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
@@ -256,9 +397,12 @@ const StudentProfile: React.FC = () => {
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
-                    { label: 'Annual Family Income', value: mockProfile.familyIncome, icon: Wallet },
-                    { label: 'Household Size', value: `${mockProfile.householdSize} members`, icon: User },
-                    { label: 'Financial Aid Status', value: mockProfile.financialAidStatus, icon: Award },
+                    { label: 'Annual Family Income', value: sp?.annualFamilyIncome ? formatIncome(sp.annualFamilyIncome) : 'Not provided', icon: Wallet },
+                    { label: 'Household Size', value: sp?.householdSize ? `${sp.householdSize} members` : 'Not provided', icon: User },
+                    { label: 'ST Bracket', value: getSTBracketDisplay(sp?.stBracket), icon: Award },
+                    { label: 'Has Existing Scholarship', value: sp?.hasExistingScholarship ? 'Yes' : 'No', icon: Award },
+                    { label: 'Has Thesis Grant', value: sp?.hasThesisGrant ? 'Yes' : 'No', icon: FileText },
+                    { label: 'Approved Thesis Outline', value: sp?.hasApprovedThesisOutline ? 'Yes' : 'No', icon: FileText },
                   ].map((field, index) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">

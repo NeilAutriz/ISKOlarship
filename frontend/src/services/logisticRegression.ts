@@ -3,7 +3,8 @@
 // Implements scholarship success probability prediction based on:
 // - Research showing 91% accuracy in Philippine scholarship contexts
 // - Features: GWA, year level, income, ST bracket, college
-// Note: This now uses pre-trained weights instead of mock historical data
+// Note: This service uses the backend API when available, with fallback
+// to client-side predictions using pre-trained weights
 // ============================================================================
 
 import {
@@ -16,6 +17,44 @@ import {
   STBracket,
   MatchResult
 } from '../types';
+import { predictionApi } from './apiClient';
+
+// ============================================================================
+// API-BASED PREDICTION (Primary method when authenticated)
+// ============================================================================
+
+/**
+ * Get prediction from backend API (uses trained model)
+ */
+export const getApiPrediction = async (
+  scholarshipId: string
+): Promise<{
+  probability: number;
+  factors: PredictionFactor[];
+  trainedModel: boolean;
+  confidence: 'high' | 'medium' | 'low';
+} | null> => {
+  try {
+    const response = await predictionApi.getProbability(scholarshipId);
+    if (response.success && response.data) {
+      const data = response.data as any;
+      return {
+        probability: data.probability || 0.5,
+        factors: data.factors?.map((f: any) => ({
+          factor: f.factor || f.name,
+          contribution: f.contribution || 0,
+          description: f.description || ''
+        })) || [],
+        trainedModel: data.trainedModel || false,
+        confidence: data.confidence || 'medium'
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('API prediction failed, falling back to client-side:', error);
+    return null;
+  }
+};
 
 // ============================================================================
 // FEATURE ENGINEERING
@@ -297,9 +336,13 @@ export interface PredictionResult {
   confidence: 'high' | 'medium' | 'low';
   factors: PredictionFactor[];
   recommendation: string;
+  trainedModel?: boolean;        // Whether this used a trained model
 }
 
-export const predictScholarshipSuccess = (
+/**
+ * Client-side prediction (fallback when API is unavailable)
+ */
+export const predictScholarshipSuccessLocal = (
   student: StudentProfile,
   scholarship: Scholarship
 ): PredictionResult => {
@@ -337,8 +380,69 @@ export const predictScholarshipSuccess = (
     percentageScore,
     confidence,
     factors,
-    recommendation
+    recommendation,
+    trainedModel: false
   };
+};
+
+/**
+ * Main prediction function - tries API first, falls back to local
+ */
+export const predictScholarshipSuccess = (
+  student: StudentProfile,
+  scholarship: Scholarship
+): PredictionResult => {
+  // For synchronous compatibility, use local prediction
+  // For async API prediction, use predictScholarshipSuccessAsync
+  return predictScholarshipSuccessLocal(student, scholarship);
+};
+
+/**
+ * Async prediction function - uses API when available
+ */
+export const predictScholarshipSuccessAsync = async (
+  student: StudentProfile,
+  scholarship: Scholarship
+): Promise<PredictionResult> => {
+  // Try API prediction first if user is authenticated
+  if (scholarship.id) {
+    try {
+      const apiResult = await getApiPrediction(scholarship.id);
+      if (apiResult) {
+        const percentageScore = Math.round(apiResult.probability * 100);
+        return {
+          probability: apiResult.probability,
+          percentageScore,
+          confidence: apiResult.confidence,
+          factors: apiResult.factors,
+          recommendation: getRecommendation(percentageScore),
+          trainedModel: apiResult.trainedModel
+        };
+      }
+    } catch (error) {
+      console.log('API prediction unavailable, using local prediction');
+    }
+  }
+  
+  // Fallback to local prediction
+  return predictScholarshipSuccessLocal(student, scholarship);
+};
+
+/**
+ * Get recommendation text based on score
+ */
+const getRecommendation = (percentageScore: number): string => {
+  if (percentageScore >= 75) {
+    return 'Strongly recommended! Your profile is an excellent match for this scholarship.';
+  } else if (percentageScore >= 60) {
+    return 'Good match. You have a solid chance of approval with a complete application.';
+  } else if (percentageScore >= 40) {
+    return 'Moderate match. Consider strengthening your application with additional documentation.';
+  } else if (percentageScore >= 25) {
+    return 'Low match. Review eligibility criteria carefully before applying.';
+  } else {
+    return 'Not recommended. You may not meet key eligibility requirements.';
+  }
 };
 
 export const enrichMatchResultsWithPredictions = (
@@ -379,7 +483,11 @@ export const evaluateModelAccuracy = (): {
 // Export for backward compatibility
 export class ScholarshipPredictor {
   predict(student: StudentProfile, scholarship: Scholarship): PredictionResult {
-    return predictScholarshipSuccess(student, scholarship);
+    return predictScholarshipSuccessLocal(student, scholarship);
+  }
+  
+  async predictAsync(student: StudentProfile, scholarship: Scholarship): Promise<PredictionResult> {
+    return predictScholarshipSuccessAsync(student, scholarship);
   }
   
   getModelMetrics() {

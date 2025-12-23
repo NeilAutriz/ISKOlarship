@@ -212,7 +212,7 @@ router.get('/model/stats',
 
 /**
  * @route   POST /api/predictions/model/train
- * @desc    Trigger model retraining
+ * @desc    Trigger model retraining with historical data
  * @access  Admin
  */
 router.post('/model/train',
@@ -220,20 +220,20 @@ router.post('/model/train',
   requireRole('admin'),
   async (req, res, next) => {
     try {
-      // Get historical data for training
-      const historicalData = await Application.find({
-        status: { $in: ['approved', 'rejected'] }
-      })
-        .populate('applicant')
-        .populate('scholarship')
-        .lean();
+      // Train the model using historical application data
+      const trainingResult = await predictionService.trainModel();
 
-      // Train model
-      const trainingResult = await predictionService.trainModel(historicalData);
+      if (trainingResult.status === 'failed') {
+        return res.status(400).json({
+          success: false,
+          message: trainingResult.message,
+          data: trainingResult
+        });
+      }
 
       res.json({
         success: true,
-        message: 'Model training initiated',
+        message: 'Model training completed successfully',
         data: trainingResult
       });
     } catch (error) {
@@ -257,6 +257,51 @@ router.get('/analytics/factors',
       res.json({
         success: true,
         data: factors
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @route   GET /api/predictions/model/state
+ * @desc    Get current model state and weights
+ * @access  Admin
+ */
+router.get('/model/state',
+  authMiddleware,
+  requireRole('admin'),
+  async (req, res, next) => {
+    try {
+      const modelState = predictionService.logisticRegression.getModelState();
+      
+      res.json({
+        success: true,
+        data: modelState
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @route   POST /api/predictions/model/reset
+ * @desc    Reset model to default weights
+ * @access  Admin
+ */
+router.post('/model/reset',
+  authMiddleware,
+  requireRole('admin'),
+  async (req, res, next) => {
+    try {
+      const resetResult = predictionService.logisticRegression.resetModel();
+      
+      res.json({
+        success: true,
+        message: 'Model reset to default weights',
+        data: resetResult
       });
     } catch (error) {
       next(error);

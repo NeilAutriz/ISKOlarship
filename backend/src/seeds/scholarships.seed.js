@@ -625,6 +625,193 @@ The CHE Alumni Association is dedicated to supporting current students and foste
     slots: 20,
     status: ScholarshipStatus.ACTIVE,
     tags: ['sm foundation', 'private', 'financial need', 'comprehensive']
+  },
+
+  // =========================================================================
+  // 16. UPLB Academic Excellence Award (EASY TO ATTAIN)
+  // =========================================================================
+  {
+    name: 'UPLB Academic Excellence Award',
+    description: `The UPLB Academic Excellence Award recognizes and supports students who maintain outstanding academic performance. This merit-based scholarship encourages students to strive for excellence in their studies.`,
+    sponsor: 'UPLB Office of Student Affairs',
+    type: ScholarshipType.UNIVERSITY,
+    totalGrant: 15000,
+    awardDescription: '₱15,000 per semester',
+    eligibilityCriteria: {
+      minGWA: 1.0,
+      maxGWA: 1.75,
+      eligibleClassifications: [Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleColleges: Object.values(UPLBCollege),
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveFailingGrade: true,
+      minUnitsEnrolled: 15,
+      additionalRequirements: [
+        { description: 'Must maintain at least 1.75 GWA', isRequired: true },
+        { description: 'No failing grades in previous semester', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Certificate of Good Moral Character', isRequired: false }
+    ],
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 100,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['merit', 'academic', 'excellence', 'easy']
+  },
+
+  // =========================================================================
+  // 17. UPLB Student Financial Assistance (EASY TO ATTAIN)
+  // =========================================================================
+  {
+    name: 'UPLB Student Financial Assistance Program',
+    description: `The UPLB Student Financial Assistance Program provides support to students who demonstrate financial need while maintaining satisfactory academic standing. This program aims to ensure that financial constraints do not hinder education.`,
+    sponsor: 'UPLB Office of Scholarships and Grants',
+    type: ScholarshipType.UNIVERSITY,
+    totalGrant: 10000,
+    awardDescription: '₱10,000 per semester',
+    eligibilityCriteria: {
+      minGWA: 1.0,
+      maxGWA: 3.0,
+      maxAnnualFamilyIncome: 400000,
+      eligibleColleges: Object.values(UPLBCollege),
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      eligibleSTBrackets: [STBracket.FULL_DISCOUNT_WITH_STIPEND, STBracket.FULL_DISCOUNT, STBracket.PD80, STBracket.PD60],
+      minUnitsEnrolled: 12,
+      additionalRequirements: [
+        { description: 'Must demonstrate financial need', isRequired: true },
+        { description: 'Must be enrolled in at least 12 units', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Certificate of Family Income', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(4),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 150,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['financial aid', 'need-based', 'easy', 'general']
+  },
+
+  // =========================================================================
+  // 18. Book Allowance Grant (VERY EASY TO ATTAIN)
+  // =========================================================================
+  {
+    name: 'UPLB Book Allowance Grant',
+    description: `The UPLB Book Allowance Grant provides financial assistance specifically for purchasing textbooks and academic materials. This grant recognizes that textbooks are a significant expense for students.`,
+    sponsor: 'UPLB Library and Information Services',
+    type: ScholarshipType.UNIVERSITY,
+    totalGrant: 5000,
+    awardDescription: '₱5,000 one-time book allowance',
+    eligibilityCriteria: {
+      minGWA: 1.0,
+      maxGWA: 3.5,
+      maxAnnualFamilyIncome: 500000,
+      eligibleColleges: Object.values(UPLBCollege),
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      minUnitsEnrolled: 12,
+      additionalRequirements: [
+        { description: 'Must be enrolled in current semester', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades (if not freshman)', isRequired: false },
+      { name: 'Student ID', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 200,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['book allowance', 'financial aid', 'easy', 'accessible']
+  },
+
+  // =========================================================================
+  // 19. Dean's List Recognition Grant (EASY TO ATTAIN)
+  // =========================================================================
+  {
+    name: "Dean's List Recognition Grant",
+    description: `The Dean's List Recognition Grant rewards students who achieved Dean's List status in the previous semester. This grant acknowledges academic achievement and encourages continued excellence.`,
+    sponsor: 'UPLB Colleges',
+    type: ScholarshipType.COLLEGE,
+    totalGrant: 8000,
+    awardDescription: '₱8,000 per semester',
+    eligibilityCriteria: {
+      minGWA: 1.0,
+      maxGWA: 1.5,
+      eligibleClassifications: [Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleColleges: Object.values(UPLBCollege),
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      minUnitsEnrolled: 15,
+      additionalRequirements: [
+        { description: "Must have achieved Dean's List in previous semester (GWA ≤ 1.5)", isRequired: true },
+        { description: 'No grades of 4.0 or below', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades showing Dean\'s List status', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 80,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['merit', 'deans list', 'academic', 'easy']
+  },
+
+  // =========================================================================
+  // 20. Community Service Scholarship (EASY TO ATTAIN)
+  // =========================================================================
+  {
+    name: 'UPLB Community Service Scholarship',
+    description: `The UPLB Community Service Scholarship supports students who actively participate in community service and extension activities. This scholarship promotes civic engagement and social responsibility among students.`,
+    sponsor: 'UPLB Office of Extension Services',
+    type: ScholarshipType.UNIVERSITY,
+    totalGrant: 12000,
+    awardDescription: '₱12,000 per semester',
+    eligibilityCriteria: {
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 450000,
+      eligibleClassifications: [Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleColleges: Object.values(UPLBCollege),
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveDisciplinaryAction: true,
+      minUnitsEnrolled: 15,
+      additionalRequirements: [
+        { description: 'Must have completed at least 40 hours of community service', isRequired: true },
+        { description: 'Must maintain good moral character', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Certificate of Registration', isRequired: true },
+      { name: 'True Copy of Grades', isRequired: true },
+      { name: 'Certificate of Community Service hours', isRequired: true },
+      { name: 'Letter of Recommendation from Organization', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 60,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['community service', 'merit', 'easy', 'civic']
   }
 ];
 

@@ -339,7 +339,13 @@ const generateStudentData = () => {
       const hasGradeOf5 = Math.random() < 0.05;
       const hasIncompleteGrade = Math.random() < 0.1;
       const hasDisciplinaryAction = Math.random() < 0.05;
-      const hasOtherScholarship = Math.random() < 0.2;
+      const hasExistingScholarship = Math.random() < 0.2;
+      
+      // Generate householdSize (realistic distribution)
+      const householdSize = Math.floor(randomBetween(3, 8));
+      
+      // Generate contact number
+      const contactNumber = `+639${Math.floor(Math.random() * 900000000 + 100000000)}`;
 
       // Thesis-related (for seniors)
       const hasApprovedThesisOutline = classification === Classification.SENIOR && Math.random() < 0.6;
@@ -365,7 +371,9 @@ const generateStudentData = () => {
           gwa,
           unitsEnrolled: Math.floor(randomBetween(15, 21)),
           unitsPassed: getUnitsForClassification(classification),
-          familyAnnualIncome: familyIncome,
+          annualFamilyIncome: familyIncome,
+          householdSize,
+          contactNumber,
           stBracket,
           citizenship: Citizenship.FILIPINO,
           hasFailingGrade,
@@ -373,7 +381,7 @@ const generateStudentData = () => {
           hasGradeOf5,
           hasIncompleteGrade,
           hasDisciplinaryAction,
-          hasOtherScholarship,
+          hasExistingScholarship,
           hasApprovedThesisOutline,
           hasThesisGrant,
           isGraduating: classification === Classification.SENIOR && Math.random() < 0.7
@@ -413,7 +421,9 @@ const generateStudentData = () => {
       gwa: 1.85,
       unitsEnrolled: 18,
       unitsPassed: 120,
-      familyAnnualIncome: 180000,
+      annualFamilyIncome: 180000,
+      householdSize: 5,
+      contactNumber: '+639171234567',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
       hasApprovedThesisOutline: true,
@@ -424,7 +434,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -454,7 +464,9 @@ const generateStudentData = () => {
       gwa: 2.15,
       unitsEnrolled: 18,
       unitsPassed: 85,
-      familyAnnualIncome: 120000,
+      annualFamilyIncome: 120000,
+      householdSize: 6,
+      contactNumber: '+639181234568',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: false,
@@ -462,7 +474,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -492,7 +504,9 @@ const generateStudentData = () => {
       gwa: 1.95,
       unitsEnrolled: 21,
       unitsPassed: 45,
-      familyAnnualIncome: 130000,
+      annualFamilyIncome: 130000,
+      householdSize: 4,
+      contactNumber: '+639191234569',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: false,
@@ -500,7 +514,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -531,7 +545,9 @@ const generateStudentData = () => {
       gwa: 1.75,
       unitsEnrolled: 18,
       unitsPassed: 38,
-      familyAnnualIncome: 280000,
+      annualFamilyIncome: 280000,
+      householdSize: 5,
+      contactNumber: '+639201234570',
       stBracket: STBracket.PD60,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: false,
@@ -539,7 +555,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -569,7 +585,9 @@ const generateStudentData = () => {
       gwa: 1.65,
       unitsEnrolled: 15,
       unitsPassed: 135,
-      familyAnnualIncome: 95000,
+      annualFamilyIncome: 95000,
+      householdSize: 7,
+      contactNumber: '+639211234571',
       stBracket: STBracket.FULL_DISCOUNT_WITH_STIPEND,
       citizenship: Citizenship.FILIPINO,
       hasApprovedThesisOutline: true,
@@ -580,7 +598,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -610,7 +628,9 @@ const generateStudentData = () => {
       gwa: 1.25,
       unitsEnrolled: 18,
       unitsPassed: 18,
-      familyAnnualIncome: 350000,
+      annualFamilyIncome: 350000,
+      householdSize: 4,
+      contactNumber: '+639221234572',
       stBracket: STBracket.PD40,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: false,
@@ -618,7 +638,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -648,7 +668,9 @@ const generateStudentData = () => {
       gwa: 2.35,
       unitsEnrolled: 18,
       unitsPassed: 75,
-      familyAnnualIncome: 200000,
+      annualFamilyIncome: 200000,
+      householdSize: 5,
+      contactNumber: '+639231234573',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: false,
@@ -656,7 +678,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -686,7 +708,9 @@ const generateStudentData = () => {
       gwa: 1.55,
       unitsEnrolled: 18,
       unitsPassed: 80,
-      familyAnnualIncome: 140000,
+      annualFamilyIncome: 140000,
+      householdSize: 6,
+      contactNumber: '+639241234574',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: false,
@@ -694,7 +718,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -725,7 +749,9 @@ const generateStudentData = () => {
       gwa: 2.85,
       unitsEnrolled: 15,
       unitsPassed: 60,
-      familyAnnualIncome: 180000,
+      annualFamilyIncome: 180000,
+      householdSize: 5,
+      contactNumber: '+639251234575',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: true,
@@ -733,7 +759,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: true,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: false
+      hasExistingScholarship: false
     }
   });
 
@@ -763,7 +789,9 @@ const generateStudentData = () => {
       gwa: 1.45,
       unitsEnrolled: 18,
       unitsPassed: 125,
-      familyAnnualIncome: 200000,
+      annualFamilyIncome: 200000,
+      householdSize: 4,
+      contactNumber: '+639261234576',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
       hasFailingGrade: false,
@@ -771,7 +799,7 @@ const generateStudentData = () => {
       hasGradeOf5: false,
       hasIncompleteGrade: false,
       hasDisciplinaryAction: false,
-      hasOtherScholarship: true
+      hasExistingScholarship: true
     }
   });
 

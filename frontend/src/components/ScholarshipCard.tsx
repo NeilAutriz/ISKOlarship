@@ -318,6 +318,11 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                 <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 ${eligibilityStatus.className}`}>
                   <eligibilityStatus.icon className="w-4 h-4" />
                   {eligibilityStatus.text}
+                  {matchResult?.isEligible && matchResult?.predictionScore !== undefined && (
+                    <span className="ml-1.5 px-2 py-0.5 bg-white/90 text-green-700 rounded-full text-xs font-extrabold">
+                      {Math.round(matchResult.predictionScore * 100)}%
+                    </span>
+                  )}
                 </span>
               )}
               {daysUntil !== null && daysUntil > 0 && daysUntil <= 7 && (

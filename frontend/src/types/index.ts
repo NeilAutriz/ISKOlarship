@@ -539,6 +539,15 @@ export interface PredictionResult {
     previousApprovals?: number;
     previousRejections?: number;
   };
+  factors?: {
+    [category: string]: Array<{
+      factor: string;
+      description: string;
+      contribution: number;
+      contributionPercentage: number;
+      impact: 'high' | 'medium' | 'low';
+    }>;
+  };
   features: Record<string, number>;
   modelVersion: string;
   generatedAt: Date;

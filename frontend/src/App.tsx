@@ -12,7 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
 import ProfileCompletion, { ProfileData } from './components/ProfileCompletion';
-import { authApi, clearTokens, getAccessToken } from './services/apiClient';
+import { authApi, userApi, clearTokens, getAccessToken } from './services/apiClient';
 
 // Public Pages
 import Home from './pages/Home';
@@ -245,6 +245,7 @@ const App: React.FC = () => {
       const firstName = names[0] || '';
       const lastName = names.slice(-1)[0] || '';
       
+      // First, register the user
       const response = await authApi.register({
         email: profileData.email,
         password: 'tempPassword123!', // In a real app, this would come from the signup form
@@ -254,6 +255,40 @@ const App: React.FC = () => {
       });
       
       if (response.success && response.data?.user) {
+        // Then update the profile with complete information
+        const profileUpdate = {
+          firstName,
+          lastName,
+          studentNumber: profileData.studentNumber,
+          contactNumber: profileData.contactNumber,
+          address: {
+            province: profileData.provinceOfOrigin,
+            city: '',
+            barangay: '',
+            street: profileData.address,
+            zipCode: ''
+          },
+          hometown: profileData.provinceOfOrigin,
+          college: profileData.college as any,
+          course: profileData.course,
+          yearLevel: profileData.yearLevel as any,
+          gwa: parseFloat(profileData.gwa),
+          unitsEnrolled: parseInt(profileData.unitsEnrolled) || 0,
+          annualFamilyIncome: parseInt(profileData.annualFamilyIncome),
+          householdSize: parseInt(profileData.householdSize),
+          stBracket: profileData.stBracket as any,
+          isScholarshipRecipient: profileData.hasExistingScholarship,
+          currentScholarships: profileData.hasExistingScholarship ? ['Existing'] : [],
+          hasThesisGrant: false,
+          hasDisciplinaryAction: false,
+          profileCompleted: true,
+          expectedGraduationDate: new Date(),
+          lastUpdated: new Date()
+        };
+        
+        // Update profile with complete data
+        await userApi.updateProfile(profileUpdate);
+        
         login(response.data.user as User);
         setShowProfileCompletion(false);
         setNavigateAfterLogin(pendingRole === 'admin' ? '/admin/dashboard' : '/dashboard');

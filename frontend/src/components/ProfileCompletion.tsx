@@ -22,10 +22,14 @@ export interface ProfileData {
   yearLevel: string;
   gwa: string;
   unitsEnrolled: string;
+  unitsPassed: string;
+  studentNumber: string;
   
   // Step 3: Financial Information
-  familyAnnualIncome: string;
-  hasOtherScholarships: boolean;
+  annualFamilyIncome: string;
+  hasExistingScholarship: boolean;
+  householdSize: string;
+  stBracket: string;
   
   // Step 4: Demographic Data
   provinceOfOrigin: string;
@@ -58,8 +62,12 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     yearLevel: '',
     gwa: '',
     unitsEnrolled: '',
-    familyAnnualIncome: '',
-    hasOtherScholarships: false,
+    unitsPassed: '',
+    studentNumber: '',
+    annualFamilyIncome: '',
+    hasExistingScholarship: false,
+    householdSize: '',
+    stBracket: '',
     provinceOfOrigin: '',
     citizenship: 'Filipino',
   });
@@ -90,9 +98,12 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         if (!formData.course.trim()) newErrors.course = 'Course is required';
         if (!formData.yearLevel) newErrors.yearLevel = 'Year level is required';
         if (!formData.gwa.trim()) newErrors.gwa = 'GWA is required';
+        if (!formData.studentNumber.trim()) newErrors.studentNumber = 'Student number is required';
         break;
       case 3:
-        if (!formData.familyAnnualIncome.trim()) newErrors.familyAnnualIncome = 'Family income is required';
+        if (!formData.annualFamilyIncome.trim()) newErrors.annualFamilyIncome = 'Family income is required';
+        if (!formData.householdSize.trim()) newErrors.householdSize = 'Household size is required';
+        if (!formData.stBracket) newErrors.stBracket = 'ST Bracket is required';
         break;
       case 4:
         if (!formData.provinceOfOrigin) newErrors.provinceOfOrigin = 'Province is required';
@@ -272,6 +283,20 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
 
       <div className="space-y-4">
         <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Student Number</label>
+          <input
+            type="text"
+            value={formData.studentNumber}
+            onChange={(e) => updateField('studentNumber', e.target.value)}
+            placeholder="2024-12345"
+            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+              errors.studentNumber ? 'border-red-300' : 'border-slate-200'
+            }`}
+          />
+          {errors.studentNumber && <p className="text-red-500 text-xs mt-1">{errors.studentNumber}</p>}
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">College</label>
           <select
             value={formData.college}
@@ -294,7 +319,7 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
             type="text"
             value={formData.course}
             onChange={(e) => updateField('course', e.target.value)}
-            placeholder="Select course"
+            placeholder="e.g., BS Computer Science"
             className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
               errors.course ? 'border-red-300' : 'border-slate-200'
             }`}
@@ -345,6 +370,19 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
             placeholder="e.g., 18"
             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
           />
+          <p className="text-slate-400 text-xs mt-1">Current semester units</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Units Passed</label>
+          <input
+            type="text"
+            value={formData.unitsPassed}
+            onChange={(e) => updateField('unitsPassed', e.target.value)}
+            placeholder="e.g., 54"
+            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+          />
+          <p className="text-slate-400 text-xs mt-1">Total units completed so far</p>
         </div>
       </div>
     </div>
@@ -362,15 +400,58 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
           </label>
           <input
             type="text"
-            value={formData.familyAnnualIncome}
-            onChange={(e) => updateField('familyAnnualIncome', e.target.value)}
+            value={formData.annualFamilyIncome}
+            onChange={(e) => updateField('annualFamilyIncome', e.target.value)}
             placeholder="e.g., 250000"
             className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.familyAnnualIncome ? 'border-red-300' : 'border-slate-200'
+              errors.annualFamilyIncome ? 'border-red-300' : 'border-slate-200'
             }`}
           />
           <p className="text-slate-400 text-xs mt-1">Enter your family's total annual income</p>
-          {errors.familyAnnualIncome && <p className="text-red-500 text-xs mt-1">{errors.familyAnnualIncome}</p>}
+          {errors.annualFamilyIncome && <p className="text-red-500 text-xs mt-1">{errors.annualFamilyIncome}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Household Size
+          </label>
+          <input
+            type="number"
+            value={formData.householdSize}
+            onChange={(e) => updateField('householdSize', e.target.value)}
+            placeholder="e.g., 5"
+            min="1"
+            max="20"
+            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+              errors.householdSize ? 'border-red-300' : 'border-slate-200'
+            }`}
+          />
+          <p className="text-slate-400 text-xs mt-1">Total number of family members</p>
+          {errors.householdSize && <p className="text-red-500 text-xs mt-1">{errors.householdSize}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            ST Bracket (Socialized Tuition)
+          </label>
+          <select
+            value={formData.stBracket}
+            onChange={(e) => updateField('stBracket', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white ${
+              errors.stBracket ? 'border-red-300' : 'border-slate-200'
+            }`}
+          >
+            <option value="">Select ST bracket</option>
+            <option value="Full Discount with Stipend">Full Discount with Stipend (FDS)</option>
+            <option value="Full Discount">Full Discount (FD)</option>
+            <option value="PD80">Partial Discount 80% (PD80)</option>
+            <option value="PD60">Partial Discount 60% (PD60)</option>
+            <option value="PD40">Partial Discount 40% (PD40)</option>
+            <option value="PD20">Partial Discount 20% (PD20)</option>
+            <option value="No Discount">No Discount (ND)</option>
+          </select>
+          <p className="text-slate-400 text-xs mt-1">Your current tuition discount bracket</p>
+          {errors.stBracket && <p className="text-red-500 text-xs mt-1">{errors.stBracket}</p>}
         </div>
 
         <div>
@@ -380,9 +461,9 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => updateField('hasOtherScholarships', false)}
+              onClick={() => updateField('hasExistingScholarship', false)}
               className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                !formData.hasOtherScholarships
+                !formData.hasExistingScholarship
                   ? 'bg-primary-600 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
@@ -391,9 +472,9 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => updateField('hasOtherScholarships', true)}
+              onClick={() => updateField('hasExistingScholarship', true)}
               className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                formData.hasOtherScholarships
+                formData.hasExistingScholarship
                   ? 'bg-primary-600 text-white'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}

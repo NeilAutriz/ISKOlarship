@@ -3,7 +3,7 @@
 // Manage administrator profile and settings
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User,
   Shield,
@@ -23,29 +23,49 @@ import {
   CheckCircle,
   AlertCircle,
   History,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
+import { userApi } from '../../services/apiClient';
 
-interface AdminData {
-  firstName: string;
-  lastName: string;
+// API Response structure from backend for admin
+interface AdminProfileData {
+  _id: string;
   email: string;
-  phone: string;
-  department: string;
   role: string;
-  joinDate: string;
-  lastLogin: string;
+  adminProfile: {
+    firstName: string;
+    lastName: string;
+    department: string;
+    accessLevel: string;
+    permissions: string[];
+    college?: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+  lastLoginAt?: string;
 }
 
-const mockAdmin: AdminData = {
-  firstName: 'Admin',
-  lastName: 'User',
-  email: 'admin@iskolatship.edu.ph',
-  phone: '+63 917 987 6543',
-  department: 'Scholarship Office',
-  role: 'Super Administrator',
-  joinDate: 'January 15, 2023',
-  lastLogin: 'November 10, 2025, 9:45 AM'
+// Format access level for display
+const formatAccessLevel = (level: string): string => {
+  const levelMap: Record<string, string> = {
+    'university': 'University Administrator',
+    'college': 'College Administrator',
+    'department': 'Department Administrator'
+  };
+  return levelMap[level?.toLowerCase()] || level || 'Unknown';
+};
+
+// Format date for display
+const formatDate = (date: Date | string | undefined): string => {
+  if (!date) return 'N/A';
+  return new Date(date).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
 };
 
 const permissions = [
@@ -65,6 +85,69 @@ const recentActivity = [
 
 const AdminProfile: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'profile' | 'permissions' | 'security' | 'activity'>('profile');
+  const [admin, setAdmin] = useState<AdminProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch admin profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await userApi.getProfile();
+        
+        if (response.success && response.data) {
+          // Cast to AdminProfileData since we're on admin page
+          setAdmin(response.data as unknown as AdminProfileData);
+        } else {
+          setError('Failed to load profile data');
+        }
+      } catch (err: any) {
+        console.error('Error fetching admin profile:', err);
+        setError(err.message || 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-slate-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !admin) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Unable to Load Profile</h2>
+          <p className="text-slate-600 mb-4">{error || 'Profile data not found'}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Helper to access admin profile data
+  const ap = admin.adminProfile;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -79,7 +162,7 @@ const AdminProfile: React.FC = () => {
             {/* Profile Avatar */}
             <div className="relative">
               <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-slate-900 font-bold text-3xl shadow-lg shadow-gold-400/30">
-                {mockAdmin.firstName[0]}{mockAdmin.lastName[0]}
+                {ap?.firstName?.[0] || 'A'}{ap?.lastName?.[0] || 'D'}
               </div>
               <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all">
                 <Camera className="w-5 h-5" />
@@ -92,13 +175,13 @@ const AdminProfile: React.FC = () => {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <span className="px-3 py-1 bg-gold-400/20 text-gold-400 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5">
-                  <Shield className="w-3 h-3" />{mockAdmin.role}
+                  <Shield className="w-3 h-3" />{formatAccessLevel(ap?.accessLevel || '')}
                 </span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{mockAdmin.firstName} {mockAdmin.lastName}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{ap?.firstName} {ap?.lastName}</h1>
               <p className="text-slate-400 flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
-                {mockAdmin.department}
+                {ap?.department} {ap?.college ? `• ${ap.college}` : ''}
               </p>
             </div>
 
@@ -119,7 +202,7 @@ const AdminProfile: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900">Administrator Account</h3>
-                <p className="text-sm text-slate-500">Last login: {mockAdmin.lastLogin}</p>
+                <p className="text-sm text-slate-500">Last updated: {formatDate(admin.updatedAt)}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -178,12 +261,12 @@ const AdminProfile: React.FC = () => {
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
-                    { label: 'Full Name', value: `${mockAdmin.firstName} ${mockAdmin.lastName}`, icon: User },
-                    { label: 'Email Address', value: mockAdmin.email, icon: Mail },
-                    { label: 'Phone Number', value: mockAdmin.phone, icon: Phone },
-                    { label: 'Department', value: mockAdmin.department, icon: Building2 },
-                    { label: 'Role', value: mockAdmin.role, icon: Shield },
-                    { label: 'Member Since', value: mockAdmin.joinDate, icon: Calendar },
+                    { label: 'Full Name', value: `${ap?.firstName || ''} ${ap?.lastName || ''}`.trim() || 'N/A', icon: User },
+                    { label: 'Email Address', value: admin.email, icon: Mail },
+                    { label: 'Department', value: ap?.department || 'N/A', icon: Building2 },
+                    { label: 'College', value: ap?.college || 'University-wide', icon: Building2 },
+                    { label: 'Access Level', value: formatAccessLevel(ap?.accessLevel || ''), icon: Shield },
+                    { label: 'Member Since', value: formatDate(admin.createdAt), icon: Calendar },
                   ].map((field, index) => (
                     <div key={index} className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
