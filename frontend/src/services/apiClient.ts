@@ -295,11 +295,14 @@ export const authApi = {
 export const userApi = {
   getProfile: async () => {
     const response = await api.get<ApiResponse<StudentProfile>>('/users/profile');
+    console.log('getProfile response:', response.data);
     return response.data;
   },
 
   updateProfile: async (updates: Partial<StudentProfile>) => {
+    console.log('updateProfile request:', updates);
     const response = await api.put<ApiResponse<StudentProfile>>('/users/profile', updates);
+    console.log('updateProfile response:', response.data);
     return response.data;
   },
 

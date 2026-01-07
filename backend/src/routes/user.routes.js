@@ -17,13 +17,19 @@ const profileUpdateValidation = [
   body('firstName').optional().trim().notEmpty(),
   body('lastName').optional().trim().notEmpty(),
   body('phone').optional().trim(),
-  body('studentProfile.academicInfo.studentNumber').optional().trim(),
-  body('studentProfile.academicInfo.college').optional().isIn(Object.values(UPLBCollege)),
-  body('studentProfile.academicInfo.course').optional().trim(),
-  body('studentProfile.academicInfo.yearLevel').optional().isIn(Object.values(YearLevel)),
-  body('studentProfile.academicInfo.currentGWA').optional().isFloat({ min: 1, max: 5 }),
-  body('studentProfile.financialInfo.annualFamilyIncome').optional().isNumeric(),
-  body('studentProfile.financialInfo.stBracket').optional().isIn(Object.values(STBracket))
+  // Flat studentProfile validation matching User.model.js
+  body('studentProfile.studentNumber').optional().trim(),
+  body('studentProfile.college').optional(),
+  body('studentProfile.course').optional().trim(),
+  body('studentProfile.classification').optional(),
+  body('studentProfile.gwa').optional().isFloat({ min: 1, max: 5 }),
+  body('studentProfile.annualFamilyIncome').optional().isNumeric(),
+  body('studentProfile.stBracket').optional(),
+  body('studentProfile.provinceOfOrigin').optional().trim(),
+  body('studentProfile.householdSize').optional().isInt({ min: 1, max: 20 }),
+  body('studentProfile.unitsEnrolled').optional().isInt({ min: 0, max: 30 }),
+  body('studentProfile.unitsPassed').optional().isInt({ min: 0 }),
+  body('studentProfile.citizenship').optional().trim()
 ];
 
 // =============================================================================
@@ -52,8 +58,14 @@ router.put('/profile',
   profileUpdateValidation,
   async (req, res, next) => {
     try {
+      console.log('====== PROFILE UPDATE REQUEST ======');
+      console.log('User ID:', req.user._id);
+      console.log('User role:', req.user.role);
+      console.log('Request body:', JSON.stringify(req.body, null, 2));
+      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           errors: errors.array()
@@ -76,31 +88,91 @@ router.put('/profile',
 
       // Update student profile if user is a student
       if (req.user.role === UserRole.STUDENT && req.body.studentProfile) {
-        const { academicInfo, financialInfo, demographicInfo } = req.body.studentProfile;
-
-        if (academicInfo) {
-          req.user.studentProfile.academicInfo = {
-            ...req.user.studentProfile.academicInfo?.toObject(),
-            ...academicInfo
-          };
+        console.log('Processing studentProfile update...');
+        const studentData = req.body.studentProfile;
+        
+        // Check for duplicate student number if being updated
+        if (studentData.studentNumber) {
+          const existingUser = await User.findOne({ 
+            'studentProfile.studentNumber': studentData.studentNumber,
+            _id: { $ne: req.user._id } // Exclude current user
+          });
+          
+          if (existingUser) {
+            console.log('Duplicate student number detected:', studentData.studentNumber);
+            return res.status(409).json({
+              success: false,
+              message: 'This student number is already registered in the system.',
+              error: 'DUPLICATE_STUDENT_NUMBER'
+            });
+          }
+        }
+        
+        // Initialize studentProfile if it doesn't exist
+        if (!req.user.studentProfile) {
+          console.log('Initializing empty studentProfile');
+          req.user.studentProfile = {};
         }
 
-        if (financialInfo) {
-          req.user.studentProfile.financialInfo = {
-            ...req.user.studentProfile.financialInfo?.toObject(),
-            ...financialInfo
-          };
-        }
+        // List of allowed studentProfile fields matching User.model.js
+        const studentProfileFields = [
+          'studentNumber',
+          'firstName',
+          'middleName',
+          'lastName',
+          'suffix',
+          'homeAddress',
+          'provinceOfOrigin',
+          'college',
+          'course',
+          'major',
+          'classification',
+          'gwa',
+          'unitsEnrolled',
+          'unitsPassed',
+          'annualFamilyIncome',
+          'citizenship',
+          'householdSize',
+          'stBracket',
+          'expectedGraduationYear',
+          'expectedGraduationSemester',
+          'contactNumber',
+          'birthDate',
+          'hasExistingScholarship',
+          'existingScholarshipName',
+          'hasThesisGrant',
+          'hasDisciplinaryAction',
+          'profileCompleted'
+        ];
 
-        if (demographicInfo) {
-          req.user.studentProfile.demographicInfo = {
-            ...req.user.studentProfile.demographicInfo?.toObject(),
-            ...demographicInfo
-          };
+        // Update each field if present
+        for (const field of studentProfileFields) {
+          if (studentData[field] !== undefined) {
+            req.user.studentProfile[field] = studentData[field];
+          }
         }
+        
+        // Handle homeAddress as nested object
+        if (studentData.homeAddress) {
+          req.user.studentProfile.homeAddress = {
+            ...req.user.studentProfile.homeAddress,
+            ...studentData.homeAddress
+          };
+          console.log('Updated homeAddress:', req.user.studentProfile.homeAddress);
+        }
+        
+        // Mark profile as completed if we have essential fields
+        if (studentData.studentNumber && studentData.college && studentData.course) {
+          req.user.studentProfile.profileCompleted = true;
+          req.user.studentProfile.profileCompletedAt = new Date();
+        }
+        
+        console.log('Final studentProfile before save:', JSON.stringify(req.user.studentProfile, null, 2));
       }
 
       await req.user.save();
+      console.log('User saved successfully');
+      console.log('Returning profile:', JSON.stringify(req.user.getPublicProfile(), null, 2));
 
       res.json({
         success: true,
@@ -108,6 +180,7 @@ router.put('/profile',
         data: req.user.getPublicProfile()
       });
     } catch (error) {
+      console.error('Profile update error:', error);
       next(error);
     }
   }

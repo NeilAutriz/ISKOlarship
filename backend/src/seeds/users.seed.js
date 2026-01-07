@@ -333,13 +333,9 @@ const generateStudentData = () => {
       const lastName = randomFrom(lastNames);
       const middleName = randomFrom(middleNames);
 
-      // Academic status flags
-      const hasFailingGrade = Math.random() < 0.1;
-      const hasGradeOf4 = Math.random() < 0.15;
-      const hasGradeOf5 = Math.random() < 0.05;
-      const hasIncompleteGrade = Math.random() < 0.1;
-      const hasDisciplinaryAction = Math.random() < 0.05;
-      const hasExistingScholarship = Math.random() < 0.2;
+      // Scholarship eligibility flags (only essential ones)
+      const hasDisciplinaryAction = Math.random() < 0.05; // 5% have disciplinary issues
+      const hasExistingScholarship = Math.random() < 0.2; // 20% have other scholarships
       
       // Generate householdSize (realistic distribution)
       const householdSize = Math.floor(randomBetween(3, 8));
@@ -347,9 +343,8 @@ const generateStudentData = () => {
       // Generate contact number
       const contactNumber = `+639${Math.floor(Math.random() * 900000000 + 100000000)}`;
 
-      // Thesis-related (for seniors)
-      const hasApprovedThesisOutline = classification === Classification.SENIOR && Math.random() < 0.6;
-      const hasThesisGrant = hasApprovedThesisOutline && Math.random() < 0.3;
+      // Thesis grant (for seniors only)
+      const hasThesisGrant = classification === Classification.SENIOR && Math.random() < 0.3;
 
       students.push({
         email: `student${studentIndex + 1}@up.edu.ph`,
@@ -376,13 +371,8 @@ const generateStudentData = () => {
           contactNumber,
           stBracket,
           citizenship: Citizenship.FILIPINO,
-          hasFailingGrade,
-          hasGradeOf4,
-          hasGradeOf5,
-          hasIncompleteGrade,
           hasDisciplinaryAction,
           hasExistingScholarship,
-          hasApprovedThesisOutline,
           hasThesisGrant,
           isGraduating: classification === Classification.SENIOR && Math.random() < 0.7
         }
@@ -426,13 +416,13 @@ const generateStudentData = () => {
       contactNumber: '+639171234567',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-      hasApprovedThesisOutline: true,
+,
       hasThesisGrant: false,
       isGraduating: true,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -469,10 +459,10 @@ const generateStudentData = () => {
       contactNumber: '+639181234568',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -509,10 +499,10 @@ const generateStudentData = () => {
       contactNumber: '+639191234569',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -550,10 +540,10 @@ const generateStudentData = () => {
       contactNumber: '+639201234570',
       stBracket: STBracket.PD60,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -590,13 +580,13 @@ const generateStudentData = () => {
       contactNumber: '+639211234571',
       stBracket: STBracket.FULL_DISCOUNT_WITH_STIPEND,
       citizenship: Citizenship.FILIPINO,
-      hasApprovedThesisOutline: true,
+,
       hasThesisGrant: false,
       isGraduating: true,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -633,10 +623,10 @@ const generateStudentData = () => {
       contactNumber: '+639221234572',
       stBracket: STBracket.PD40,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -673,10 +663,10 @@ const generateStudentData = () => {
       contactNumber: '+639231234573',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -713,10 +703,10 @@ const generateStudentData = () => {
       contactNumber: '+639241234574',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -754,10 +744,10 @@ const generateStudentData = () => {
       contactNumber: '+639251234575',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: true,
-      hasGradeOf4: true,
-      hasGradeOf5: false,
-      hasIncompleteGrade: true,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -794,10 +784,10 @@ const generateStudentData = () => {
       contactNumber: '+639261234576',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-      hasFailingGrade: false,
-      hasGradeOf4: false,
-      hasGradeOf5: false,
-      hasIncompleteGrade: false,
+,
+,
+,
+,
       hasDisciplinaryAction: false,
       hasExistingScholarship: true
     }

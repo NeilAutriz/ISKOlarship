@@ -28,11 +28,12 @@ export enum ApplicationStatus {
 }
 
 export enum YearLevel {
-  FRESHMAN = 'freshman',
-  SOPHOMORE = 'sophomore',
-  JUNIOR = 'junior',
-  SENIOR = 'senior',
-  GRADUATE = 'graduate'
+  INCOMING_FRESHMAN = 'Incoming Freshman',
+  FRESHMAN = 'Freshman',
+  SOPHOMORE = 'Sophomore',
+  JUNIOR = 'Junior',
+  SENIOR = 'Senior',
+  GRADUATE = 'Graduate'
 }
 
 export enum ScholarshipType {

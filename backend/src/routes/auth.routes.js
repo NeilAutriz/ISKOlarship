@@ -100,14 +100,28 @@ router.post('/register', registerValidation, async (req, res, next) => {
       });
     }
 
-    // Create user
-    const user = new User({
+    // Create user with initialized studentProfile for students
+    const userData = {
       email,
       password,
       firstName,
       lastName,
       role
-    });
+    };
+    
+    // Initialize studentProfile for student users
+    if (role === UserRole.STUDENT) {
+      userData.studentProfile = {
+        firstName,
+        lastName,
+        profileCompleted: false,
+        hasExistingScholarship: false,
+        hasThesisGrant: false,
+        hasDisciplinaryAction: false
+      };
+    }
+    
+    const user = new User(userData);
 
     await user.save();
 

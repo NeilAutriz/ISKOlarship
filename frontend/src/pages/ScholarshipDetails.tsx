@@ -1,3 +1,4 @@
+
 // ============================================================================
 // ISKOlarship - ScholarshipDetails Page
 // Individual scholarship view with eligibility check and prediction factors

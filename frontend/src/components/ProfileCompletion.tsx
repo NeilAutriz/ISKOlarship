@@ -4,7 +4,28 @@
 // ============================================================================
 
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Calendar } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  Check, 
+  Calendar, 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Users, 
+  GraduationCap, 
+  BookOpen, 
+  Hash, 
+  DollarSign, 
+  Home, 
+  ChevronDown,
+  Globe,
+  Building2,
+  BarChart3,
+  Award,
+  X
+} from 'lucide-react';
 import { YearLevel, UPLBCollege } from '../types';
 
 export interface ProfileData {
@@ -12,7 +33,11 @@ export interface ProfileData {
   fullName: string;
   email: string;
   contactNumber: string;
-  address: string;
+  // Expanded address fields
+  street: string;
+  barangay: string;
+  city: string;
+  zipCode: string;
   dateOfBirth: string;
   gender: string;
   
@@ -28,6 +53,8 @@ export interface ProfileData {
   // Step 3: Financial Information
   annualFamilyIncome: string;
   hasExistingScholarship: boolean;
+  hasThesisGrant: boolean;
+  hasDisciplinaryAction: boolean;
   householdSize: string;
   stBracket: string;
   
@@ -49,12 +76,17 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>('');
 
   const [formData, setFormData] = useState<ProfileData>({
     fullName: '',
     email: email,
     contactNumber: '',
-    address: '',
+    street: '',
+    barangay: '',
+    city: '',
+    zipCode: '',
     dateOfBirth: '',
     gender: '',
     college: '',
@@ -66,6 +98,8 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     studentNumber: '',
     annualFamilyIncome: '',
     hasExistingScholarship: false,
+    hasThesisGrant: false,
+    hasDisciplinaryAction: false,
     householdSize: '',
     stBracket: '',
     provinceOfOrigin: '',
@@ -75,7 +109,14 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const updateField = (field: keyof ProfileData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Clear course when college changes
+      if (field === 'college') {
+        updated.course = '';
+      }
+      return updated;
+    });
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -90,6 +131,7 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
         if (!formData.email.trim()) newErrors.email = 'Email is required';
         if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact number is required';
+        if (!formData.street.trim()) newErrors.street = 'Street address is required';
         if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
         if (!formData.gender) newErrors.gender = 'Gender is required';
         break;
@@ -97,12 +139,41 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         if (!formData.college) newErrors.college = 'College is required';
         if (!formData.course.trim()) newErrors.course = 'Course is required';
         if (!formData.yearLevel) newErrors.yearLevel = 'Year level is required';
-        if (!formData.gwa.trim()) newErrors.gwa = 'GWA is required';
+        if (!formData.gwa.trim()) {
+          newErrors.gwa = 'GWA is required';
+        } else {
+          const gwaNum = parseFloat(formData.gwa);
+          if (isNaN(gwaNum) || gwaNum < 1.0 || gwaNum > 5.0) {
+            newErrors.gwa = 'GWA must be between 1.0 and 5.0';
+          }
+        }
         if (!formData.studentNumber.trim()) newErrors.studentNumber = 'Student number is required';
+        const unitsEnrolled = parseInt(formData.unitsEnrolled);
+        if (formData.unitsEnrolled && (isNaN(unitsEnrolled) || unitsEnrolled < 0 || unitsEnrolled > 30)) {
+          newErrors.unitsEnrolled = 'Units enrolled must be between 0 and 30';
+        }
+        const unitsPassed = parseInt(formData.unitsPassed);
+        if (formData.unitsPassed && (isNaN(unitsPassed) || unitsPassed < 0)) {
+          newErrors.unitsPassed = 'Units passed must be 0 or greater';
+        }
         break;
       case 3:
-        if (!formData.annualFamilyIncome.trim()) newErrors.annualFamilyIncome = 'Family income is required';
-        if (!formData.householdSize.trim()) newErrors.householdSize = 'Household size is required';
+        if (!formData.annualFamilyIncome.trim()) {
+          newErrors.annualFamilyIncome = 'Annual family income is required';
+        } else {
+          const income = parseInt(formData.annualFamilyIncome);
+          if (isNaN(income) || income < 0) {
+            newErrors.annualFamilyIncome = 'Annual family income must be a positive number';
+          }
+        }
+        if (!formData.householdSize.trim()) {
+          newErrors.householdSize = 'Household size is required';
+        } else {
+          const size = parseInt(formData.householdSize);
+          if (isNaN(size) || size < 1 || size > 20) {
+            newErrors.householdSize = 'Household size must be between 1 and 20';
+          }
+        }
         if (!formData.stBracket) newErrors.stBracket = 'ST Bracket is required';
         break;
       case 4:
@@ -115,12 +186,24 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (validateStep(currentStep)) {
       if (currentStep < totalSteps) {
         setCurrentStep(currentStep + 1);
       } else {
-        onComplete(formData);
+        // Final step - submit form
+        setSubmitting(true);
+        setSubmitError('');
+        try {
+          await onComplete(formData);
+        } catch (error: any) {
+          console.error('Profile completion error:', error);
+          const errorMsg = error.message || 'An error occurred while completing your profile. Please try again.';
+          setSubmitError(errorMsg);
+          setSubmitting(false);
+          // Scroll to top to show error
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
     }
   };
@@ -129,6 +212,77 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  // UPLB Colleges and their respective programs
+  const uplbPrograms: Record<string, string[]> = {
+    [UPLBCollege.CAFS]: [
+      'BS Agriculture',
+      'BS Agricultural Biotechnology',
+      'BS Agricultural Chemistry',
+      'BS Food Science and Technology',
+      'BS Nutrition',
+      'BS Agricultural and Applied Economics',
+      'BS Agribusiness Management and Entrepreneurship',
+      'Other CAFS Program'
+    ],
+    [UPLBCollege.CAS]: [
+      'BS Biology',
+      'BS Applied Mathematics',
+      'BS Applied Physics',
+      'BS Chemistry',
+      'BS Computer Science',
+      'BS Mathematics',
+      'BS Mathematics and Science Teaching',
+      'BS Statistics',
+      'BA Communication Arts',
+      'BA Philosophy',
+      'BA Sociology',
+      'BS Human Kinetics',
+      'Associate in Arts in Sports Studies',
+      'Other CAS Program'
+    ],
+    [UPLBCollege.CDC]: [
+      'BS Development Communication',
+      'Associate of Science in Development Communication',
+      'Other CDC Program'
+    ],
+    [UPLBCollege.CEM]: [
+      'BS Accountancy',
+      'BS Agricultural and Applied Economics',
+      'BS Agribusiness Management and Entrepreneurship',
+      'BS Economics',
+      'Associate in Arts in Entrepreneurship',
+      'Other CEM Program'
+    ],
+    [UPLBCollege.CEAT]: [
+      'BS Agricultural and Biosystems Engineering',
+      'BS Chemical Engineering',
+      'BS Civil Engineering',
+      'BS Electrical Engineering',
+      'BS Industrial Engineering',
+      'BS Mechanical Engineering',
+      'BS Materials Engineering',
+      'Other CEAT Program'
+    ],
+    [UPLBCollege.CFNR]: [
+      'BS Forestry',
+      'Associate of Science in Forestry',
+      'Other CFNR Program'
+    ],
+    [UPLBCollege.CHE]: [
+      'BS Human Ecology',
+      'BS Nutrition',
+      'Other CHE Program'
+    ],
+    [UPLBCollege.CVM]: [
+      'Doctor of Veterinary Medicine',
+      'Other CVM Program'
+    ],
+    [UPLBCollege.GS]: [
+      'Graduate Programs',
+      'Other Graduate Program'
+    ]
   };
 
   // College options
@@ -143,6 +297,9 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     { value: UPLBCollege.CVM, label: 'College of Veterinary Medicine (CVM)' },
     { value: UPLBCollege.GS, label: 'Graduate School (GS)' },
   ];
+
+  // Get available courses based on selected college
+  const availableCourses = formData.college ? uplbPrograms[formData.college] || [] : [];
 
   // Year level options
   const yearLevels = [
@@ -165,321 +322,616 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   // Gender options
   const genders = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 
+  const stepInfo = [
+    { icon: User, label: 'Personal' },
+    { icon: GraduationCap, label: 'Academic' },
+    { icon: DollarSign, label: 'Financial' },
+    { icon: Globe, label: 'Demographic' }
+  ];
+
   const renderProgressBar = () => (
     <div className="mb-8">
-      <div className="flex gap-2 mb-2">
+      {/* Error Banner */}
+      {submitError && (
+        <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-5 h-5 text-red-500 mt-0.5">
+              <X className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-red-800 mb-1">Registration Error</h4>
+              <p className="text-sm text-red-700">{submitError}</p>
+            </div>
+            <button
+              onClick={() => setSubmitError('')}
+              className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Step indicators with icons */}
+      <div className="flex justify-between mb-4">
+        {stepInfo.map((step, index) => {
+          const StepIcon = step.icon;
+          const stepNum = index + 1;
+          const isActive = stepNum === currentStep;
+          const isCompleted = stepNum < currentStep;
+          
+          return (
+            <div key={stepNum} className="flex flex-col items-center flex-1">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-all ${
+                isCompleted ? 'bg-green-500 text-white' :
+                isActive ? 'bg-primary-600 text-white shadow-lg scale-110' :
+                'bg-slate-200 text-slate-400'
+              }`}>
+                {isCompleted ? <Check className="w-5 h-5" /> : <StepIcon className="w-5 h-5" />}
+              </div>
+              <span className={`text-xs font-medium transition-all ${
+                isActive ? 'text-primary-600' :
+                isCompleted ? 'text-green-600' :
+                'text-slate-400'
+              }`}>{step.label}</span>
+            </div>
+          );
+        })}
+      </div>
+      {/* Progress bar */}
+      <div className="flex gap-1">
         {[1, 2, 3, 4].map((step) => (
           <div
             key={step}
-            className={`flex-1 h-2 rounded-full transition-all ${
-              step <= currentStep ? 'bg-slate-800' : 'bg-slate-200'
+            className={`flex-1 h-1.5 rounded-full transition-all ${
+              step < currentStep ? 'bg-green-500' :
+              step === currentStep ? 'bg-primary-600' :
+              'bg-slate-200'
             }`}
           />
         ))}
       </div>
-      <p className="text-sm text-slate-500">Step {currentStep} of {totalSteps}</p>
     </div>
   );
 
   const renderStep1 = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="text-lg font-bold text-slate-900 mb-1">Personal Information</h3>
-      <p className="text-slate-500 text-sm mb-6">Tell us about yourself</p>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+          <User className="w-5 h-5 text-primary-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Personal Information</h3>
+          <p className="text-slate-500 text-sm">Tell us about yourself</p>
+        </div>
+      </div>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-          <input
-            type="text"
-            value={formData.fullName}
-            onChange={(e) => updateField('fullName', e.target.value)}
-            placeholder="Juan Dela Cruz"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.fullName ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
-          {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => updateField('email', e.target.value)}
-            placeholder="juan.delacruz@university.edu"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.email ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
-          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
-          <input
-            type="tel"
-            value={formData.contactNumber}
-            onChange={(e) => updateField('contactNumber', e.target.value)}
-            placeholder="+63 912 345 6789"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.contactNumber ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
-          {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
-          <input
-            type="text"
-            value={formData.address}
-            onChange={(e) => updateField('address', e.target.value)}
-            placeholder="123 Main Street, City"
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
           <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <User className="w-5 h-5" />
+            </div>
+            <input
+              type="text"
+              value={formData.fullName}
+              onChange={(e) => updateField('fullName', e.target.value)}
+              placeholder="Juan Dela Cruz"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.fullName ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
+          {errors.fullName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.fullName}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Email Address</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Mail className="w-5 h-5" />
+            </div>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => updateField('email', e.target.value)}
+              placeholder="juan.delacruz@up.edu.ph"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.email ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
+          {errors.email && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.email}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Contact Number</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Phone className="w-5 h-5" />
+            </div>
+            <input
+              type="tel"
+              value={formData.contactNumber}
+              onChange={(e) => updateField('contactNumber', e.target.value)}
+              placeholder="+63 912 345 6789"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.contactNumber ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
+          {errors.contactNumber && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.contactNumber}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Street Address</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <input
+              type="text"
+              value={formData.street}
+              onChange={(e) => updateField('street', e.target.value)}
+              placeholder="e.g., 123 Main Street"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.street ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
+          {errors.street && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.street}</p>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Barangay</label>
+            <input
+              type="text"
+              value={formData.barangay}
+              onChange={(e) => updateField('barangay', e.target.value)}
+              placeholder="e.g., Poblacion"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">City/Municipality</label>
+            <input
+              type="text"
+              value={formData.city}
+              onChange={(e) => updateField('city', e.target.value)}
+              placeholder="e.g., Los Baños"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">ZIP Code</label>
+          <input
+            type="text"
+            value={formData.zipCode}
+            onChange={(e) => updateField('zipCode', e.target.value)}
+            placeholder="e.g., 4031"
+            maxLength={4}
+            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Address</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => updateField('address', e.target.value)}
+              placeholder="123 Main Street, City"
+              className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Date of Birth</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Calendar className="w-5 h-5" />
+            </div>
             <input
               type="date"
               value={formData.dateOfBirth}
               onChange={(e) => updateField('dateOfBirth', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-                errors.dateOfBirth ? 'border-red-300' : 'border-slate-200'
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.dateOfBirth ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
               }`}
             />
-            <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
           </div>
-          {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth}</p>}
+          {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.dateOfBirth}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
-          <select
-            value={formData.gender}
-            onChange={(e) => updateField('gender', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white ${
-              errors.gender ? 'border-red-300' : 'border-slate-200'
-            }`}
-          >
-            <option value="">Select gender</option>
-            {genders.map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
-          {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Gender</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Users className="w-5 h-5" />
+            </div>
+            <select
+              value={formData.gender}
+              onChange={(e) => updateField('gender', e.target.value)}
+              className={`w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer ${
+                errors.gender ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <option value="">Select gender</option>
+              {genders.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+          </div>
+          {errors.gender && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.gender}</p>}
         </div>
       </div>
     </div>
   );
 
   const renderStep2 = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="text-lg font-bold text-slate-900 mb-1">Academic Details</h3>
-      <p className="text-slate-500 text-sm mb-6">Your educational background</p>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+          <GraduationCap className="w-5 h-5 text-blue-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Academic Details</h3>
+          <p className="text-slate-500 text-sm">Your educational background</p>
+        </div>
+      </div>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Student Number</label>
-          <input
-            type="text"
-            value={formData.studentNumber}
-            onChange={(e) => updateField('studentNumber', e.target.value)}
-            placeholder="2024-12345"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.studentNumber ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
-          {errors.studentNumber && <p className="text-red-500 text-xs mt-1">{errors.studentNumber}</p>}
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Student Number</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Hash className="w-5 h-5" />
+            </div>
+            <input
+              type="text"
+              value={formData.studentNumber}
+              onChange={(e) => updateField('studentNumber', e.target.value)}
+              placeholder="2024-12345"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.studentNumber ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
+          {errors.studentNumber && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.studentNumber}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">College</label>
-          <select
-            value={formData.college}
-            onChange={(e) => updateField('college', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white ${
-              errors.college ? 'border-red-300' : 'border-slate-200'
-            }`}
-          >
-            <option value="">Select college</option>
-            {colleges.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
-          {errors.college && <p className="text-red-500 text-xs mt-1">{errors.college}</p>}
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">College</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <select
+              value={formData.college}
+              onChange={(e) => updateField('college', e.target.value)}
+              className={`w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer ${
+                errors.college ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <option value="">Select college</option>
+              {colleges.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+          </div>
+          {errors.college && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.college}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Course</label>
-          <input
-            type="text"
-            value={formData.course}
-            onChange={(e) => updateField('course', e.target.value)}
-            placeholder="e.g., BS Computer Science"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.course ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
-          {errors.course && <p className="text-red-500 text-xs mt-1">{errors.course}</p>}
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Course/Program</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <select
+              value={formData.course}
+              onChange={(e) => updateField('course', e.target.value)}
+              disabled={!formData.college}
+              className={`w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer ${
+                !formData.college ? 'bg-slate-50 cursor-not-allowed' :
+                errors.course ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <option value="">{!formData.college ? 'Select college first' : 'Select your program'}</option>
+              {availableCourses.map((course) => (
+                <option key={course} value={course}>{course}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+          </div>
+          {errors.course && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.course}</p>}
+          {formData.college && <p className="text-slate-400 text-xs mt-1">If your program is not listed, select "Other {colleges.find(c => c.value === formData.college)?.value} Program"</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Year Level</label>
-          <select
-            value={formData.yearLevel}
-            onChange={(e) => updateField('yearLevel', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white ${
-              errors.yearLevel ? 'border-red-300' : 'border-slate-200'
-            }`}
-          >
-            <option value="">Select year level</option>
-            {yearLevels.map((y) => (
-              <option key={y.value} value={y.value}>{y.label}</option>
-            ))}
-          </select>
-          {errors.yearLevel && <p className="text-red-500 text-xs mt-1">{errors.yearLevel}</p>}
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Year Level</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <select
+              value={formData.yearLevel}
+              onChange={(e) => updateField('yearLevel', e.target.value)}
+              className={`w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer ${
+                errors.yearLevel ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <option value="">Select year level</option>
+              {yearLevels.map((y) => (
+                <option key={y.value} value={y.value}>{y.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+          </div>
+          {errors.yearLevel && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.yearLevel}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
             GWA (General Weighted Average)
           </label>
-          <input
-            type="text"
-            value={formData.gwa}
-            onChange={(e) => updateField('gwa', e.target.value)}
-            placeholder="e.g., 2.50"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.gwa ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <input
+              type="number"
+              value={formData.gwa}
+              onChange={(e) => updateField('gwa', e.target.value)}
+              placeholder="e.g., 2.50"
+              min="1.0"
+              max="5.0"
+              step="0.01"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.gwa ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
           <p className="text-slate-400 text-xs mt-1">Scale: 1.0 (highest) to 5.0 (lowest)</p>
-          {errors.gwa && <p className="text-red-500 text-xs mt-1">{errors.gwa}</p>}
+          {errors.gwa && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.gwa}</p>}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Units Enrolled</label>
-          <input
-            type="text"
-            value={formData.unitsEnrolled}
-            onChange={(e) => updateField('unitsEnrolled', e.target.value)}
-            placeholder="e.g., 18"
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-          />
-          <p className="text-slate-400 text-xs mt-1">Current semester units</p>
-        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Units Enrolled</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <input
+                type="number"
+                value={formData.unitsEnrolled}
+                onChange={(e) => updateField('unitsEnrolled', e.target.value)}
+                placeholder="e.g., 18"
+                min="0"
+                max="30"
+                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+              />
+            </div>
+            <p className="text-slate-400 text-xs mt-1">Current semester</p>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Units Passed</label>
-          <input
-            type="text"
-            value={formData.unitsPassed}
-            onChange={(e) => updateField('unitsPassed', e.target.value)}
-            placeholder="e.g., 54"
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-          />
-          <p className="text-slate-400 text-xs mt-1">Total units completed so far</p>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Units Passed</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <Award className="w-5 h-5" />
+              </div>
+              <input
+                type="number"
+                value={formData.unitsPassed}
+                onChange={(e) => updateField('unitsPassed', e.target.value)}
+                placeholder="e.g., 54"
+                min="0"
+                className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+              />
+            </div>
+            <p className="text-slate-400 text-xs mt-1">Total completed</p>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const renderStep3 = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="text-lg font-bold text-slate-900 mb-1">Financial Information</h3>
-      <p className="text-slate-500 text-sm mb-6">Financial status for scholarship matching</p>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+          <DollarSign className="w-5 h-5 text-green-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Financial Information</h3>
+          <p className="text-slate-500 text-sm">Financial status for scholarship matching</p>
+        </div>
+      </div>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Family Annual Income (₱)
           </label>
-          <input
-            type="text"
-            value={formData.annualFamilyIncome}
-            onChange={(e) => updateField('annualFamilyIncome', e.target.value)}
-            placeholder="e.g., 250000"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.annualFamilyIncome ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <input
+              type="number"
+              value={formData.annualFamilyIncome}
+              onChange={(e) => updateField('annualFamilyIncome', e.target.value)}
+              placeholder="e.g., 250000"
+              min="0"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.annualFamilyIncome ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
           <p className="text-slate-400 text-xs mt-1">Enter your family's total annual income</p>
-          {errors.annualFamilyIncome && <p className="text-red-500 text-xs mt-1">{errors.annualFamilyIncome}</p>}
+          {errors.annualFamilyIncome && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.annualFamilyIncome}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Household Size
           </label>
-          <input
-            type="number"
-            value={formData.householdSize}
-            onChange={(e) => updateField('householdSize', e.target.value)}
-            placeholder="e.g., 5"
-            min="1"
-            max="20"
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-              errors.householdSize ? 'border-red-300' : 'border-slate-200'
-            }`}
-          />
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Home className="w-5 h-5" />
+            </div>
+            <input
+              type="number"
+              value={formData.householdSize}
+              onChange={(e) => updateField('householdSize', e.target.value)}
+              placeholder="e.g., 5"
+              min="1"
+              max="20"
+              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                errors.householdSize ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            />
+          </div>
           <p className="text-slate-400 text-xs mt-1">Total number of family members</p>
-          {errors.householdSize && <p className="text-red-500 text-xs mt-1">{errors.householdSize}</p>}
+          {errors.householdSize && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.householdSize}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
             ST Bracket (Socialized Tuition)
           </label>
-          <select
-            value={formData.stBracket}
-            onChange={(e) => updateField('stBracket', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white ${
-              errors.stBracket ? 'border-red-300' : 'border-slate-200'
-            }`}
-          >
-            <option value="">Select ST bracket</option>
-            <option value="Full Discount with Stipend">Full Discount with Stipend (FDS)</option>
-            <option value="Full Discount">Full Discount (FD)</option>
-            <option value="PD80">Partial Discount 80% (PD80)</option>
-            <option value="PD60">Partial Discount 60% (PD60)</option>
-            <option value="PD40">Partial Discount 40% (PD40)</option>
-            <option value="PD20">Partial Discount 20% (PD20)</option>
-            <option value="No Discount">No Discount (ND)</option>
-          </select>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Award className="w-5 h-5" />
+            </div>
+            <select
+              value={formData.stBracket}
+              onChange={(e) => updateField('stBracket', e.target.value)}
+              className={`w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer ${
+                errors.stBracket ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <option value="">Select ST bracket</option>
+              <option value="Full Discount with Stipend">Full Discount with Stipend (FDS)</option>
+              <option value="Full Discount">Full Discount (FD)</option>
+              <option value="PD80">Partial Discount 80% (PD80)</option>
+              <option value="PD60">Partial Discount 60% (PD60)</option>
+              <option value="PD40">Partial Discount 40% (PD40)</option>
+              <option value="PD20">Partial Discount 20% (PD20)</option>
+              <option value="No Discount">No Discount (ND)</option>
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+          </div>
           <p className="text-slate-400 text-xs mt-1">Your current tuition discount bracket</p>
-          {errors.stBracket && <p className="text-red-500 text-xs mt-1">{errors.stBracket}</p>}
+          {errors.stBracket && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.stBracket}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label className="block text-sm font-medium text-slate-700 mb-3">
             Do you currently have other scholarships?
           </label>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={() => updateField('hasExistingScholarship', false)}
-              className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
                 !formData.hasExistingScholarship
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
-              No
+              <X className="w-4 h-4" />
+              No, I don't
             </button>
             <button
               type="button"
               onClick={() => updateField('hasExistingScholarship', true)}
-              className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
                 formData.hasExistingScholarship
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}
             >
-              Yes
+              <Check className="w-4 h-4" />
+              Yes, I do
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-3">
+            Do you have a thesis/dissertation grant?
+          </label>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => updateField('hasThesisGrant', false)}
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
+                !formData.hasThesisGrant
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <X className="w-4 h-4" />
+              No, I don't
+            </button>
+            <button
+              type="button"
+              onClick={() => updateField('hasThesisGrant', true)}
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
+                formData.hasThesisGrant
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Check className="w-4 h-4" />
+              Yes, I do
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-3">
+            Do you have any disciplinary action on record?
+          </label>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => updateField('hasDisciplinaryAction', false)}
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
+                !formData.hasDisciplinaryAction
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <X className="w-4 h-4" />
+              No, I don't
+            </button>
+            <button
+              type="button"
+              onClick={() => updateField('hasDisciplinaryAction', true)}
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
+                formData.hasDisciplinaryAction
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Check className="w-4 h-4" />
+              Yes, I do
             </button>
           </div>
         </div>
@@ -488,42 +940,61 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   );
 
   const renderStep4 = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="text-lg font-bold text-slate-900 mb-1">Demographic Data</h3>
-      <p className="text-slate-500 text-sm mb-6">Additional information for eligibility</p>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+          <Globe className="w-5 h-5 text-purple-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Demographic Data</h3>
+          <p className="text-slate-500 text-sm">Additional information for eligibility</p>
+        </div>
+      </div>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Province of Origin</label>
-          <select
-            value={formData.provinceOfOrigin}
-            onChange={(e) => updateField('provinceOfOrigin', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white ${
-              errors.provinceOfOrigin ? 'border-red-300' : 'border-slate-200'
-            }`}
-          >
-            <option value="">Select province</option>
-            {provinces.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-          {errors.provinceOfOrigin && <p className="text-red-500 text-xs mt-1">{errors.provinceOfOrigin}</p>}
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Province of Origin</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <select
+              value={formData.provinceOfOrigin}
+              onChange={(e) => updateField('provinceOfOrigin', e.target.value)}
+              className={`w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer ${
+                errors.provinceOfOrigin ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <option value="">Select province</option>
+              {provinces.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+          </div>
+          {errors.provinceOfOrigin && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.provinceOfOrigin}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Citizenship</label>
-          <select
-            value={formData.citizenship}
-            onChange={(e) => updateField('citizenship', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white ${
-              errors.citizenship ? 'border-red-300' : 'border-slate-200'
-            }`}
-          >
-            <option value="Filipino">Filipino</option>
-            <option value="Dual Citizen">Dual Citizen</option>
-            <option value="Foreign National">Foreign National</option>
-          </select>
-          {errors.citizenship && <p className="text-red-500 text-xs mt-1">{errors.citizenship}</p>}
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Citizenship</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <Globe className="w-5 h-5" />
+            </div>
+            <select
+              value={formData.citizenship}
+              onChange={(e) => updateField('citizenship', e.target.value)}
+              className={`w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer ${
+                errors.citizenship ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <option value="Filipino">Filipino</option>
+              <option value="Dual Citizen">Dual Citizen</option>
+              <option value="Foreign National">Foreign National</option>
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+          </div>
+          {errors.citizenship && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.citizenship}</p>}
         </div>
       </div>
     </div>
@@ -568,9 +1039,19 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
           
           <button
             onClick={handleNext}
-            className="flex-1 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-all flex items-center justify-center gap-2"
+            disabled={submitting}
+            className={`flex-1 py-3 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 ${
+              submitting 
+                ? 'bg-slate-400 text-white cursor-not-allowed' 
+                : 'bg-primary-600 text-white hover:bg-primary-700'
+            }`}
           >
-            {currentStep === totalSteps ? (
+            {submitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                Processing...
+              </>
+            ) : currentStep === totalSteps ? (
               <>
                 <Check className="w-4 h-4" />
                 Complete

@@ -143,6 +143,7 @@ const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
   const [pendingRole, setPendingRole] = useState<'student' | 'admin'>('student');
   const [navigateAfterLogin, setNavigateAfterLogin] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -225,7 +226,9 @@ const App: React.FC = () => {
   const handleSignUp = async (email: string, password: string, role: 'student' | 'admin') => {
     try {
       // For new users, show profile completion first
+      // Store password for use in profile completion
       setPendingEmail(email);
+      setPendingPassword(password);
       setPendingRole(role);
       setShowAuthModal(false);
       setShowProfileCompletion(true);
@@ -237,59 +240,89 @@ const App: React.FC = () => {
 
   // Handle profile completion - register user with API
   const handleProfileComplete = async (profileData: ProfileData) => {
-    console.log('Profile completed:', profileData);
+    console.log('=== Registration Flow ===');
+    console.log('Profile Data:', profileData);
+    console.log('Pending Email:', pendingEmail);
+    console.log('Pending Role:', pendingRole);
+    console.log('Password provided:', pendingPassword ? 'Yes (length: ' + pendingPassword.length + ')' : 'No');
     
     try {
       // Register user with the backend API
-      const names = profileData.fullName.split(' ');
-      const firstName = names[0] || '';
-      const lastName = names.slice(-1)[0] || '';
+      const names = profileData.fullName.trim().split(/\s+/);
+      const firstName = names[0] || 'User';
+      const lastName = names.length > 1 ? names.slice(1).join(' ') : 'Student';
       
-      // First, register the user
-      const response = await authApi.register({
+      console.log('Parsed name:', { firstName, lastName });
+      
+      // First, register the user with the password from signup form
+      const registrationData = {
         email: profileData.email,
-        password: 'tempPassword123!', // In a real app, this would come from the signup form
+        password: pendingPassword, // Use the password from the signup form
         firstName,
         lastName,
         role: pendingRole
-      });
+      };
+      
+      console.log('Registration payload:', { ...registrationData, password: '[HIDDEN]' });
+      
+      const response = await authApi.register(registrationData);
+      
+      console.log('Registration response:', response);
       
       if (response.success && response.data?.user) {
-        // Then update the profile with complete information
+        // Build the profile update matching backend schema (studentProfile nested structure)
+        // Match the exact structure used in backend seed data
         const profileUpdate = {
           firstName,
           lastName,
-          studentNumber: profileData.studentNumber,
-          contactNumber: profileData.contactNumber,
-          address: {
-            province: profileData.provinceOfOrigin,
-            city: '',
-            barangay: '',
-            street: profileData.address,
-            zipCode: ''
-          },
-          hometown: profileData.provinceOfOrigin,
-          college: profileData.college as any,
-          course: profileData.course,
-          yearLevel: profileData.yearLevel as any,
-          gwa: parseFloat(profileData.gwa),
-          unitsEnrolled: parseInt(profileData.unitsEnrolled) || 0,
-          annualFamilyIncome: parseInt(profileData.annualFamilyIncome),
-          householdSize: parseInt(profileData.householdSize),
-          stBracket: profileData.stBracket as any,
-          isScholarshipRecipient: profileData.hasExistingScholarship,
-          currentScholarships: profileData.hasExistingScholarship ? ['Existing'] : [],
-          hasThesisGrant: false,
-          hasDisciplinaryAction: false,
-          profileCompleted: true,
-          expectedGraduationDate: new Date(),
-          lastUpdated: new Date()
+          phone: profileData.contactNumber,
+          // Student profile data matching backend User.model.js structure
+          studentProfile: {
+            studentNumber: profileData.studentNumber,
+            firstName,
+            lastName,
+            contactNumber: profileData.contactNumber,
+            // homeAddress structure must match backend seed data format exactly
+            homeAddress: {
+              street: profileData.street || '',
+              barangay: profileData.barangay || '',
+              city: profileData.city || '',
+              province: profileData.provinceOfOrigin || '',
+              zipCode: profileData.zipCode || '',
+              fullAddress: `${profileData.street || ''}, ${profileData.barangay || ''}, ${profileData.city || ''}, ${profileData.provinceOfOrigin || ''} ${profileData.zipCode || ''}`.trim()
+            },
+            provinceOfOrigin: profileData.provinceOfOrigin,
+            college: profileData.college,
+            course: profileData.course,
+            classification: profileData.yearLevel, // Backend uses 'classification' not 'yearLevel'
+            gwa: parseFloat(profileData.gwa) || 0,
+            unitsEnrolled: parseInt(profileData.unitsEnrolled) || 0,
+            unitsPassed: parseInt(profileData.unitsPassed) || 0,
+            annualFamilyIncome: parseInt(profileData.annualFamilyIncome) || 0,
+            householdSize: parseInt(profileData.householdSize) || 1,
+            stBracket: profileData.stBracket,
+            citizenship: profileData.citizenship || 'Filipino',
+            hasExistingScholarship: profileData.hasExistingScholarship,
+            hasThesisGrant: profileData.hasThesisGrant,
+            hasDisciplinaryAction: profileData.hasDisciplinaryAction,
+            profileCompleted: true
+          }
         };
         
-        // Update profile with complete data
-        await userApi.updateProfile(profileUpdate);
+        console.log('Profile update payload:', JSON.stringify(profileUpdate, null, 2));
         
-        login(response.data.user as User);
+        // Update profile with complete data
+        const updateResponse = await userApi.updateProfile(profileUpdate);
+        console.log('Profile update response:', JSON.stringify(updateResponse, null, 2));
+        
+        // Use the UPDATED user from updateProfile response if available, otherwise use registration user
+        const updatedUser = updateResponse.success && updateResponse.data 
+          ? updateResponse.data 
+          : response.data.user;
+        
+        console.log('Final user data for login:', updatedUser);
+        
+        login(updatedUser as User);
         setShowProfileCompletion(false);
         setNavigateAfterLogin(pendingRole === 'admin' ? '/admin/dashboard' : '/dashboard');
       } else {
@@ -297,14 +330,27 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Registration error:', error);
-      // For demo purposes, fallback to mock user if API fails
-      if (pendingRole === 'admin') {
-        login(createMockAdmin());
-      } else {
-        login(createMockStudent());
+      
+      // Parse error message from different sources
+      const errorMessage = error.response?.data?.message || error.message || '';
+      const errorData = error.response?.data?.error || '';
+      
+      // Check for duplicate student number error (MongoDB E11000)
+      if (errorMessage.includes('E11000') || errorMessage.includes('duplicate key') || 
+          errorMessage.includes('studentNumber') || errorData.includes('studentNumber')) {
+        throw new Error('This student number is already registered in the system. Please use a different student number or contact support if this is an error.');
       }
-      setShowProfileCompletion(false);
-      setNavigateAfterLogin(pendingRole === 'admin' ? '/admin/dashboard' : '/dashboard');
+      
+      // Check if it's a duplicate email error
+      if (errorMessage.includes('already exists') || error.response?.status === 409) {
+        alert('An account with this email already exists. Please sign in instead.');
+        setShowProfileCompletion(false);
+        setShowAuthModal(true);
+        return;
+      }
+      
+      // Re-throw the error to be handled by ProfileCompletion
+      throw error;
     }
   };
 

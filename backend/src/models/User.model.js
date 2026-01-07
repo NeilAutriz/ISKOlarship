@@ -299,32 +299,8 @@ const userSchema = new mongoose.Schema({
       default: false
     },
     
-    // Thesis status (for thesis grant applications)
-    hasApprovedThesisOutline: {
-      type: Boolean,
-      default: false
-    },
-    thesisTitle: String,
-    thesisAdvisor: String,
-    
-    // Academic standing flags
+    // Academic standing flag (for mustNotHaveDisciplinaryAction criteria)
     hasDisciplinaryAction: {
-      type: Boolean,
-      default: false
-    },
-    hasFailingGrade: {
-      type: Boolean,
-      default: false
-    },
-    hasIncompleteGrade: {
-      type: Boolean,
-      default: false
-    },
-    hasGradeOf4: {
-      type: Boolean,
-      default: false
-    },
-    hasGradeOf5: {
       type: Boolean,
       default: false
     },
