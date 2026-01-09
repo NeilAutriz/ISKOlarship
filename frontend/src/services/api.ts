@@ -1,68 +1,159 @@
 // ============================================================================
 // ISKOlarship - API Service
-// API client for backend communication - now uses real API client
+// Unified API client for backend communication with fallback to mock data
 // ============================================================================
 
-import { 
-  scholarshipApi, 
-  applicationApi, 
-  authApi, 
-  userApi, 
-  statisticsApi,
-  predictionApi 
-} from './apiClient';
-import { Scholarship, StudentProfile, HistoricalApplication } from '../types';
+import { scholarshipApi, applicationApi, userApi, statisticsApi, predictionApi, authApi, setTokens, clearTokens, getAccessToken } from './apiClient';
+import { Scholarship, StudentProfile, HistoricalApplication, Application } from '../types';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const USE_MOCK_FALLBACK = true; // Enable fallback to mock data when API fails
+
+// Helper to handle API calls with optional mock fallback
+async function apiWithFallback<T>(
+  apiCall: () => Promise<T>,
+  mockFallback: () => T,
+  useFallback = USE_MOCK_FALLBACK
+): Promise<T> {
+  try {
+    return await apiCall();
+  } catch (error) {
+    if (useFallback) {
+      console.warn('API call failed, using mock data:', error);
+      return mockFallback();
+    }
+    throw error;
+  }
+}
+
+// ============================================================================
+// Data Transformation Helpers
+// ============================================================================
+
+/**
+ * Transform backend scholarship data to frontend format
+ */
+function transformScholarship(data: any): Scholarship {
+  return {
+    id: data._id || data.id,
+    name: data.name,
+    description: data.description,
+    sponsor: data.sponsor,
+    type: data.type,
+    awardAmount: data.awardAmount,
+    awardDescription: data.awardDescription,
+    eligibilityCriteria: {
+      minGWA: data.eligibilityCriteria?.minGWA,
+      maxGWA: data.eligibilityCriteria?.maxGWA,
+      requiredYearLevels: data.eligibilityCriteria?.requiredYearLevels || [],
+      minUnitsEnrolled: data.eligibilityCriteria?.minUnitsEnrolled,
+      eligibleColleges: data.eligibilityCriteria?.eligibleColleges || [],
+      eligibleCourses: data.eligibilityCriteria?.eligibleCourses || [],
+      eligibleMajors: data.eligibilityCriteria?.eligibleMajors || [],
+      maxAnnualFamilyIncome: data.eligibilityCriteria?.maxAnnualFamilyIncome,
+      minAnnualFamilyIncome: data.eligibilityCriteria?.minAnnualFamilyIncome,
+      requiredSTBrackets: data.eligibilityCriteria?.requiredSTBrackets || [],
+      eligibleProvinces: data.eligibilityCriteria?.eligibleProvinces || [],
+      requiresApprovedThesis: data.eligibilityCriteria?.requiresApprovedThesis || false,
+      mustNotHaveOtherScholarship: data.eligibilityCriteria?.mustNotHaveOtherScholarship || false,
+      mustNotHaveThesisGrant: data.eligibilityCriteria?.mustNotHaveThesisGrant || false,
+      mustNotHaveDisciplinaryAction: data.eligibilityCriteria?.mustNotHaveDisciplinaryAction || false,
+      isFilipinoOnly: data.eligibilityCriteria?.isFilipinoOnly ?? true,
+      additionalRequirements: data.eligibilityCriteria?.additionalRequirements || []
+    },
+    requirements: data.requirements || [],
+    applicationDeadline: new Date(data.applicationDeadline),
+    academicYear: data.academicYear,
+    semester: data.semester,
+    slots: data.slots,
+    isActive: data.isActive ?? true,
+    createdBy: data.createdBy,
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+    tags: data.tags || []
+  };
+}
 
 // ============================================================================
 // Scholarship API
 // ============================================================================
 
 /**
- * Fetch all scholarships from the API
+ * Fetch all scholarships from backend
  */
-export const fetchScholarships = async (): Promise<Scholarship[]> => {
-  try {
-    const response = await scholarshipApi.getAll({ limit: 100 });
-    if (response.success && response.data?.scholarships) {
-      return response.data.scholarships;
-    }
-    return [];
-  } catch (error) {
-    console.error('Failed to fetch scholarships:', error);
-    return [];
-  }
+export const fetchScholarships = async (filters?: {
+  type?: string;
+  yearLevel?: string;
+  college?: string;
+  search?: string;
+  limit?: number;
+}): Promise<Scholarship[]> => {
+  return apiWithFallback(
+    async () => {
+      const response = await scholarshipApi.getAll(filters || {});
+      if (response.success && response.data?.scholarships) {
+        return response.data.scholarships.map(transformScholarship);
+      }
+      throw new Error('Failed to fetch scholarships');
+    },
+    () => []
+  );
 };
 
 /**
- * Fetch scholarship by ID
+ * Fetch scholarship by ID from backend
  */
 export const fetchScholarshipDetails = async (id: string): Promise<Scholarship | null> => {
-  try {
-    const response = await scholarshipApi.getById(id);
-    if (response.success && response.data) {
-      return response.data;
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to fetch scholarship details:', error);
-    return null;
-  }
+  return apiWithFallback(
+    async () => {
+      const response = await scholarshipApi.getById(id);
+      if (response.success && response.data) {
+        return transformScholarship(response.data);
+      }
+      return null;
+    },
+    () => null
+  );
 };
 
 /**
  * Search scholarships
  */
 export const searchScholarships = async (query: string): Promise<Scholarship[]> => {
-  try {
-    const response = await scholarshipApi.getAll({ search: query, limit: 100 });
-    if (response.success && response.data?.scholarships) {
-      return response.data.scholarships;
-    }
-    return [];
-  } catch (error) {
-    console.error('Failed to search scholarships:', error);
-    return [];
-  }
+  return apiWithFallback(
+    async () => {
+      const response = await scholarshipApi.getAll({ search: query });
+      if (response.success && response.data?.scholarships) {
+        return response.data.scholarships.map(transformScholarship);
+      }
+      throw new Error('Failed to search scholarships');
+    },
+    () => []
+  );
+};
+
+/**
+ * Get scholarship statistics
+ */
+export const fetchScholarshipStats = async () => {
+  return apiWithFallback(
+    async () => {
+      const response = await scholarshipApi.getStats();
+      if (response.success && response.data) {
+        return response.data;
+      }
+      throw new Error('Failed to fetch scholarship stats');
+    },
+    () => ({
+      totalActive: 0,
+      byType: {},
+      upcomingDeadlines: [],
+      totalFunding: 0
+    })
+  );
 };
 
 // ============================================================================
@@ -70,69 +161,51 @@ export const searchScholarships = async (query: string): Promise<Scholarship[]> 
 // ============================================================================
 
 /**
- * Fetch user information
+ * Fetch current user profile
  */
-export const fetchUserInformation = async (userId: string): Promise<StudentProfile | null> => {
+export const fetchUserProfile = async (): Promise<StudentProfile | null> => {
   try {
     const response = await userApi.getProfile();
     if (response.success && response.data) {
-      return response.data;
+      return response.data as StudentProfile;
     }
     return null;
   } catch (error) {
-    console.error('Failed to fetch user info:', error);
+    console.warn('Failed to fetch user profile:', error);
     return null;
-  }
-};
-
-/**
- * Register a new user
- */
-export const registerUser = async (userData: Partial<StudentProfile>): Promise<{ success: boolean; user?: StudentProfile; error?: string }> => {
-  try {
-    const response = await authApi.register({
-      email: (userData as any).email || '',
-      password: (userData as any).password || '',
-      firstName: (userData as any).firstName || '',
-      lastName: (userData as any).lastName || '',
-      role: 'student'
-    });
-    if (response.success) {
-      return { success: true, user: response.data.user };
-    }
-    return { success: false, error: response.message || 'Registration failed' };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Registration failed' };
-  }
-};
-
-/**
- * Login user
- */
-export const loginUser = async (email: string, password: string): Promise<{ success: boolean; user?: StudentProfile; error?: string }> => {
-  try {
-    const response = await authApi.login(email, password);
-    if (response.success) {
-      return { success: true, user: response.data.user };
-    }
-    return { success: false, error: response.message || 'Login failed' };
-  } catch (error: any) {
-    return { success: false, error: error.response?.data?.message || error.message || 'Login failed' };
   }
 };
 
 /**
  * Update user profile
  */
-export const updateUserProfile = async (userId: string, updates: Partial<StudentProfile>): Promise<{ success: boolean; user?: StudentProfile; error?: string }> => {
+export const updateUserProfile = async (
+  updates: Partial<StudentProfile>
+): Promise<{ success: boolean; user?: StudentProfile; error?: string }> => {
   try {
     const response = await userApi.updateProfile(updates);
     if (response.success) {
-      return { success: true, user: response.data };
+      return { success: true, user: response.data as StudentProfile };
     }
-    return { success: false, error: response.message || 'Update failed' };
+    return { success: false, error: 'Failed to update profile' };
   } catch (error: any) {
-    return { success: false, error: error.message || 'Update failed' };
+    return { success: false, error: error.message || 'Failed to update profile' };
+  }
+};
+
+/**
+ * Get profile completeness
+ */
+export const fetchProfileCompleteness = async () => {
+  try {
+    const response = await userApi.getProfileCompleteness();
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return { isComplete: false, percentage: 0, missingFields: [] };
+  } catch (error) {
+    console.warn('Failed to fetch profile completeness:', error);
+    return { isComplete: false, percentage: 0, missingFields: [] };
   }
 };
 
@@ -141,44 +214,87 @@ export const updateUserProfile = async (userId: string, updates: Partial<Student
 // ============================================================================
 
 /**
- * Submit scholarship application
+ * Get user's applications
  */
-export const submitApplication = async (
-  userId: string,
-  scholarshipId: string,
-  applicationData: Record<string, unknown>
-): Promise<{ success: boolean; applicationId?: string; error?: string }> => {
+export const fetchUserApplications = async (status?: string): Promise<Application[]> => {
   try {
-    const response = await applicationApi.create(scholarshipId, {
-      personalStatement: applicationData.personalStatement as string,
-      additionalInfo: applicationData.additionalInfo as string
-    });
-    if (response.success && response.data?.application) {
-      const app = response.data.application as any;
-      return { 
-        success: true, 
-        applicationId: app.id || app._id 
-      };
-    }
-    return { success: false, error: response.message || 'Application failed' };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Application failed' };
-  }
-};
-
-/**
- * Get user applications
- */
-export const getUserApplications = async (userId: string): Promise<any[]> => {
-  try {
-    const response = await applicationApi.getMyApplications();
+    const response = await applicationApi.getMyApplications(status);
     if (response.success && response.data?.applications) {
       return response.data.applications;
     }
     return [];
   } catch (error) {
-    console.error('Failed to fetch user applications:', error);
+    console.warn('Failed to fetch user applications:', error);
     return [];
+  }
+};
+
+/**
+ * Get user's application statistics
+ */
+export const fetchUserApplicationStats = async () => {
+  try {
+    const response = await applicationApi.getMyStats();
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return { total: 0, approved: 0, pending: 0, rejected: 0, draft: 0, byStatus: {} };
+  } catch (error) {
+    console.warn('Failed to fetch application stats:', error);
+    return { total: 0, approved: 0, pending: 0, rejected: 0, draft: 0, byStatus: {} };
+  }
+};
+
+/**
+ * Create a new application
+ */
+export const createApplication = async (
+  scholarshipId: string,
+  data: { personalStatement?: string; additionalInfo?: string }
+): Promise<{ success: boolean; application?: Application; error?: string }> => {
+  try {
+    const response = await applicationApi.create(scholarshipId, data);
+    if (response.success && response.data) {
+      return { success: true, application: response.data.application };
+    }
+    return { success: false, error: 'Failed to create application' };
+  } catch (error: any) {
+    return { success: false, error: error.response?.data?.message || error.message };
+  }
+};
+
+/**
+ * Submit an application
+ */
+export const submitApplication = async (
+  applicationId: string
+): Promise<{ success: boolean; application?: Application; error?: string }> => {
+  try {
+    const response = await applicationApi.submit(applicationId);
+    if (response.success && response.data) {
+      return { success: true, application: response.data };
+    }
+    return { success: false, error: 'Failed to submit application' };
+  } catch (error: any) {
+    return { success: false, error: error.response?.data?.message || error.message };
+  }
+};
+
+/**
+ * Withdraw an application
+ */
+export const withdrawApplication = async (
+  applicationId: string,
+  reason?: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const response = await applicationApi.withdraw(applicationId, reason);
+    if (response.success) {
+      return { success: true };
+    }
+    return { success: false, error: 'Failed to withdraw application' };
+  } catch (error: any) {
+    return { success: false, error: error.response?.data?.message || error.message };
   }
 };
 
@@ -190,40 +306,126 @@ export const getUserApplications = async (userId: string): Promise<any[]> => {
  * Fetch platform statistics
  */
 export const fetchPlatformStatistics = async () => {
-  try {
-    const response = await statisticsApi.getAnalytics();
-    if (response.success && response.data) {
-      return response.data.platformStatistics;
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to fetch platform statistics:', error);
-    return null;
-  }
+  return apiWithFallback(
+    async () => {
+      const response = await statisticsApi.getOverview();
+      if (response.success && response.data) {
+        return {
+          totalApplications: response.data.overview.totalApplications,
+          totalApproved: response.data.overview.approvedApplications,
+          totalRejected: response.data.overview.rejectedApplications,
+          successRate: response.data.overview.successRate,
+          totalScholarships: response.data.overview.totalScholarships,
+          activeScholarships: response.data.overview.activeScholarships,
+          totalStudents: response.data.overview.totalStudents,
+          totalFunding: response.data.funding.totalAvailable,
+          distributions: response.data.distributions
+        };
+      }
+      throw new Error('Failed to fetch platform statistics');
+    },
+    () => ({
+      totalApplications: 0,
+      totalApprovedAllTime: 0,
+      totalRejectedAllTime: 0,
+      overallSuccessRate: 0,
+      averageGWAApproved: null,
+      averageIncomeApproved: null,
+      totalScholarships: 0,
+      activeScholarships: 0,
+      totalStudents: 0,
+      totalFunding: 0,
+      distributions: {}
+    } as any)
+  );
 };
 
 /**
- * Fetch scholarship statistics
+ * Fetch scholarship statistics (for analytics)
  */
 export const fetchScholarshipStatistics = async () => {
-  try {
-    const response = await statisticsApi.getScholarshipStats();
-    if (response.success && response.data) {
-      return response.data;
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to fetch scholarship statistics:', error);
-    return null;
-  }
+  return apiWithFallback(
+    async () => {
+      const response = await statisticsApi.getScholarshipStats();
+      if (response.success && response.data) {
+        return response.data;
+      }
+      throw new Error('Failed to fetch scholarship statistics');
+    },
+    () => ({
+      topByApplications: [],
+      byFunding: [],
+      upcomingDeadlines: []
+    })
+  );
+};
+
+/**
+ * Fetch trends data
+ */
+export const fetchTrends = async () => {
+  return apiWithFallback(
+    async () => {
+      const response = await statisticsApi.getTrends();
+      if (response.success && response.data) {
+        return response.data;
+      }
+      throw new Error('Failed to fetch trends');
+    },
+    () => ({
+      yearlyTrends: [],
+      semesterTrends: [],
+      gwaDistribution: [],
+      incomeDistribution: []
+    })
+  );
+};
+
+/**
+ * Fetch comprehensive analytics
+ */
+export const fetchAnalytics = async () => {
+  return apiWithFallback(
+    async () => {
+      const response = await statisticsApi.getAnalytics();
+      if (response.success && response.data) {
+        return response.data;
+      }
+      throw new Error('Failed to fetch analytics');
+    },
+    () => ({
+      platformStatistics: {
+        totalApplications: 0,
+        totalApprovedAllTime: 0,
+        totalRejectedAllTime: 0,
+        overallSuccessRate: 0,
+        averageGWAApproved: null,
+        averageIncomeApproved: null,
+        totalScholarships: 0,
+        activeScholarships: 0,
+        totalStudents: 0,
+        totalFunding: 0,
+        distributions: {}
+      },
+      yearlyTrends: [],
+      collegeStats: [],
+      gwaStats: [],
+      incomeStats: [],
+      yearLevelStats: [],
+      typeStats: [],
+      modelMetrics: null,
+      lastUpdated: new Date().toISOString()
+    } as any)
+  );
 };
 
 /**
  * Fetch historical applications for analytics
  */
 export const fetchHistoricalApplications = async (): Promise<HistoricalApplication[]> => {
-  // Historical applications are managed by the backend
-  // This returns an empty array as analytics now come from the API
+  // Historical data is primarily used for model training
+  // In production, this would come from the backend analytics endpoint
+  // For now, return empty array and rely on backend to provide this data when needed
   return [];
 };
 
@@ -232,60 +434,112 @@ export const fetchHistoricalApplications = async (): Promise<HistoricalApplicati
 // ============================================================================
 
 /**
- * Get prediction for a specific scholarship
+ * Check eligibility for a scholarship
  */
-export const getPrediction = async (
-  studentId: string,
-  scholarshipId: string
-): Promise<{ probability: number; factors: Array<{ factor: string; weight: number; impact: string }> }> => {
+export const checkEligibility = async (scholarshipId: string) => {
+  try {
+    const response = await predictionApi.checkEligibility(scholarshipId);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Failed to check eligibility:', error);
+    return null;
+  }
+};
+
+/**
+ * Get probability prediction for a scholarship
+ */
+export const getPrediction = async (scholarshipId: string) => {
   try {
     const response = await predictionApi.getProbability(scholarshipId);
     if (response.success && response.data) {
-      const data = response.data as any;
-      return {
-        probability: data.probability || 0.5,
-        factors: data.factors?.map((f: any) => ({
-          factor: f.factor,
-          weight: f.weight,
-          impact: f.contribution > 0 ? 'positive' : 'negative'
-        })) || []
-      };
+      return response.data;
     }
-    return { probability: 0.5, factors: [] };
+    return null;
   } catch (error) {
-    console.error('Failed to get prediction:', error);
-    return { probability: 0.5, factors: [] };
+    console.warn('Failed to get prediction:', error);
+    return null;
+  }
+};
+
+/**
+ * Get scholarship recommendations
+ */
+export const getRecommendations = async (limit = 10) => {
+  try {
+    const response = await predictionApi.getRecommendations(limit);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.warn('Failed to get recommendations:', error);
+    return [];
+  }
+};
+
+/**
+ * Get batch predictions for multiple scholarships
+ */
+export const getBatchPredictions = async (scholarshipIds: string[]) => {
+  try {
+    const response = await predictionApi.getBatchPredictions(scholarshipIds);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.warn('Failed to get batch predictions:', error);
+    return [];
   }
 };
 
 // ============================================================================
-// Export API client
+// Auth API (re-exported for convenience)
+// ============================================================================
+
+export { authApi, setTokens, clearTokens, getAccessToken };
+
+// ============================================================================
+// Export Unified API Object
 // ============================================================================
 
 export const api = {
   scholarships: {
     getAll: fetchScholarships,
     getById: fetchScholarshipDetails,
-    search: searchScholarships
+    search: searchScholarships,
+    getStats: fetchScholarshipStats
   },
   users: {
-    getById: fetchUserInformation,
-    register: registerUser,
-    login: loginUser,
-    update: updateUserProfile
+    getProfile: fetchUserProfile,
+    update: updateUserProfile,
+    getCompleteness: fetchProfileCompleteness
   },
   applications: {
+    getAll: fetchUserApplications,
+    getStats: fetchUserApplicationStats,
+    create: createApplication,
     submit: submitApplication,
-    getByUser: getUserApplications
+    withdraw: withdrawApplication
   },
   analytics: {
     getPlatformStats: fetchPlatformStatistics,
     getScholarshipStats: fetchScholarshipStatistics,
+    getTrends: fetchTrends,
+    getAnalytics: fetchAnalytics,
     getHistoricalData: fetchHistoricalApplications
   },
   predictions: {
-    get: getPrediction
-  }
+    checkEligibility,
+    getPrediction,
+    getRecommendations,
+    getBatchPredictions
+  },
+  auth: authApi
 };
 
 export default api;

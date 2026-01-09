@@ -12,6 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
 import ProfileCompletion, { ProfileData } from './components/ProfileCompletion';
+import AdminProfileCompletion, { AdminProfileData } from './components/AdminProfileCompletion';
 import { authApi, userApi, clearTokens, getAccessToken } from './services/apiClient';
 
 // Public Pages
@@ -147,6 +148,15 @@ const App: React.FC = () => {
   const [pendingRole, setPendingRole] = useState<'student' | 'admin'>('student');
   const [navigateAfterLogin, setNavigateAfterLogin] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Show toast notification
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000); // Auto dismiss after 5 seconds
+  };
 
   // Initialize auth state from stored token
   useEffect(() => {
@@ -240,7 +250,7 @@ const App: React.FC = () => {
 
   // Handle profile completion - register user with API
   const handleProfileComplete = async (profileData: ProfileData) => {
-    console.log('=== Registration Flow ===');
+    console.log('=== Student Registration Flow ===');
     console.log('Profile Data:', profileData);
     console.log('Pending Email:', pendingEmail);
     console.log('Pending Role:', pendingRole);
@@ -343,13 +353,102 @@ const App: React.FC = () => {
       
       // Check if it's a duplicate email error
       if (errorMessage.includes('already exists') || error.response?.status === 409) {
-        alert('An account with this email already exists. Please sign in instead.');
+        showToast('An account with this email already exists. Please sign in instead.', 'error');
         setShowProfileCompletion(false);
         setShowAuthModal(true);
         return;
       }
       
       // Re-throw the error to be handled by ProfileCompletion
+      throw error;
+    }
+  };
+
+  // Handle admin profile completion - register admin with API
+  const handleAdminProfileComplete = async (profileData: AdminProfileData) => {
+    console.log('=== Admin Registration Flow ===');
+    console.log('Profile Data:', profileData);
+    console.log('Pending Email:', pendingEmail);
+    console.log('Pending Role:', pendingRole);
+    
+    try {
+      // Register admin with the backend API
+      const names = profileData.fullName.trim().split(/\s+/);
+      const firstName = names[0] || 'Admin';
+      const lastName = names.length > 1 ? names.slice(1).join(' ') : 'User';
+      
+      // First, register the admin user
+      const registrationData = {
+        email: profileData.email,
+        password: pendingPassword,
+        firstName,
+        lastName,
+        role: 'admin' as 'admin' | 'student'
+      };
+      
+      console.log('Admin registration payload:', { ...registrationData, password: '[HIDDEN]' });
+      
+      const response = await authApi.register(registrationData);
+      
+      console.log('Admin registration response:', response);
+      
+      if (response.success && response.data?.user) {
+        // Build the admin profile update
+        const profileUpdate = {
+          firstName,
+          lastName,
+          phone: profileData.contactNumber,
+          // Admin profile data matching backend User.model.js structure
+          adminProfile: {
+            firstName,
+            lastName,
+            department: profileData.department,
+            college: profileData.college || null,
+            position: profileData.position,
+            officeLocation: profileData.officeLocation,
+            accessLevel: profileData.accessLevel,
+            responsibilities: profileData.responsibilities,
+            canCreateScholarships: profileData.canCreateScholarships,
+            canApproveApplications: profileData.canApproveApplications,
+            canManageUsers: profileData.canManageUsers,
+            profileCompleted: true
+          }
+        };
+        
+        console.log('Admin profile update payload:', JSON.stringify(profileUpdate, null, 2));
+        
+        // Update profile with complete data
+        const updateResponse = await userApi.updateProfile(profileUpdate);
+        console.log('Admin profile update response:', JSON.stringify(updateResponse, null, 2));
+        
+        // Use the UPDATED user from updateProfile response if available
+        const updatedUser = updateResponse.success && updateResponse.data 
+          ? updateResponse.data 
+          : response.data.user;
+        
+        console.log('Final admin user data for login:', updatedUser);
+        
+        login(updatedUser as User);
+        setShowProfileCompletion(false);
+        setNavigateAfterLogin('/admin/dashboard');
+      } else {
+        throw new Error(response.message || 'Admin registration failed');
+      }
+    } catch (error: any) {
+      console.error('Admin registration error:', error);
+      
+      // Parse error message
+      const errorMessage = error.response?.data?.message || error.message || '';
+      
+      // Check if it's a duplicate email error
+      if (errorMessage.includes('already exists') || error.response?.status === 409) {
+        showToast('An account with this email already exists. Please sign in instead.', 'error');
+        setShowProfileCompletion(false);
+        setShowAuthModal(true);
+        return;
+      }
+      
+      // Re-throw the error to be handled by AdminProfileCompletion
       throw error;
     }
   };
@@ -379,13 +478,71 @@ const App: React.FC = () => {
   return (
     <AuthContext.Provider value={authContextValue}>
       <Router>
-        {/* Profile Completion Flow */}
+        {/* Toast Notification */}
+        {toast && (
+          <div className="fixed top-4 right-4 z-[9999] animate-slide-in">
+            <div className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border-l-4 max-w-md ${
+              toast.type === 'error' ? 'bg-red-50 border-red-500' :
+              toast.type === 'success' ? 'bg-green-50 border-green-500' :
+              'bg-blue-50 border-blue-500'
+            }`}>
+              <div className={`flex-shrink-0 w-5 h-5 mt-0.5 ${
+                toast.type === 'error' ? 'text-red-500' :
+                toast.type === 'success' ? 'text-green-500' :
+                'text-blue-500'
+              }`}>
+                {toast.type === 'error' ? (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                ) : toast.type === 'success' ? (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${
+                  toast.type === 'error' ? 'text-red-800' :
+                  toast.type === 'success' ? 'text-green-800' :
+                  'text-blue-800'
+                }`}>{toast.message}</p>
+              </div>
+              <button
+                onClick={() => setToast(null)}
+                className={`flex-shrink-0 transition-colors ${
+                  toast.type === 'error' ? 'text-red-400 hover:text-red-600' :
+                  toast.type === 'success' ? 'text-green-400 hover:text-green-600' :
+                  'text-blue-400 hover:text-blue-600'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Profile Completion Flow - Different forms for Student vs Admin */}
         {showProfileCompletion ? (
-          <ProfileCompletion
-            email={pendingEmail}
-            onComplete={handleProfileComplete}
-            onCancel={() => setShowProfileCompletion(false)}
-          />
+          pendingRole === 'admin' ? (
+            <AdminProfileCompletion
+              email={pendingEmail}
+              onComplete={handleAdminProfileComplete}
+              onCancel={() => setShowProfileCompletion(false)}
+            />
+          ) : (
+            <ProfileCompletion
+              email={pendingEmail}
+              onComplete={handleProfileComplete}
+              onCancel={() => setShowProfileCompletion(false)}
+            />
+          )
         ) : (
           <AppContent 
             isAuthenticated={isAuthenticated}

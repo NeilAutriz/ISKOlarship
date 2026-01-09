@@ -334,6 +334,33 @@ const userSchema = new mongoose.Schema({
       enum: [...Object.values(UPLBCollege), null]
     },
     
+    // Position/Title
+    position: {
+      type: String,
+      trim: true
+    },
+    
+    // Office location/building
+    officeLocation: {
+      type: String,
+      trim: true
+    },
+    
+    // Primary responsibilities
+    responsibilities: {
+      type: String,
+      trim: true
+    },
+    
+    // Contact address (for admin profile)
+    address: {
+      street: String,
+      barangay: String,
+      city: String,
+      zipCode: String,
+      fullAddress: String
+    },
+    
     // access_level (from ERD)
     accessLevel: {
       type: String,

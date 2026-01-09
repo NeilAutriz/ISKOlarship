@@ -152,40 +152,46 @@ const AdminProfile: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gold-400 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
+      <div className="relative overflow-hidden bg-primary-600">
+        {/* UPLB Background Image */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://international.uplb.edu.ph/wp-content/uploads/2022/02/M40A9936-min-scaled.jpg"
+            alt="UPLB Campus"
+            className="w-full h-full object-cover opacity-20"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-600/90 via-primary-700/90 to-primary-800/90" />
         </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             {/* Profile Avatar */}
             <div className="relative">
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-slate-900 font-bold text-3xl shadow-lg shadow-gold-400/30">
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-white to-slate-100 flex items-center justify-center text-primary-600 font-bold text-3xl shadow-lg shadow-primary-900/30 border-2 border-white/20">
                 {ap?.firstName?.[0] || 'A'}{ap?.lastName?.[0] || 'D'}
               </div>
-              <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all">
+              <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-primary-600 hover:bg-slate-50 transition-all">
                 <Camera className="w-5 h-5" />
               </button>
-              <div className="absolute -top-2 -left-2 w-8 h-8 bg-gold-400 rounded-lg flex items-center justify-center shadow-lg">
-                <Shield className="w-4 h-4 text-slate-900" />
+              <div className="absolute -top-2 -left-2 w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                <Shield className="w-4 h-4 text-primary-600" />
               </div>
             </div>
             
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-gold-400/20 text-gold-400 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5">
+                <span className="px-3 py-1 bg-white/20 text-white text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 backdrop-blur-sm border border-white/30">
                   <Shield className="w-3 h-3" />{formatAccessLevel(ap?.accessLevel || '')}
                 </span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{ap?.firstName} {ap?.lastName}</h1>
-              <p className="text-slate-400 flex items-center gap-2">
+              <p className="text-white/80 flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
                 {ap?.department} {ap?.college ? `• ${ap.college}` : ''}
               </p>
             </div>
 
-            <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-all shadow-lg">
+            <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-600 font-semibold rounded-xl hover:bg-white/90 transition-all shadow-lg">
               <Edit3 className="w-4 h-4" />Edit Profile
             </button>
           </div>
@@ -197,8 +203,8 @@ const AdminProfile: React.FC = () => {
         <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg">
-                <Shield className="w-7 h-7 text-gold-400" />
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 flex items-center justify-center shadow-lg">
+                <Shield className="w-7 h-7 text-white" />
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900">Administrator Account</h3>

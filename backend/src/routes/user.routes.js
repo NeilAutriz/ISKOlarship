@@ -170,6 +170,49 @@ router.put('/profile',
         console.log('Final studentProfile before save:', JSON.stringify(req.user.studentProfile, null, 2));
       }
 
+      // Update admin profile if user is an admin
+      if (req.user.role === UserRole.ADMIN && req.body.adminProfile) {
+        console.log('Processing adminProfile update...');
+        const adminData = req.body.adminProfile;
+        
+        // Initialize adminProfile if it doesn't exist
+        if (!req.user.adminProfile) {
+          console.log('Initializing empty adminProfile');
+          req.user.adminProfile = {};
+        }
+
+        // List of allowed adminProfile fields
+        const adminProfileFields = [
+          'firstName',
+          'lastName',
+          'department',
+          'college',
+          'position',
+          'officeLocation',
+          'accessLevel',
+          'responsibilities',
+          'canCreateScholarships',
+          'canApproveApplications',
+          'canManageUsers',
+          'profileCompleted'
+        ];
+
+        // Update each field if present
+        for (const field of adminProfileFields) {
+          if (adminData[field] !== undefined) {
+            req.user.adminProfile[field] = adminData[field];
+          }
+        }
+        
+        // Mark profile as completed if we have essential fields
+        if (adminData.department && adminData.position) {
+          req.user.adminProfile.profileCompleted = true;
+          req.user.adminProfile.profileCompletedAt = new Date();
+        }
+        
+        console.log('Final adminProfile before save:', JSON.stringify(req.user.adminProfile, null, 2));
+      }
+
       await req.user.save();
       console.log('User saved successfully');
       console.log('Returning profile:', JSON.stringify(req.user.getPublicProfile(), null, 2));

@@ -520,22 +520,6 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Address</label>
-          <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              <MapPin className="w-5 h-5" />
-            </div>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => updateField('address', e.target.value)}
-              placeholder="123 Main Street, City"
-              className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
-            />
-          </div>
-        </div>
-
-        <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Date of Birth</label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">

@@ -238,20 +238,20 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
               {tab === 'signup' && password.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <div className={`flex items-center gap-2 text-xs ${password.length >= 8 ? 'text-green-600' : 'text-slate-400'}`}>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <div className={`flex items-center gap-1.5 text-xs ${password.length >= 8 ? 'text-green-600' : 'text-slate-400'}`}>
                     {password.length >= 8 ? <CheckCircle className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
                     At least 8 characters
                   </div>
-                  <div className={`flex items-center gap-2 text-xs ${/[A-Z]/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
+                  <div className={`flex items-center gap-1.5 text-xs ${/[A-Z]/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
                     {/[A-Z]/.test(password) ? <CheckCircle className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
                     One uppercase letter
                   </div>
-                  <div className={`flex items-center gap-2 text-xs ${/[a-z]/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
+                  <div className={`flex items-center gap-1.5 text-xs ${/[a-z]/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
                     {/[a-z]/.test(password) ? <CheckCircle className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
                     One lowercase letter
                   </div>
-                  <div className={`flex items-center gap-2 text-xs ${/\d/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
+                  <div className={`flex items-center gap-1.5 text-xs ${/\d/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
                     {/\d/.test(password) ? <CheckCircle className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
                     One number
                   </div>
