@@ -5,6 +5,8 @@
 
 import React, { useState, createContext, useContext, useCallback, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Header from './components/Header';
 import StudentHeader from './components/StudentHeader';
 import AdminHeader from './components/AdminHeader';
@@ -33,7 +35,8 @@ import {
   AdminDashboard, 
   Applicants, 
   AdminScholarships, 
-  AdminProfile as AdminProfilePage 
+  AdminProfile as AdminProfilePage,
+  AddScholarship
 } from './pages/admin';
 
 import './styles/globals.css';
@@ -562,6 +565,20 @@ const App: React.FC = () => {
           onSignUp={handleSignUp}
           onDemoLogin={handleDemoLogin}
         />
+        
+        {/* Toast Notifications */}
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
       </Router>
     </AuthContext.Provider>
   );
@@ -662,6 +679,11 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           <Route path="/admin/scholarships" element={
             <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
               <AdminScholarships />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/scholarships/add" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
+              <AddScholarship />
             </ProtectedRoute>
           } />
           <Route path="/admin/profile" element={

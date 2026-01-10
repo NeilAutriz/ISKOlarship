@@ -7,3 +7,4 @@ export { default as AdminDashboard } from './AdminDashboard';
 export { default as Applicants } from './Applicants';
 export { default as AdminScholarships } from './AdminScholarships';
 export { default as AdminProfile } from './AdminProfile';
+export { default as AddScholarship } from './AddScholarship';
