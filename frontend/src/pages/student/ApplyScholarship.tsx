@@ -33,6 +33,7 @@ interface DocumentUpload {
   required: boolean;
   uploaded: boolean;
   error?: string;
+  base64?: string; // Store base64 encoded file data
 }
 
 interface ApplicationFormData {
@@ -190,8 +191,18 @@ const ApplyScholarship: React.FC = () => {
     return results[0] || null;
   }, [scholarship, studentProfile]);
 
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   // Handle file upload
-  const handleFileChange = (index: number, file: File | null) => {
+  const handleFileChange = async (index: number, file: File | null) => {
     if (!file) return;
 
     // Validate file size (max 5MB)
@@ -212,11 +223,21 @@ const ApplyScholarship: React.FC = () => {
       return;
     }
 
-    const updatedDocs = [...formData.documents];
-    updatedDocs[index].file = file;
-    updatedDocs[index].uploaded = true;
-    updatedDocs[index].error = undefined;
-    setFormData(prev => ({ ...prev, documents: updatedDocs }));
+    try {
+      // Convert file to base64 for storage
+      const base64 = await fileToBase64(file);
+      
+      const updatedDocs = [...formData.documents];
+      updatedDocs[index].file = file;
+      updatedDocs[index].uploaded = true;
+      updatedDocs[index].error = undefined;
+      updatedDocs[index].base64 = base64; // Store base64 data
+      setFormData(prev => ({ ...prev, documents: updatedDocs }));
+    } catch (error) {
+      const updatedDocs = [...formData.documents];
+      updatedDocs[index].error = 'Failed to process file';
+      setFormData(prev => ({ ...prev, documents: updatedDocs }));
+    }
   };
 
   // Remove uploaded file
@@ -277,7 +298,6 @@ const ApplyScholarship: React.FC = () => {
         scholarshipId: id,
         personalStatement: formData.personalStatement,
         additionalInfo: formData.additionalInfo,
-        // In production, this would include document URLs from cloud storage
         documents: formData.documents
           .filter(doc => doc.uploaded)
           .map(doc => ({
@@ -285,19 +305,46 @@ const ApplyScholarship: React.FC = () => {
             documentType: doc.type,
             fileName: doc.file?.name,
             fileSize: doc.file?.size,
-            mimeType: doc.file?.type
+            mimeType: doc.file?.type,
+            url: (doc as any).base64 || '' // Store base64 data as URL
           }))
       };
 
+      console.log('📝 Sending application data:', applicationData);
+      console.log('📄 Documents being sent:', applicationData.documents);
+      console.log('📊 Document count:', applicationData.documents.length);
+
+      // Create the application
       const response = await applicationApi.create(applicationData);
 
       if (response.success) {
-        showToast('🎉 Application submitted successfully!', 'success');
+        // If application was created successfully, submit it
+        const applicationId = response.data?.application?._id;
+        if (applicationId) {
+          // Call submit endpoint to change status from draft to submitted
+          const submitResponse = await applicationApi.submit(applicationId);
+          if (submitResponse.success) {
+            showToast('🎉 Application submitted successfully!', 'success');
+          } else {
+            showToast('⚠️ Application created but not submitted. Please submit it from your applications page.', 'info');
+          }
+        } else {
+          showToast('✅ Application created successfully!', 'success');
+        }
+        
         setTimeout(() => {
-          navigate('/student/applications');
+          navigate('/my-applications');
         }, 2000);
       } else {
-        throw new Error(response.message || 'Failed to submit application');
+        // Check if it's a 409 error (already applied)
+        if (response.message?.includes('already applied')) {
+          showToast('⚠️ You have already applied for this scholarship', 'error');
+          setTimeout(() => {
+            navigate('/my-applications');
+          }, 2000);
+        } else {
+          throw new Error(response.message || 'Failed to submit application');
+        }
       }
 
     } catch (err: any) {

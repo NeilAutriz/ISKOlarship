@@ -34,11 +34,11 @@ app.use(cors({
   credentials: true
 }));
 
-// Parse JSON bodies
-app.use(express.json());
+// Parse JSON bodies with increased limit for file uploads (base64)
+app.use(express.json({ limit: '50mb' }));
 
-// Parse URL-encoded bodies
-app.use(express.urlencoded({ extended: true }));
+// Parse URL-encoded bodies with increased limit
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // =============================================================================
 // Database Connection

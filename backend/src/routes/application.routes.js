@@ -143,7 +143,14 @@ router.post('/',
         });
       }
 
-      const { scholarshipId, personalStatement, additionalInfo } = req.body;
+      const { scholarshipId, personalStatement, additionalInfo, documents } = req.body;
+
+      // Debug logging
+      console.log('📝 Application Creation Request:');
+      console.log('Documents received:', documents);
+      console.log('Documents type:', typeof documents);
+      console.log('Documents is array:', Array.isArray(documents));
+      console.log('Documents length:', documents?.length);
 
       // Check if scholarship exists and is open
       const scholarship = await Scholarship.findById(scholarshipId);
@@ -178,15 +185,55 @@ router.post('/',
       // Check eligibility
       const eligibilityResult = await calculateEligibility(req.user, scholarship);
 
-      // Create applicant snapshot
+      // Create applicant snapshot with complete student data
       const applicantSnapshot = {
+        studentNumber: req.user.studentProfile?.studentNumber,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
         gwa: req.user.studentProfile?.academicInfo?.currentGWA,
-        yearLevel: req.user.studentProfile?.academicInfo?.yearLevel,
+        classification: req.user.studentProfile?.academicInfo?.yearLevel,
         college: req.user.studentProfile?.academicInfo?.college,
         course: req.user.studentProfile?.academicInfo?.course,
+        major: req.user.studentProfile?.academicInfo?.major,
         annualFamilyIncome: req.user.studentProfile?.financialInfo?.annualFamilyIncome,
-        unitsEnrolled: req.user.studentProfile?.academicInfo?.unitsEnrolled
+        unitsEnrolled: req.user.studentProfile?.academicInfo?.unitsEnrolled,
+        unitsPassed: req.user.studentProfile?.academicInfo?.unitsPassed,
+        provinceOfOrigin: req.user.studentProfile?.personalInfo?.provinceOfOrigin,
+        citizenship: req.user.studentProfile?.personalInfo?.citizenship,
+        stBracket: req.user.studentProfile?.financialInfo?.stBracket,
+        hasExistingScholarship: req.user.studentProfile?.scholarshipInfo?.hasExistingScholarship,
+        hasThesisGrant: req.user.studentProfile?.scholarshipInfo?.hasThesisGrant,
+        hasApprovedThesisOutline: req.user.studentProfile?.scholarshipInfo?.hasApprovedThesisOutline,
+        hasDisciplinaryAction: req.user.studentProfile?.academicInfo?.hasDisciplinaryAction,
+        hasFailingGrade: req.user.studentProfile?.academicInfo?.hasFailingGrade
       };
+
+      // Process documents if provided
+      const processedDocuments = documents && Array.isArray(documents) ? documents.map(doc => ({
+        name: doc.name,
+        documentType: doc.documentType,
+        url: doc.url || '',
+        fileName: doc.fileName,
+        fileSize: doc.fileSize,
+        mimeType: doc.mimeType,
+        uploadedAt: new Date()
+      })) : [];
+
+      console.log('📄 Processed Documents:', processedDocuments);
+      console.log('📄 Processed Documents Count:', processedDocuments.length);
+
+      // Update document flags based on uploaded documents
+      const hasTranscript = processedDocuments.some(d => d.documentType === 'transcript');
+      const hasIncomeCertificate = processedDocuments.some(d => d.documentType === 'income_certificate');
+      const hasCertificateOfRegistration = processedDocuments.some(d => d.documentType === 'certificate_of_registration');
+      const hasGradeReport = processedDocuments.some(d => d.documentType === 'grade_report');
+      
+      console.log('📋 Document Flags:', {
+        hasTranscript,
+        hasIncomeCertificate,
+        hasCertificateOfRegistration,
+        hasGradeReport
+      });
 
       // Create application
       const application = new Application({
@@ -194,10 +241,17 @@ router.post('/',
         scholarship: scholarshipId,
         personalStatement,
         additionalInfo,
+        documents: processedDocuments,
+        hasTranscript,
+        hasIncomeCertificate,
+        hasCertificateOfRegistration,
+        hasGradeReport,
         applicantSnapshot,
         eligibilityChecks: eligibilityResult.checks,
         passedAllEligibilityCriteria: eligibilityResult.passed,
-        eligibilityScore: eligibilityResult.score,
+        eligibilityPercentage: eligibilityResult.score,
+        criteriaPassed: eligibilityResult.passed ? eligibilityResult.checks.length : eligibilityResult.checks.filter(c => c.passed).length,
+        criteriaTotal: eligibilityResult.checks.length,
         academicYear: scholarship.academicYear,
         semester: scholarship.semester,
         statusHistory: [{
@@ -215,6 +269,10 @@ router.post('/',
       }
 
       await application.save();
+      
+      console.log('💾 Application saved to database');
+      console.log('💾 Saved documents count:', application.documents.length);
+      console.log('💾 Saved documents:', application.documents);
 
       res.status(201).json({
         success: true,
