@@ -49,13 +49,19 @@ const ScholarshipDetails: React.FC = () => {
   // State for scholarship data
   const [scholarship, setScholarship] = useState<Scholarship | undefined>(undefined);
   const [similarScholarships, setSimilarScholarships] = useState<Scholarship[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch scholarship from API - updates mock data if API succeeds
   useEffect(() => {
     const loadScholarship = async () => {
-      if (!id) return;
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
 
       try {
         const data = await fetchScholarshipDetails(id);
@@ -64,18 +70,21 @@ const ScholarshipDetails: React.FC = () => {
           // Fetch similar scholarships of the same type
           try {
             const allScholarships = await fetchScholarships({ type: data.type });
-            const similar = allScholarships.filter(s => s.id !== id).slice(0, 3);
+            const similar = allScholarships.filter(s => (s.id || s._id) !== id && (s.id || s._id) !== (data.id || data._id)).slice(0, 3);
             if (similar.length > 0) {
               setSimilarScholarships(similar);
             }
           } catch {
             // Keep using mock similar scholarships
           }
+        } else {
+          setError('Scholarship not found');
         }
-        // If API returns null, keep using mock data (already set)
       } catch (err: any) {
-        console.warn('Using mock data for scholarship details');
-        // Keep mock data on error (already set)
+        console.error('Failed to load scholarship:', err);
+        setError('Failed to load scholarship details');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -138,7 +147,27 @@ const ScholarshipDetails: React.FC = () => {
   };
 
   // Not found state
-  if (!scholarship) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-12">
+        <div className="container-app">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="w-20 h-20 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <RefreshCw className="w-10 h-10 text-primary-600 animate-spin" />
+            </div>
+            <h1 className="text-2xl font-display font-bold text-slate-900 mb-4">
+              Loading Scholarship Details...
+            </h1>
+            <p className="text-slate-600">
+              Please wait while we fetch the information.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!scholarship || error) {
     return (
       <div className="min-h-screen bg-slate-50 py-12">
         <div className="container-app">
@@ -150,7 +179,7 @@ const ScholarshipDetails: React.FC = () => {
               Scholarship Not Found
             </h1>
             <p className="text-slate-600 mb-8">
-              The scholarship you're looking for doesn't exist or has been removed.
+              {error || "The scholarship you're looking for doesn't exist or has been removed."}
             </p>
             <Link to="/scholarships" className="btn-primary inline-flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
@@ -170,10 +199,10 @@ const ScholarshipDetails: React.FC = () => {
       <div className="bg-gradient-to-br from-primary-600 to-primary-700">
         <div className="container-app py-6">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-slate-400 mb-6">
-            <Link to="/" className="hover:text-white transition-colors">Home</Link>
+          <nav className="flex items-center gap-2 text-sm text-white mb-6">
+            <Link to="/" className="hover:text-white/80 transition-colors">Home</Link>
             <ChevronRight className="w-4 h-4" />
-            <Link to="/scholarships" className="hover:text-white transition-colors">Scholarships</Link>
+            <Link to="/scholarships" className="hover:text-white/80 transition-colors">Scholarships</Link>
             <ChevronRight className="w-4 h-4" />
             <span className="text-white truncate max-w-[200px]">{scholarship.name}</span>
           </nav>

@@ -191,6 +191,7 @@ const App: React.FC = () => {
   };
 
   const logout = async () => {
+    const userName = user?.firstName || 'User';
     try {
       await authApi.logout();
     } catch (error) {
@@ -200,6 +201,7 @@ const App: React.FC = () => {
       setUser(null);
       setIsAuthenticated(false);
       setUserRole(UserRole.GUEST);
+      showToast(`👋 Goodbye, ${userName}! You've been successfully logged out.`, 'info');
     }
   };
 
@@ -226,6 +228,7 @@ const App: React.FC = () => {
         login(userData);
         setShowAuthModal(false);
         setNavigateAfterLogin(role === 'admin' ? '/admin/dashboard' : '/dashboard');
+        showToast(`Welcome back, ${userData.firstName || 'User'}!`, 'success');
       } else {
         throw new Error(response.message || 'Login failed');
       }
@@ -338,6 +341,7 @@ const App: React.FC = () => {
         login(updatedUser as User);
         setShowProfileCompletion(false);
         setNavigateAfterLogin(pendingRole === 'admin' ? '/admin/dashboard' : '/dashboard');
+        showToast(`🎉 Welcome to ISKOlarship, ${firstName}! Your student account has been created successfully.`, 'success');
       } else {
         throw new Error(response.message || 'Registration failed');
       }
@@ -434,6 +438,7 @@ const App: React.FC = () => {
         login(updatedUser as User);
         setShowProfileCompletion(false);
         setNavigateAfterLogin('/admin/dashboard');
+        showToast(`🎉 Welcome to ISKOlarship, ${firstName}! Your administrator account has been created successfully.`, 'success');
       } else {
         throw new Error(response.message || 'Admin registration failed');
       }
@@ -458,9 +463,11 @@ const App: React.FC = () => {
 
   // For demo purposes, auto-login with mock user
   const handleDemoLogin = () => {
-    login(createMockStudent());
+    const mockUser = createMockStudent();
+    login(mockUser);
     setShowAuthModal(false);
     setNavigateAfterLogin('/dashboard');
+    showToast(`👋 Welcome! You're using a demo account (${mockUser.firstName} ${mockUser.lastName})`, 'info');
   };
 
   // Open auth modal from header

@@ -99,14 +99,17 @@ const extractFeatures = (
   const criteria = scholarship.eligibilityCriteria;
   
   // GWA normalization (invert so higher is better: 5-gwa gives 4 for 1.0, 0 for 5.0)
-  const gwaNormalized = (5 - student.gwa) / 4;
+  // Use 2.5 as default if GWA is not available (neutral value)
+  const studentGwa = student.gwa ?? 2.5;
+  const gwaNormalized = (5 - studentGwa) / 4;
   
   // Year level numeric
   const yearLevelNumeric = yearLevelToNumeric[student.yearLevel] || 1;
   
   // Income normalization (relative to scholarship threshold)
   const maxIncome = criteria.maxAnnualFamilyIncome || 500000;
-  const incomeNormalized = Math.min(student.annualFamilyIncome / maxIncome, 1);
+  const studentIncome = student.annualFamilyIncome ?? 0;
+  const incomeNormalized = Math.min(studentIncome / maxIncome, 1);
   
   // ST Bracket numeric
   const stBracketNumeric = student.stBracket 
@@ -134,10 +137,10 @@ const extractFeatures = (
   
   // Meets income requirement
   const meetsIncomeReq = !criteria.maxAnnualFamilyIncome || 
-    student.annualFamilyIncome <= criteria.maxAnnualFamilyIncome ? 1 : 0;
+    studentIncome <= criteria.maxAnnualFamilyIncome ? 1 : 0;
   
   // Meets GWA requirement
-  const meetsGWAReq = !criteria.minGWA || student.gwa <= criteria.minGWA ? 1 : 0;
+  const meetsGWAReq = !criteria.minGWA || studentGwa <= criteria.minGWA ? 1 : 0;
   
   // Profile completeness (simple check)
   const profileCompleteness = student.profileCompleted ? 1 : 0.7;
@@ -214,7 +217,7 @@ const generatePredictionFactors = (
   const criteria = scholarship.eligibilityCriteria;
   
   // GWA Factor
-  if (criteria.minGWA) {
+  if (criteria.minGWA && student.gwa !== undefined && student.gwa !== null) {
     const gwaMargin = criteria.minGWA - student.gwa;
     if (gwaMargin > 0.5) {
       factors.push({
@@ -244,7 +247,7 @@ const generatePredictionFactors = (
   }
   
   // Income Factor
-  if (criteria.maxAnnualFamilyIncome) {
+  if (criteria.maxAnnualFamilyIncome && student.annualFamilyIncome !== undefined && student.annualFamilyIncome !== null) {
     const incomeRatio = student.annualFamilyIncome / criteria.maxAnnualFamilyIncome;
     if (incomeRatio < 0.5) {
       factors.push({

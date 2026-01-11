@@ -31,6 +31,7 @@ interface ScholarshipListProps {
   title?: string;
   emptyMessage?: string;
   loading?: boolean;
+  showEligibleOnly?: boolean; // Allow parent to control eligibility filter
 }
 
 type ViewMode = 'grid' | 'list';
@@ -44,7 +45,8 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   viewMode: externalViewMode,
   title,
   emptyMessage = 'No scholarships found matching your criteria.',
-  loading = false
+  loading = false,
+  showEligibleOnly: externalShowEligibleOnly
 }) => {
   // State
   const [internalViewMode, setInternalViewMode] = useState<ViewMode>('grid');
@@ -53,7 +55,9 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('deadline');
   const [selectedTypes, setSelectedTypes] = useState<ScholarshipType[]>([]);
-  const [showEligibleOnly, setShowEligibleOnly] = useState(false);
+  const [internalShowEligibleOnly, setInternalShowEligibleOnly] = useState(false);
+  const showEligibleOnly = externalShowEligibleOnly ?? internalShowEligibleOnly;
+  const setShowEligibleOnly = setInternalShowEligibleOnly;
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 

@@ -3,7 +3,7 @@
 // Browse and filter all available scholarships (with API integration)
 // ============================================================================
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   GraduationCap,
@@ -94,43 +94,45 @@ const Scholarships: React.FC = () => {
   };
 
   // Filter scholarships locally (for filters not handled by API)
-  const filteredScholarships = scholarships.filter(s => {
-    // Apply type filter
-    if (filters.scholarshipTypes && filters.scholarshipTypes.length > 0) {
-      if (!filters.scholarshipTypes.includes(s.type)) {
+  const filteredScholarships = useMemo(() => {
+    return scholarships.filter(s => {
+      // Apply type filter
+      if (filters.scholarshipTypes && filters.scholarshipTypes.length > 0) {
+        if (!filters.scholarshipTypes.includes(s.type)) {
+          return false;
+        }
+      }
+
+      // Apply amount filter
+      const amount = s.awardAmount || 0;
+      if (filters.minAmount !== undefined && amount < filters.minAmount) {
         return false;
       }
-    }
+      if (filters.maxAmount !== undefined && amount > filters.maxAmount) {
+        return false;
+      }
 
-    // Apply amount filter
-    const amount = s.awardAmount || 0;
-    if (filters.minAmount !== undefined && amount < filters.minAmount) {
-      return false;
-    }
-    if (filters.maxAmount !== undefined && amount > filters.maxAmount) {
-      return false;
-    }
-
-    // Apply college filter
-    if (filters.colleges && filters.colleges.length > 0) {
-      if (s.eligibilityCriteria?.eligibleColleges && s.eligibilityCriteria.eligibleColleges.length > 0) {
-        if (!filters.colleges.some(c => s.eligibilityCriteria.eligibleColleges!.includes(c))) {
-          return false;
+      // Apply college filter
+      if (filters.colleges && filters.colleges.length > 0) {
+        if (s.eligibilityCriteria?.eligibleColleges && s.eligibilityCriteria.eligibleColleges.length > 0) {
+          if (!filters.colleges.some(c => s.eligibilityCriteria.eligibleColleges!.includes(c))) {
+            return false;
+          }
         }
       }
-    }
 
-    // Apply year level filter
-    if (filters.yearLevels && filters.yearLevels.length > 0) {
-      if (s.eligibilityCriteria?.requiredYearLevels && s.eligibilityCriteria.requiredYearLevels.length > 0) {
-        if (!filters.yearLevels.some(y => s.eligibilityCriteria.requiredYearLevels!.includes(y))) {
-          return false;
+      // Apply year level filter
+      if (filters.yearLevels && filters.yearLevels.length > 0) {
+        if (s.eligibilityCriteria?.requiredYearLevels && s.eligibilityCriteria.requiredYearLevels.length > 0) {
+          if (!filters.yearLevels.some(y => s.eligibilityCriteria.requiredYearLevels!.includes(y))) {
+            return false;
+          }
         }
       }
-    }
 
-    return true;
-  });
+      return true;
+    });
+  }, [scholarships, filters, studentUser]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
@@ -257,6 +259,7 @@ const Scholarships: React.FC = () => {
               showFilters={false}
               showViewToggle={false}
               viewMode={viewMode}
+              showEligibleOnly={filters.showEligibleOnly}
               title={undefined}
               emptyMessage={
                 filters.searchQuery
