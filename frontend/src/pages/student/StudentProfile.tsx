@@ -23,7 +23,8 @@ import {
   Upload,
   Shield,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { userApi } from '../../services/apiClient';
 
@@ -126,6 +127,10 @@ const StudentProfile: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
   const [documents, setDocuments] = useState<Document[]>(getDefaultDocuments());
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Fetch profile data on mount
   useEffect(() => {
@@ -247,7 +252,42 @@ const StudentProfile: React.FC = () => {
               </p>
             </div>
 
-            <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition-all shadow-lg">
+            <button 
+              onClick={() => {
+                setEditFormData({
+                  firstName: sp?.firstName || '',
+                  lastName: sp?.lastName || '',
+                  middleName: sp?.middleName || '',
+                  studentNumber: sp?.studentNumber || '',
+                  college: sp?.college || '',
+                  course: sp?.course || '',
+                  major: sp?.major || '',
+                  classification: sp?.classification || '',
+                  gwa: sp?.gwa || '',
+                  unitsEnrolled: sp?.unitsEnrolled || '',
+                  unitsPassed: sp?.unitsPassed || '',
+                  annualFamilyIncome: sp?.annualFamilyIncome || '',
+                  householdSize: sp?.householdSize || '',
+                  stBracket: sp?.stBracket || '',
+                  provinceOfOrigin: sp?.provinceOfOrigin || '',
+                  contactNumber: sp?.contactNumber || '',
+                  citizenship: sp?.citizenship || '',
+                  hasExistingScholarship: sp?.hasExistingScholarship || false,
+                  hasThesisGrant: sp?.hasThesisGrant || false,
+                  hasDisciplinaryAction: sp?.hasDisciplinaryAction || false,
+                  homeAddress: {
+                    street: sp?.homeAddress?.street || '',
+                    barangay: sp?.homeAddress?.barangay || '',
+                    city: sp?.homeAddress?.city || '',
+                    province: sp?.homeAddress?.province || '',
+                    zipCode: sp?.homeAddress?.zipCode || '',
+                    fullAddress: sp?.homeAddress?.fullAddress || ''
+                  }
+                });
+                setIsEditModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition-all shadow-lg"
+            >
               <Edit3 className="w-4 h-4" />Edit Profile
             </button>
           </div>
@@ -458,6 +498,437 @@ const StudentProfile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsEditModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-primary-600 text-white rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <Edit3 className="w-5 h-5" />
+                <h3 className="font-bold text-lg text-white">Edit Profile</h3>
+              </div>
+              <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {saveError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {saveError}
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {/* Personal Information */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <User className="w-4 h-4 text-primary-600" />
+                    Personal Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        value={editFormData.firstName}
+                        onChange={(e) => setEditFormData({...editFormData, firstName: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
+                      <input
+                        type="text"
+                        value={editFormData.lastName}
+                        onChange={(e) => setEditFormData({...editFormData, lastName: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
+                      <input
+                        type="text"
+                        value={editFormData.contactNumber}
+                        onChange={(e) => setEditFormData({...editFormData, contactNumber: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Academic Information */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-primary-600" />
+                    Academic Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Student Number *</label>
+                      <input
+                        type="text"
+                        value={editFormData.studentNumber}
+                        onChange={(e) => setEditFormData({...editFormData, studentNumber: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">College *</label>
+                      <input
+                        type="text"
+                        value={editFormData.college}
+                        onChange={(e) => setEditFormData({...editFormData, college: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Course *</label>
+                      <input
+                        type="text"
+                        value={editFormData.course}
+                        onChange={(e) => setEditFormData({...editFormData, course: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Major</label>
+                      <input
+                        type="text"
+                        value={editFormData.major}
+                        onChange={(e) => setEditFormData({...editFormData, major: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Year Level *</label>
+                      <select
+                        value={editFormData.classification}
+                        onChange={(e) => setEditFormData({...editFormData, classification: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        <option value="">Select Year Level</option>
+                        <option value="freshman">1st Year</option>
+                        <option value="sophomore">2nd Year</option>
+                        <option value="junior">3rd Year</option>
+                        <option value="senior">4th Year</option>
+                        <option value="graduate">Graduate</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">GWA *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="1"
+                        max="5"
+                        value={editFormData.gwa}
+                        onChange={(e) => setEditFormData({...editFormData, gwa: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Units Enrolled</label>
+                      <input
+                        type="number"
+                        value={editFormData.unitsEnrolled}
+                        onChange={(e) => setEditFormData({...editFormData, unitsEnrolled: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Units Passed</label>
+                      <input
+                        type="number"
+                        value={editFormData.unitsPassed}
+                        onChange={(e) => setEditFormData({...editFormData, unitsPassed: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Information */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-primary-600" />
+                    Financial Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Annual Family Income</label>
+                      <input
+                        type="number"
+                        value={editFormData.annualFamilyIncome}
+                        onChange={(e) => setEditFormData({...editFormData, annualFamilyIncome: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Household Size</label>
+                      <input
+                        type="number"
+                        value={editFormData.householdSize}
+                        onChange={(e) => setEditFormData({...editFormData, householdSize: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">ST Bracket</label>
+                      <select
+                        value={editFormData.stBracket}
+                        onChange={(e) => setEditFormData({...editFormData, stBracket: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        <option value="">Select ST Bracket</option>
+                        <option value="FDS">FDS - Full Discount with Stipend</option>
+                        <option value="FD">FD - Full Discount</option>
+                        <option value="PD80">PD80 - 80% Partial Discount</option>
+                        <option value="PD60">PD60 - 60% Partial Discount</option>
+                        <option value="PD40">PD40 - 40% Partial Discount</option>
+                        <option value="PD20">PD20 - 20% Partial Discount</option>
+                        <option value="ND">ND - No Discount</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Province of Origin</label>
+                      <input
+                        type="text"
+                        value={editFormData.provinceOfOrigin}
+                        onChange={(e) => setEditFormData({...editFormData, provinceOfOrigin: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Citizenship</label>
+                      <input
+                        type="text"
+                        value={editFormData.citizenship}
+                        onChange={(e) => setEditFormData({...editFormData, citizenship: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Home Address */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary-600" />
+                    Home Address
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Street</label>
+                      <input
+                        type="text"
+                        value={editFormData.homeAddress?.street || ''}
+                        onChange={(e) => setEditFormData({...editFormData, homeAddress: {...editFormData.homeAddress, street: e.target.value}})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Barangay</label>
+                      <input
+                        type="text"
+                        value={editFormData.homeAddress?.barangay || ''}
+                        onChange={(e) => setEditFormData({...editFormData, homeAddress: {...editFormData.homeAddress, barangay: e.target.value}})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+                      <input
+                        type="text"
+                        value={editFormData.homeAddress?.city || ''}
+                        onChange={(e) => setEditFormData({...editFormData, homeAddress: {...editFormData.homeAddress, city: e.target.value}})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Province</label>
+                      <input
+                        type="text"
+                        value={editFormData.homeAddress?.province || ''}
+                        onChange={(e) => setEditFormData({...editFormData, homeAddress: {...editFormData.homeAddress, province: e.target.value}})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Zip Code</label>
+                      <input
+                        type="text"
+                        value={editFormData.homeAddress?.zipCode || ''}
+                        onChange={(e) => setEditFormData({...editFormData, homeAddress: {...editFormData.homeAddress, zipCode: e.target.value}})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Full Address</label>
+                      <textarea
+                        rows={2}
+                        value={editFormData.homeAddress?.fullAddress || ''}
+                        onChange={(e) => setEditFormData({...editFormData, homeAddress: {...editFormData.homeAddress, fullAddress: e.target.value}})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scholarship Status */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Award className="w-4 h-4 text-primary-600" />
+                    Scholarship & Academic Status
+                  </h4>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="hasExistingScholarship"
+                          checked={editFormData.hasExistingScholarship}
+                          onChange={(e) => setEditFormData({...editFormData, hasExistingScholarship: e.target.checked})}
+                          className="mt-0.5 w-5 h-5 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="hasExistingScholarship" className="text-sm font-semibold text-slate-900 block mb-1 cursor-pointer">
+                            Has Existing Scholarship
+                          </label>
+                          <p className="text-xs text-slate-600">Check this if you currently have an active scholarship</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="hasThesisGrant"
+                          checked={editFormData.hasThesisGrant}
+                          onChange={(e) => setEditFormData({...editFormData, hasThesisGrant: e.target.checked})}
+                          className="mt-0.5 w-5 h-5 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="hasThesisGrant" className="text-sm font-semibold text-slate-900 block mb-1 cursor-pointer">
+                            Has Thesis Grant
+                          </label>
+                          <p className="text-xs text-slate-600">Check this if you have been awarded a thesis grant</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="hasDisciplinaryAction"
+                          checked={editFormData.hasDisciplinaryAction}
+                          onChange={(e) => setEditFormData({...editFormData, hasDisciplinaryAction: e.target.checked})}
+                          className="mt-0.5 w-5 h-5 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="hasDisciplinaryAction" className="text-sm font-semibold text-slate-900 block mb-1 cursor-pointer">
+                            Has Disciplinary Action
+                          </label>
+                          <p className="text-xs text-slate-600">Check this if you have any disciplinary action on record</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-end gap-3 flex-shrink-0">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                disabled={saving}
+                className="px-4 py-2 bg-slate-600 text-white text-sm font-bold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    setSaving(true);
+                    setSaveError(null);
+                    
+                    // Prepare update data
+                    const updateData = {
+                      studentProfile: {
+                        firstName: editFormData.firstName,
+                        lastName: editFormData.lastName,
+                        middleName: editFormData.middleName,
+                        studentNumber: editFormData.studentNumber,
+                        college: editFormData.college,
+                        course: editFormData.course,
+                        major: editFormData.major,
+                        classification: editFormData.classification,
+                        gwa: parseFloat(editFormData.gwa),
+                        unitsEnrolled: editFormData.unitsEnrolled ? parseInt(editFormData.unitsEnrolled) : undefined,
+                        unitsPassed: editFormData.unitsPassed ? parseInt(editFormData.unitsPassed) : undefined,
+                        annualFamilyIncome: editFormData.annualFamilyIncome ? parseInt(editFormData.annualFamilyIncome) : undefined,
+                        householdSize: editFormData.householdSize ? parseInt(editFormData.householdSize) : undefined,
+                        stBracket: editFormData.stBracket,
+                        provinceOfOrigin: editFormData.provinceOfOrigin,
+                        contactNumber: editFormData.contactNumber,
+                        citizenship: editFormData.citizenship,
+                        hasExistingScholarship: editFormData.hasExistingScholarship,
+                        hasThesisGrant: editFormData.hasThesisGrant,
+                        hasDisciplinaryAction: editFormData.hasDisciplinaryAction,
+                        homeAddress: editFormData.homeAddress
+                      }
+                    };
+
+                    console.log('Updating profile with:', updateData);
+                    const response = await userApi.updateProfile(updateData);
+                    
+                    if (response.success) {
+                      // Refresh profile data
+                      const profileResponse = await userApi.getProfile();
+                      if (profileResponse.success && profileResponse.data) {
+                        setProfile(profileResponse.data as unknown as StudentProfileData);
+                      }
+                      
+                      // Refresh completeness
+                      const completenessResponse = await userApi.getProfileCompleteness();
+                      if (completenessResponse.success && completenessResponse.data) {
+                        setProfileCompletion(completenessResponse.data.percentage);
+                      }
+                      
+                      setIsEditModalOpen(false);
+                    } else {
+                      setSaveError(response.message || 'Failed to update profile');
+                    }
+                  } catch (err: any) {
+                    console.error('Error updating profile:', err);
+                    setSaveError(err.response?.data?.message || err.message || 'Failed to update profile');
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 shadow-md"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
