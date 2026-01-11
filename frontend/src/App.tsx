@@ -27,7 +27,8 @@ import Analytics from './pages/Analytics';
 import { 
   StudentDashboard, 
   StudentApplications, 
-  StudentProfile as StudentProfilePage 
+  StudentProfile as StudentProfilePage,
+  ApplyScholarship
 } from './pages/student';
 
 // Admin Pages
@@ -659,6 +660,11 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           <Route path="/analytics" element={
             <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
               <Analytics />
+            </ProtectedRoute>
+          } />
+          <Route path="/apply/:id" element={
+            <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
+              <ApplyScholarship />
             </ProtectedRoute>
           } />
           <Route path="/my-applications" element={

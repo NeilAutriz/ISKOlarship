@@ -118,7 +118,8 @@ export const normalizeScholarship = (scholarship: any): Scholarship => {
     slots: scholarship.slots ?? 0,
     remainingSlots: scholarship.remainingSlots ?? scholarship.slots ?? 0,
     filledSlots: scholarship.filledSlots ?? 0,
-    requirements: scholarship.requirements || scholarship.requiredDocuments || [],
+    requirements: scholarship.requirements || [],
+    requiredDocuments: scholarship.requiredDocuments || [],
   };
 };
 
@@ -456,7 +457,12 @@ export const applicationApi = {
     return response.data;
   },
 
-  create: async (scholarshipId: string, data: { personalStatement?: string; additionalInfo?: string }) => {
+  create: async (data: { 
+    scholarshipId: string; 
+    personalStatement?: string; 
+    additionalInfo?: string;
+    documents?: any[];
+  }) => {
     const response = await api.post<ApiResponse<{
       application: Application;
       eligibility: {
@@ -464,7 +470,7 @@ export const applicationApi = {
         score: number;
         checks: Array<{ criterion: string; passed: boolean }>;
       };
-    }>>('/applications', { scholarshipId, ...data });
+    }>>('/applications', data);
     return response.data;
   },
 

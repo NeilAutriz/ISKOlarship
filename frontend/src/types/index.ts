@@ -290,7 +290,12 @@ export interface Scholarship {
     noDisciplinaryRecord?: boolean;
     filipinoOnly?: boolean;
   };
-  requirements: string[]; // Documents/requirements to submit
+  requirements: string[]; // Documents/requirements to submit (legacy)
+  requiredDocuments?: Array<{
+    name: string;
+    description?: string;
+    isRequired?: boolean;
+  }>;
   
   // Timeline
   applicationDeadline: Date;

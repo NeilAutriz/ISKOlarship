@@ -546,10 +546,13 @@ const ScholarshipDetails: React.FC = () => {
               <div className="space-y-3">
                 {user ? (
                   matchResult?.isEligible ? (
-                    <button className="btn-primary w-full flex items-center justify-center gap-2">
+                    <Link
+                      to={`/apply/${scholarship.id}`}
+                      className="btn-primary w-full flex items-center justify-center gap-2"
+                    >
                       <FileText className="w-5 h-5" />
                       Apply Now
-                    </button>
+                    </Link>
                   ) : (
                     <button disabled className="btn w-full bg-slate-100 text-slate-400 cursor-not-allowed">
                       Not Eligible
