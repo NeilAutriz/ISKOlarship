@@ -22,7 +22,8 @@ import {
   Clock,
   AlertTriangle,
   ChevronDown,
-  Loader2
+  Loader2,
+  Award
 } from 'lucide-react';
 import { scholarshipApi } from '../../services/apiClient';
 
@@ -36,6 +37,7 @@ interface Scholarship {
   deadline: string;
   status: 'active' | 'closed' | 'draft';
   type: 'full' | 'partial' | 'grant';
+  scholarshipType?: string; // Added for color scheme (university, government, private, etc.)
 }
 
 const AdminScholarships: React.FC = () => {
@@ -64,7 +66,8 @@ const AdminScholarships: React.FC = () => {
               applicants: s.filledSlots || s.currentApplicants || 0,
               deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A',
               status: s.status === 'open' || s.isActive ? 'active' : s.status === 'closed' ? 'closed' : 'draft',
-              type: s.type?.includes('grant') || s.type === 'thesis_grant' ? 'grant' : s.coverageType === 'full' ? 'full' : 'partial'
+              type: s.type?.includes('grant') || s.type === 'thesis_grant' ? 'grant' : s.coverageType === 'full' ? 'full' : 'partial',
+              scholarshipType: s.type // Store original type for color scheme
             };
           }));
         }
@@ -107,6 +110,81 @@ const AdminScholarships: React.FC = () => {
       grant: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Grant' },
     };
     return configs[type];
+  };
+
+  // Color schemes for different scholarship types - improved readability
+  const getScholarshipColorScheme = (scholarshipType?: string) => {
+    const normalizedType = scholarshipType?.toLowerCase().replace(/[\s/]+/g, '_') || 'default';
+    
+    const schemes: Record<string, { 
+      iconBg: string; 
+      iconColor: string;
+      headerBg: string;
+      badge: string;
+      border: string;
+    }> = {
+      'university': { 
+        iconBg: 'bg-blue-50', 
+        iconColor: 'text-blue-700',
+        headerBg: 'bg-white',
+        badge: 'bg-blue-600 text-white shadow-sm',
+        border: 'border-l-blue-600'
+      },
+      'government': { 
+        iconBg: 'bg-amber-50', 
+        iconColor: 'text-amber-700',
+        headerBg: 'bg-white',
+        badge: 'bg-amber-600 text-white shadow-sm',
+        border: 'border-l-amber-600'
+      },
+      'thesis_grant': { 
+        iconBg: 'bg-emerald-50', 
+        iconColor: 'text-emerald-700',
+        headerBg: 'bg-white',
+        badge: 'bg-emerald-600 text-white shadow-sm',
+        border: 'border-l-emerald-600'
+      },
+      'private': { 
+        iconBg: 'bg-purple-50', 
+        iconColor: 'text-purple-700',
+        headerBg: 'bg-white',
+        badge: 'bg-purple-600 text-white shadow-sm',
+        border: 'border-l-purple-600'
+      },
+      'private_scholarship': { 
+        iconBg: 'bg-purple-50', 
+        iconColor: 'text-purple-700',
+        headerBg: 'bg-white',
+        badge: 'bg-purple-600 text-white shadow-sm',
+        border: 'border-l-purple-600'
+      },
+      'college': { 
+        iconBg: 'bg-teal-50', 
+        iconColor: 'text-teal-700',
+        headerBg: 'bg-white',
+        badge: 'bg-teal-600 text-white shadow-sm',
+        border: 'border-l-teal-600'
+      },
+      'default': { 
+        iconBg: 'bg-slate-50', 
+        iconColor: 'text-slate-700',
+        headerBg: 'bg-white',
+        badge: 'bg-slate-600 text-white shadow-sm',
+        border: 'border-l-slate-600'
+      },
+    };
+
+    return schemes[normalizedType] || schemes['default'];
+  };
+
+  // Format scholarship type for display
+  const formatType = (type: string): string => {
+    return type
+      .replace(/_/g, ' ')
+      .replace(/\//g, ' / ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   return (
@@ -248,47 +326,47 @@ const AdminScholarships: React.FC = () => {
             filteredScholarships.map((scholarship) => {
               const statusConfig = getStatusConfig(scholarship.status);
               const typeConfig = getTypeConfig(scholarship.type);
+              const colorScheme = getScholarshipColorScheme(scholarship.scholarshipType);
               const StatusIcon = statusConfig.icon;
               
               return (
-                <div key={scholarship.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-shadow overflow-hidden">
-                  <div className="p-6">
+                <div key={scholarship.id} className={`bg-white rounded-2xl border-2 border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden border-l-4 ${colorScheme.border}`}>
+                  {/* Header with subtle color accent */}
+                  <div className={`${colorScheme.headerBg} px-6 py-5 border-b-2 border-slate-100`}>
                     <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4 flex-1 min-w-0">
-                        <div className={`w-14 h-14 rounded-xl ${scholarship.status === 'active' ? 'bg-green-100' : 'bg-slate-100'} flex items-center justify-center flex-shrink-0`}>
-                          <GraduationCap className={`w-7 h-7 ${scholarship.status === 'active' ? 'text-green-600' : 'text-slate-500'}`} />
+                      <div className="flex-1 min-w-0">
+                        {/* Type & Status Badges */}
+                        <div className="flex flex-wrap items-center gap-2.5 mb-3">
+                          <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide ${colorScheme.badge}`}>
+                            <Award className="w-4 h-4" />
+                            {formatType(scholarship.scholarshipType || 'Scholarship')}
+                          </span>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border border-current/20`}>
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {statusConfig.label}
+                          </span>
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold ${typeConfig.bg} ${typeConfig.text} border border-current/20`}>
+                            {typeConfig.label}
+                          </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1 flex-wrap">
-                            <h3 className="font-semibold text-lg text-slate-900 truncate">{scholarship.name}</h3>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text}`}>
-                              <StatusIcon className="w-3 h-3" />{statusConfig.label}
-                            </span>
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${typeConfig.bg} ${typeConfig.text}`}>{typeConfig.label}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
-                            <Building2 className="w-4 h-4" />
-                            <span className="truncate">{scholarship.sponsor}</span>
-                          </div>
-                          <div className="flex items-center gap-6 text-sm text-slate-600 flex-wrap">
-                            <span className="flex items-center gap-1.5">
-                              <Wallet className="w-4 h-4 text-slate-400" />{scholarship.amount}
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Users className="w-4 h-4 text-slate-400" />{scholarship.applicants} / {scholarship.slots} slots
-                            </span>
-                            <span className="flex items-center gap-1.5">
-                              <Calendar className="w-4 h-4 text-slate-400" />Deadline: {scholarship.deadline}
-                            </span>
-                          </div>
+                        
+                        {/* Title */}
+                        <h3 className="text-xl font-bold text-slate-900 leading-tight mb-2">{scholarship.name}</h3>
+                        
+                        {/* Sponsor */}
+                        <div className="flex items-center gap-2 text-sm text-slate-700">
+                          <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <Building2 className="w-3.5 h-3.5 text-slate-600" />
+                          </span>
+                          <span className="font-semibold">{scholarship.sponsor}</span>
                         </div>
                       </div>
                       
-                      {/* Actions */}
+                      {/* Actions Dropdown */}
                       <div className="relative flex-shrink-0">
                         <button 
                           onClick={() => setShowDropdown(showDropdown === scholarship.id ? null : scholarship.id)}
-                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/60 rounded-lg transition-all"
                         >
                           <MoreVertical className="w-5 h-5" />
                         </button>
@@ -312,16 +390,43 @@ const AdminScholarships: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Main Content */}
+                  <div className="px-6 py-5 bg-slate-50/30">
+                    {/* Grant Amount - Prominent Display */}
+                    <div className="flex items-center gap-4 mb-4 p-5 bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-50 rounded-xl border-2 border-amber-200/50 shadow-sm">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-600 flex items-center justify-center shadow-md">
+                        <Wallet className="w-7 h-7 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Grant Amount</div>
+                        <div className="text-2xl font-extrabold text-slate-900">{scholarship.amount}</div>
+                      </div>
+                      <div className="text-right px-4 py-2 bg-white/80 rounded-lg border border-slate-200">
+                        <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Slots</div>
+                        <div className="text-xl font-extrabold text-primary-700">
+                          {scholarship.applicants}<span className="text-slate-400 font-semibold">/{scholarship.slots}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Info */}
+                    <div className="flex items-center gap-3 text-sm bg-white px-4 py-3 rounded-lg border border-slate-200">
+                      <Calendar className="w-5 h-5 text-slate-500" />
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Deadline:</span>
+                      <span className="font-bold text-slate-900">{scholarship.deadline}</span>
+                    </div>
+                  </div>
                   
                   {/* Progress Bar */}
-                  <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-slate-600">Application Progress</span>
-                      <span className="text-sm font-medium text-slate-900">{Math.round((scholarship.applicants / scholarship.slots) * 100)}%</span>
+                  <div className="px-6 py-4 bg-white border-t-2 border-slate-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm text-slate-700 font-bold">Application Progress</span>
+                      <span className="text-base font-extrabold text-slate-900">{Math.round((scholarship.applicants / scholarship.slots) * 100)}%</span>
                     </div>
-                    <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
                       <div 
-                        className={`h-full rounded-full transition-all ${scholarship.applicants >= scholarship.slots ? 'bg-red-500' : 'bg-green-500'}`}
+                        className={`h-full rounded-full transition-all shadow-sm ${scholarship.applicants >= scholarship.slots ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-green-500 to-emerald-600'}`}
                         style={{ width: `${Math.min((scholarship.applicants / scholarship.slots) * 100, 100)}%` }}
                       />
                     </div>
