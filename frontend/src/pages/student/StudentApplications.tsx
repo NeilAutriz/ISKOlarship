@@ -101,6 +101,8 @@ const StudentApplications: React.FC = () => {
       const response = await applicationApi.getById(applicationId);
       if (response.success && response.data) {
         const app = response.data;
+        console.log('📋 Full application data:', app);
+        console.log('👤 Applicant Snapshot:', app.applicantSnapshot);
         setSelectedApplication({
           id: app._id || app.id,
           scholarshipId: app.scholarship?._id || app.scholarship?.id || app.scholarshipId,
@@ -524,14 +526,14 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
           {/* Full width sections */}
           <div className="space-y-4 mt-4">
             {/* Applicant Profile Snapshot */}
-            {application.applicantSnapshot && (
+            {application.applicantSnapshot && Object.keys(application.applicantSnapshot).length > 0 && (
               <div className="bg-white rounded-lg p-4 border border-slate-200">
                 <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
                   <User className="w-4 h-4 text-indigo-600" />
                   Profile Snapshot (At Time of Application)
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {application.applicantSnapshot.gwa && (
+                  {application.applicantSnapshot.gwa !== undefined && application.applicantSnapshot.gwa !== null && (
                     <div className="bg-slate-50 rounded-lg p-2">
                       <p className="text-xs text-slate-500 mb-0.5">GWA</p>
                       <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.gwa}</p>
@@ -555,16 +557,34 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
                       <p className="text-sm font-bold text-slate-900 truncate">{application.applicantSnapshot.course}</p>
                     </div>
                   )}
-                  {application.applicantSnapshot.annualFamilyIncome && (
+                  {application.applicantSnapshot.annualFamilyIncome !== undefined && application.applicantSnapshot.annualFamilyIncome !== null && (
                     <div className="bg-slate-50 rounded-lg p-2">
                       <p className="text-xs text-slate-500 mb-0.5">Family Income</p>
                       <p className="text-sm font-bold text-slate-900">₱{application.applicantSnapshot.annualFamilyIncome.toLocaleString()}</p>
                     </div>
                   )}
-                  {application.applicantSnapshot.unitsEnrolled && (
+                  {application.applicantSnapshot.unitsEnrolled !== undefined && application.applicantSnapshot.unitsEnrolled !== null && (
                     <div className="bg-slate-50 rounded-lg p-2">
                       <p className="text-xs text-slate-500 mb-0.5">Units Enrolled</p>
                       <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.unitsEnrolled}</p>
+                    </div>
+                  )}
+                  {application.applicantSnapshot.studentNumber && (
+                    <div className="bg-slate-50 rounded-lg p-2">
+                      <p className="text-xs text-slate-500 mb-0.5">Student Number</p>
+                      <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.studentNumber}</p>
+                    </div>
+                  )}
+                  {application.applicantSnapshot.stBracket && (
+                    <div className="bg-slate-50 rounded-lg p-2">
+                      <p className="text-xs text-slate-500 mb-0.5">ST Bracket</p>
+                      <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.stBracket}</p>
+                    </div>
+                  )}
+                  {application.applicantSnapshot.provinceOfOrigin && (
+                    <div className="bg-slate-50 rounded-lg p-2">
+                      <p className="text-xs text-slate-500 mb-0.5">Province</p>
+                      <p className="text-sm font-bold text-slate-900 truncate">{application.applicantSnapshot.provinceOfOrigin}</p>
                     </div>
                   )}
                 </div>
@@ -771,12 +791,12 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ document, o
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col border border-slate-200" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-t-2xl flex items-center justify-between flex-shrink-0">
+        <div className="px-6 py-4 bg-primary-600 text-white rounded-t-2xl flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5" />
             <div>
-              <h3 className="font-bold text-lg">{document.name}</h3>
-              <p className="text-sm text-purple-100">{isPDF ? 'PDF Document' : 'Image'}</p>
+              <h3 className="font-bold text-lg text-white">{document.name}</h3>
+              <p className="text-sm text-primary-100">{isPDF ? 'PDF Document' : 'Image'}</p>
             </div>
           </div>
           <button
@@ -811,7 +831,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ document, o
           <a
             href={document.url}
             download={document.name}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors shadow-md"
           >
             <Download className="w-4 h-4" />
             Download
