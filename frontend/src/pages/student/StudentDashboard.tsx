@@ -41,31 +41,41 @@ const StudentDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchData = async () => {
       try {
-        setLoading(true);
+        if (isMounted) setLoading(true);
         const scholarshipRes = await scholarshipApi.getAll({ limit: 100 });
-        if (scholarshipRes.success && scholarshipRes.data?.scholarships) {
+        if (isMounted && scholarshipRes.success && scholarshipRes.data?.scholarships) {
           setScholarships(scholarshipRes.data.scholarships);
         }
-        if (studentUser?.studentNumber) {
+        if (isMounted && studentUser?.studentNumber) {
           try {
             const appRes = await applicationApi.getMyApplications();
-            if (appRes.success && appRes.data?.applications) {
+            if (isMounted && appRes.success && appRes.data?.applications) {
               setUserApplications(appRes.data.applications);
             }
           } catch (err) {
-            console.warn('Could not fetch user applications:', err);
+            if (isMounted) {
+              console.warn('Could not fetch user applications:', err);
+            }
           }
         }
       } catch (error) {
-        console.error('Failed to fetch from API:', error);
+        if (isMounted) {
+          console.error('Failed to fetch from API:', error);
+        }
         // No fallback - require API data only
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     fetchData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [studentUser?.studentNumber]);
 
   if (!studentUser) return null;

@@ -184,6 +184,7 @@ router.put('/profile',
         // List of allowed adminProfile fields
         const adminProfileFields = [
           'firstName',
+          'middleName',
           'lastName',
           'department',
           'college',

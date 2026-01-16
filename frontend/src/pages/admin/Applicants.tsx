@@ -45,11 +45,13 @@ const Applicants: React.FC = () => {
 
   // Fetch applications from API
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchApplications = async () => {
       try {
-        setLoading(true);
+        if (isMounted) setLoading(true);
         const response = await applicationApi.getAll({ limit: 100 });
-        if (response.success && response.data?.applications) {
+        if (isMounted && response.success && response.data?.applications) {
           setApplications(response.data.applications.map((app: any) => ({
             id: app._id || app.id,
             studentName: app.applicant?.studentProfile 
@@ -68,13 +70,19 @@ const Applicants: React.FC = () => {
           })));
         }
       } catch (error) {
-        console.error('Failed to fetch applications:', error);
+        if (isMounted) {
+          console.error('Failed to fetch applications:', error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchApplications();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Calculate stats

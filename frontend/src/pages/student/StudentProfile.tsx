@@ -231,9 +231,6 @@ const StudentProfile: React.FC = () => {
               <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-bold text-3xl shadow-lg shadow-gold-400/30">
                 {sp?.firstName?.[0] || 'S'}{sp?.lastName?.[0] || 'T'}
               </div>
-              <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-primary-600 hover:bg-primary-50 transition-all">
-                <Camera className="w-5 h-5" />
-              </button>
             </div>
             
             <div className="flex-1">
@@ -272,9 +269,9 @@ const StudentProfile: React.FC = () => {
                   provinceOfOrigin: sp?.provinceOfOrigin || '',
                   contactNumber: sp?.contactNumber || '',
                   citizenship: sp?.citizenship || '',
-                  hasExistingScholarship: sp?.hasExistingScholarship || false,
-                  hasThesisGrant: sp?.hasThesisGrant || false,
-                  hasDisciplinaryAction: sp?.hasDisciplinaryAction || false,
+                  hasExistingScholarship: sp?.hasExistingScholarship ?? false,
+                  hasThesisGrant: sp?.hasThesisGrant ?? false,
+                  hasDisciplinaryAction: sp?.hasDisciplinaryAction ?? false,
                   homeAddress: {
                     street: sp?.homeAddress?.street || '',
                     barangay: sp?.homeAddress?.barangay || '',
@@ -348,16 +345,13 @@ const StudentProfile: React.FC = () => {
             {/* Personal Information */}
             {activeSection === 'personal' && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
                       <User className="w-5 h-5 text-primary-600" />
                     </div>
                     <h2 className="font-semibold text-slate-900">Personal Information</h2>
                   </div>
-                  <button className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center gap-1.5">
-                    <Edit3 className="w-4 h-4" />Edit
-                  </button>
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
@@ -385,16 +379,13 @@ const StudentProfile: React.FC = () => {
             {/* Academic Information */}
             {activeSection === 'academic' && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
                       <GraduationCap className="w-5 h-5 text-green-600" />
                     </div>
                     <h2 className="font-semibold text-slate-900">Academic Information</h2>
                   </div>
-                  <button className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center gap-1.5">
-                    <Edit3 className="w-4 h-4" />Edit
-                  </button>
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
@@ -424,16 +415,13 @@ const StudentProfile: React.FC = () => {
             {/* Financial Information */}
             {activeSection === 'financial' && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
                       <Wallet className="w-5 h-5 text-amber-600" />
                     </div>
                     <h2 className="font-semibold text-slate-900">Financial Information</h2>
                   </div>
-                  <button className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center gap-1.5">
-                    <Edit3 className="w-4 h-4" />Edit
-                  </button>
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
@@ -611,11 +599,11 @@ const StudentProfile: React.FC = () => {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                       >
                         <option value="">Select Year Level</option>
-                        <option value="freshman">1st Year</option>
-                        <option value="sophomore">2nd Year</option>
-                        <option value="junior">3rd Year</option>
-                        <option value="senior">4th Year</option>
-                        <option value="graduate">Graduate</option>
+                        <option value="Freshman">Freshman</option>
+                        <option value="Sophomore">Sophomore</option>
+                        <option value="Junior">Junior</option>
+                        <option value="Senior">Senior</option>
+                        <option value="Graduate">Graduate</option>
                       </select>
                     </div>
                     <div>

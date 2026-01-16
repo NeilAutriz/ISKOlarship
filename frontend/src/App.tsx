@@ -7,6 +7,7 @@ import React, { useState, createContext, useContext, useCallback, useEffect } fr
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ErrorBoundary from './components/ErrorBoundary';
 import Header from './components/Header';
 import StudentHeader from './components/StudentHeader';
 import AdminHeader from './components/AdminHeader';
@@ -164,25 +165,33 @@ const App: React.FC = () => {
 
   // Initialize auth state from stored token
   useEffect(() => {
+    let isMounted = true;
+    
     const initAuth = async () => {
       const token = getAccessToken();
       if (token) {
         try {
           const response = await authApi.getMe();
-          if (response.success && response.data?.user) {
+          if (isMounted && response.success && response.data?.user) {
             const userData = response.data.user as User;
             setUser(userData);
             setIsAuthenticated(true);
             setUserRole(userData.role);
           }
         } catch (error) {
-          console.error('Failed to restore auth session:', error);
-          clearTokens();
+          if (isMounted) {
+            console.error('Failed to restore auth session:', error);
+            clearTokens();
+          }
         }
       }
-      setIsInitializing(false);
+      if (isMounted) setIsInitializing(false);
     };
     initAuth();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = (userData: User) => {
@@ -264,12 +273,12 @@ const App: React.FC = () => {
     console.log('Password provided:', pendingPassword ? 'Yes (length: ' + pendingPassword.length + ')' : 'No');
     
     try {
-      // Register user with the backend API
-      const names = profileData.fullName.trim().split(/\s+/);
-      const firstName = names[0] || 'User';
-      const lastName = names.length > 1 ? names.slice(1).join(' ') : 'Student';
+      // Use the provided name fields directly
+      const firstName = profileData.firstName || 'User';
+      const lastName = profileData.lastName || 'Student';
+      const middleName = profileData.middleName || '';
       
-      console.log('Parsed name:', { firstName, lastName });
+      console.log('Parsed name:', { firstName, middleName, lastName });
       
       // First, register the user with the password from signup form
       const registrationData = {
@@ -277,6 +286,7 @@ const App: React.FC = () => {
         password: pendingPassword, // Use the password from the signup form
         firstName,
         lastName,
+        middleName,
         role: pendingRole
       };
       
@@ -297,6 +307,7 @@ const App: React.FC = () => {
           studentProfile: {
             studentNumber: profileData.studentNumber,
             firstName,
+            middleName,
             lastName,
             contactNumber: profileData.contactNumber,
             // homeAddress structure must match backend seed data format exactly
@@ -380,10 +391,10 @@ const App: React.FC = () => {
     console.log('Pending Role:', pendingRole);
     
     try {
-      // Register admin with the backend API
-      const names = profileData.fullName.trim().split(/\s+/);
-      const firstName = names[0] || 'Admin';
-      const lastName = names.length > 1 ? names.slice(1).join(' ') : 'User';
+      // Use the provided name fields directly
+      const firstName = profileData.firstName || 'Admin';
+      const lastName = profileData.lastName || 'User';
+      const middleName = profileData.middleName || '';
       
       // First, register the admin user
       const registrationData = {
@@ -391,6 +402,7 @@ const App: React.FC = () => {
         password: pendingPassword,
         firstName,
         lastName,
+        middleName,
         role: 'admin' as 'admin' | 'student'
       };
       
@@ -409,6 +421,7 @@ const App: React.FC = () => {
           // Admin profile data matching backend User.model.js structure
           adminProfile: {
             firstName,
+            middleName,
             lastName,
             department: profileData.department,
             college: profileData.college || null,
@@ -487,19 +500,20 @@ const App: React.FC = () => {
   };
 
   return (
-    <AuthContext.Provider value={authContextValue}>
-      <Router>
-        {/* Toast Notification */}
-        {toast && (
-          <div className="fixed top-4 right-4 z-[9999] animate-slide-in">
-            <div className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border-l-4 max-w-md ${
-              toast.type === 'error' ? 'bg-red-50 border-red-500' :
-              toast.type === 'success' ? 'bg-green-50 border-green-500' :
-              'bg-blue-50 border-blue-500'
-            }`}>
-              <div className={`flex-shrink-0 w-5 h-5 mt-0.5 ${
-                toast.type === 'error' ? 'text-red-500' :
-                toast.type === 'success' ? 'text-green-500' :
+    <ErrorBoundary>
+      <AuthContext.Provider value={authContextValue}>
+        <Router>
+          {/* Toast Notification */}
+          {toast && (
+            <div className="fixed top-4 right-4 z-[9999] animate-slide-in">
+              <div className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border-l-4 max-w-md ${
+                toast.type === 'error' ? 'bg-red-50 border-red-500' :
+                toast.type === 'success' ? 'bg-green-50 border-green-500' :
+                'bg-blue-50 border-blue-500'
+              }`}>
+                <div className={`flex-shrink-0 w-5 h-5 mt-0.5 ${
+                  toast.type === 'error' ? 'text-red-500' :
+                  toast.type === 'success' ? 'text-green-500' :
                 'text-blue-500'
               }`}>
                 {toast.type === 'error' ? (
@@ -589,6 +603,7 @@ const App: React.FC = () => {
         />
       </Router>
     </AuthContext.Provider>
+    </ErrorBoundary>
   );
 };
 

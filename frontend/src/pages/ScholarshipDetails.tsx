@@ -54,41 +54,51 @@ const ScholarshipDetails: React.FC = () => {
 
   // Fetch scholarship from API - updates mock data if API succeeds
   useEffect(() => {
+    let isMounted = true;
+    
     const loadScholarship = async () => {
       if (!id) {
-        setLoading(false);
+        if (isMounted) setLoading(false);
         return;
       }
 
-      setLoading(true);
-      setError(null);
+      if (isMounted) {
+        setLoading(true);
+        setError(null);
+      }
 
       try {
         const data = await fetchScholarshipDetails(id);
-        if (data) {
+        if (isMounted && data) {
           setScholarship(data);
           // Fetch similar scholarships of the same type
           try {
             const allScholarships = await fetchScholarships({ type: data.type });
             const similar = allScholarships.filter(s => (s.id || s._id) !== id && (s.id || s._id) !== (data.id || data._id)).slice(0, 3);
-            if (similar.length > 0) {
+            if (isMounted && similar.length > 0) {
               setSimilarScholarships(similar);
             }
           } catch {
             // Keep using mock similar scholarships
           }
-        } else {
+        } else if (isMounted) {
           setError('Scholarship not found');
         }
       } catch (err: any) {
-        console.error('Failed to load scholarship:', err);
-        setError('Failed to load scholarship details');
+        if (isMounted) {
+          console.error('Failed to load scholarship:', err);
+          setError('Failed to load scholarship details');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     loadScholarship();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   // Get match result if user is logged in as student

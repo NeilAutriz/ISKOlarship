@@ -42,28 +42,40 @@ const Scholarships: React.FC = () => {
 
   // Fetch scholarships from API
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchScholarships = async () => {
       try {
-        setLoading(true);
-        setError(null);
+        if (isMounted) {
+          setLoading(true);
+          setError(null);
+        }
         const response = await scholarshipApi.getAll({ 
           search: filters.searchQuery,
           limit: 100
         });
-        if (response.success && response.data?.scholarships) {
-          setScholarships(response.data.scholarships);
-        } else {
-          setError('Failed to load scholarships');
+        if (isMounted) {
+          if (response.success && response.data?.scholarships) {
+            setScholarships(response.data.scholarships);
+          } else {
+            setError('Failed to load scholarships');
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch from API:', err);
-        setError('Failed to connect to server. Please try again later.');
+        if (isMounted) {
+          console.error('Failed to fetch from API:', err);
+          setError('Failed to connect to server. Please try again later.');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchScholarships();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [filters.searchQuery]);
 
   // Handle filter changes

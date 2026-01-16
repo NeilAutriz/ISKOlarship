@@ -57,13 +57,15 @@ const AdminDashboard: React.FC = () => {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchDashboardData = async () => {
       try {
-        setLoading(true);
+        if (isMounted) setLoading(true);
         
         // Fetch platform statistics using getOverview
         const statsRes = await statisticsApi.getOverview();
-        if (statsRes.success && statsRes.data) {
+        if (isMounted && statsRes.success && statsRes.data) {
           setStats({
             totalStudents: statsRes.data.overview.totalStudents || 0,
             totalScholarships: statsRes.data.overview.totalScholarships || 0,
@@ -77,7 +79,7 @@ const AdminDashboard: React.FC = () => {
         // Fetch recent applications
         try {
           const appsRes = await applicationApi.getAll({ limit: 5 });
-          if (appsRes.success && appsRes.data?.applications) {
+          if (isMounted && appsRes.success && appsRes.data?.applications) {
             setRecentApplications(appsRes.data.applications.map((app: any) => ({
               id: app._id || app.id,
               studentName: app.applicant?.studentProfile 
@@ -90,12 +92,14 @@ const AdminDashboard: React.FC = () => {
             })));
           }
         } catch (err) {
-          console.warn('Could not fetch applications:', err);
+          if (isMounted) {
+            console.warn('Could not fetch applications:', err);
+          }
         }
         
         // Fetch scholarships
         const scholRes = await scholarshipApi.getAll({ limit: 5 });
-        if (scholRes.success && scholRes.data?.scholarships) {
+        if (isMounted && scholRes.success && scholRes.data?.scholarships) {
           setTopScholarships(scholRes.data.scholarships.map((s: any) => ({
             id: s._id || s.id,
             name: s.name,
@@ -106,13 +110,19 @@ const AdminDashboard: React.FC = () => {
           })));
         }
       } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
+        if (isMounted) {
+          console.error('Failed to fetch dashboard data:', error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchDashboardData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   if (loading) {

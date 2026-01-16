@@ -47,6 +47,9 @@ const statusUpdateValidation = [
  */
 router.get('/my', authMiddleware, async (req, res, next) => {
   try {
+    console.log('📥 Fetching applications for user:', req.user._id);
+    const startTime = Date.now();
+    
     const { status, page = 1, limit = 20 } = req.query;
 
     const query = { applicant: req.user._id };
@@ -54,15 +57,30 @@ router.get('/my', authMiddleware, async (req, res, next) => {
 
     const skip = (page - 1) * limit;
 
+    console.log('🔍 Query:', JSON.stringify(query));
+    console.log('📄 Pagination: page', page, 'limit', limit, 'skip', skip);
+
+    // Execute query with timeout protection
+    const queryTimeout = setTimeout(() => {
+      console.error('⚠️  Query taking too long! Check database performance.');
+    }, 5000); // Warn if query takes more than 5 seconds
+
     const [applications, total] = await Promise.all([
       Application.find(query)
+        .select('-documents.url') // Exclude large base64 document URLs from list view
         .populate('scholarship', 'name type sponsor applicationDeadline awardAmount')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .lean(),
-      Application.countDocuments(query)
+        .lean()
+        .maxTimeMS(25000), // MongoDB server-side timeout
+      Application.countDocuments(query).maxTimeMS(5000)
     ]);
+
+    clearTimeout(queryTimeout);
+    
+    const elapsed = Date.now() - startTime;
+    console.log(`✅ Query completed in ${elapsed}ms - Found ${applications.length} applications (total: ${total})`);
 
     res.json({
       success: true,
@@ -77,6 +95,7 @@ router.get('/my', authMiddleware, async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ Error fetching applications:', error.message);
     next(error);
   }
 });

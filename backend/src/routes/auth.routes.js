@@ -28,6 +28,9 @@ const registerValidation = [
     .trim()
     .notEmpty()
     .withMessage('First name is required'),
+  body('middleName')
+    .optional()
+    .trim(),
   body('lastName')
     .trim()
     .notEmpty()
@@ -89,7 +92,7 @@ router.post('/register', registerValidation, async (req, res, next) => {
       });
     }
 
-    const { email, password, firstName, lastName, role = UserRole.STUDENT } = req.body;
+    const { email, password, firstName, middleName, lastName, role = UserRole.STUDENT } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -113,11 +116,21 @@ router.post('/register', registerValidation, async (req, res, next) => {
     if (role === UserRole.STUDENT) {
       userData.studentProfile = {
         firstName,
+        middleName: middleName || '',
         lastName,
         profileCompleted: false,
         hasExistingScholarship: false,
         hasThesisGrant: false,
         hasDisciplinaryAction: false
+      };
+    }
+    
+    // Initialize adminProfile for admin users
+    if (role === UserRole.ADMIN) {
+      userData.adminProfile = {
+        firstName,
+        middleName: middleName || '',
+        lastName
       };
     }
     

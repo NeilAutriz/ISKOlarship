@@ -50,11 +50,13 @@ const AdminScholarships: React.FC = () => {
 
   // Fetch scholarships from API
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchScholarships = async () => {
       try {
-        setLoading(true);
+        if (isMounted) setLoading(true);
         const response = await scholarshipApi.getAll({ limit: 100 });
-        if (response.success && response.data?.scholarships) {
+        if (isMounted && response.success && response.data?.scholarships) {
           setScholarships(response.data.scholarships.map((s: any) => {
             const amount = s.awardAmount ?? s.totalGrant ?? 0;
             return {
@@ -72,13 +74,19 @@ const AdminScholarships: React.FC = () => {
           }));
         }
       } catch (error) {
-        console.error('Failed to fetch scholarships:', error);
+        if (isMounted) {
+          console.error('Failed to fetch scholarships:', error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchScholarships();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const filteredScholarships = scholarships.filter(s => {

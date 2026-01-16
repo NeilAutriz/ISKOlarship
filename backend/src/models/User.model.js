@@ -320,6 +320,7 @@ const userSchema = new mongoose.Schema({
   adminProfile: {
     // Personal Information
     firstName: String,
+    middleName: String,
     lastName: String,
     
     // department (from ERD)

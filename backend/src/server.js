@@ -48,14 +48,18 @@ const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/iskolaship';
     await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
+      serverSelectionTimeoutMS: 30000, // Increased to 30 seconds
+      socketTimeoutMS: 45000, // Socket timeout
+      connectTimeoutMS: 30000, // Initial connection timeout
     });
     console.log('✅ MongoDB Connected Successfully');
+    console.log(`📊 Database: ${mongoose.connection.name}`);
     return true;
   } catch (error) {
     console.error('⚠️  MongoDB Connection Error:', error.message);
     console.log('📝 Server will start without database connection.');
     console.log('   Some features may not work until MongoDB is available.');
+    console.log('   Please ensure MongoDB is running and accessible.');
     return false;
   }
 };
@@ -66,12 +70,32 @@ const connectDB = async () => {
 
 // Health Check
 app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const dbStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+  
   res.json({ 
-    status: 'ok', 
+    status: dbStatus === 1 ? 'ok' : 'degraded',
     message: 'ISKOlarship API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    database: {
+      status: dbStates[dbStatus] || 'unknown',
+      connected: dbStatus === 1,
+      name: mongoose.connection.name || 'N/A'
+    }
   });
 });
+
+// Database Connection Check Middleware
+const checkDatabaseConnection = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message: 'Database connection unavailable. Please ensure MongoDB is running.',
+      error: 'SERVICE_UNAVAILABLE'
+    });
+  }
+  next();
+};
 
 // Authentication Routes
 app.use('/api/auth', authRoutes);
@@ -79,17 +103,17 @@ app.use('/api/auth', authRoutes);
 // User Routes (Student & Admin profiles)
 app.use('/api/users', userRoutes);
 
-// Scholarship Routes
-app.use('/api/scholarships', scholarshipRoutes);
+// Scholarship Routes (with DB check)
+app.use('/api/scholarships', checkDatabaseConnection, scholarshipRoutes);
 
-// Application Routes
-app.use('/api/applications', applicationRoutes);
+// Application Routes (with DB check)
+app.use('/api/applications', checkDatabaseConnection, applicationRoutes);
 
-// Prediction Routes (Logistic Regression)
-app.use('/api/predictions', predictionRoutes);
+// Prediction Routes (with DB check)
+app.use('/api/predictions', checkDatabaseConnection, predictionRoutes);
 
-// Statistics Routes (Analytics & Reports)
-app.use('/api/statistics', statisticsRoutes);
+// Statistics Routes (with DB check)
+app.use('/api/statistics', checkDatabaseConnection, statisticsRoutes);
 
 // =============================================================================
 // Error Handling Middleware

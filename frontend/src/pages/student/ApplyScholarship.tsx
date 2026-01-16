@@ -72,9 +72,11 @@ const ApplyScholarship: React.FC = () => {
 
   // Fetch scholarship and student profile
   useEffect(() => {
+    let isMounted = true; // Track if component is mounted
+    
     const fetchData = async () => {
       try {
-        setLoading(true);
+        if (isMounted) setLoading(true);
         
         // Fetch scholarship
         const scholarshipResponse = await scholarshipApi.getById(id!);
@@ -83,11 +85,11 @@ const ApplyScholarship: React.FC = () => {
         }
         
         const scholarshipData = scholarshipResponse.data;
-        setScholarship(scholarshipData);
+        if (isMounted) setScholarship(scholarshipData);
 
         // Fetch student profile
         const userStr = localStorage.getItem('user');
-        if (userStr) {
+        if (userStr && isMounted) {
           const user = JSON.parse(userStr);
           setStudentProfile(user.studentProfile || user);
         }
@@ -170,18 +172,27 @@ const ApplyScholarship: React.FC = () => {
           });
         }
 
-        setFormData(prev => ({ ...prev, documents: requiredDocs }));
+        if (isMounted) {
+          setFormData(prev => ({ ...prev, documents: requiredDocs }));
+        }
         
       } catch (err: any) {
-        setError(err.message || 'Failed to load application form');
+        if (isMounted) {
+          setError(err.message || 'Failed to load application form');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     if (id) {
       fetchData();
     }
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   // Check eligibility

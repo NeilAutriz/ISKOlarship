@@ -62,11 +62,13 @@ const StudentApplications: React.FC = () => {
 
   // Fetch applications from API
   useEffect(() => {
+    let isMounted = true; // Track if component is mounted
+    
     const fetchApplications = async () => {
       try {
-        setLoading(true);
+        if (isMounted) setLoading(true);
         const response = await applicationApi.getMyApplications();
-        if (response.success && response.data?.applications) {
+        if (isMounted && response.success && response.data?.applications) {
           setApplications(response.data.applications.map((app: any) => ({
             id: app._id || app.id,
             scholarshipId: app.scholarship?._id || app.scholarship?.id || app.scholarshipId,
@@ -85,13 +87,20 @@ const StudentApplications: React.FC = () => {
           })));
         }
       } catch (error) {
-        console.error('Failed to fetch applications:', error);
+        if (isMounted) {
+          console.error('Failed to fetch applications:', error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchApplications();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Fetch full application details

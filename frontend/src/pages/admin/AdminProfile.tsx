@@ -170,9 +170,6 @@ const AdminProfile: React.FC = () => {
               <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-white to-slate-100 flex items-center justify-center text-primary-600 font-bold text-3xl shadow-lg shadow-primary-900/30 border-2 border-white/20">
                 {ap?.firstName?.[0] || 'A'}{ap?.lastName?.[0] || 'D'}
               </div>
-              <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-primary-600 hover:bg-slate-50 transition-all">
-                <Camera className="w-5 h-5" />
-              </button>
               <div className="absolute -top-2 -left-2 w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg">
                 <Shield className="w-4 h-4 text-primary-600" />
               </div>
@@ -254,16 +251,13 @@ const AdminProfile: React.FC = () => {
             {/* Profile Information */}
             {activeSection === 'profile' && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
                       <User className="w-5 h-5 text-slate-600" />
                     </div>
                     <h2 className="font-semibold text-slate-900">Profile Information</h2>
                   </div>
-                  <button className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center gap-1.5">
-                    <Edit3 className="w-4 h-4" />Edit
-                  </button>
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[

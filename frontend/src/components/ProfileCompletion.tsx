@@ -30,7 +30,9 @@ import { YearLevel, UPLBCollege } from '../types';
 
 export interface ProfileData {
   // Step 1: Personal Information
-  fullName: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
   email: string;
   contactNumber: string;
   // Expanded address fields
@@ -80,7 +82,9 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   const [submitError, setSubmitError] = useState<string>('');
 
   const [formData, setFormData] = useState<ProfileData>({
-    fullName: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
     email: email,
     contactNumber: '',
     street: '',
@@ -128,7 +132,8 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
 
     switch (step) {
       case 1:
-        if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
+        if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+        if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
         if (!formData.email.trim()) newErrors.email = 'Email is required';
         if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact number is required';
         if (!formData.street.trim()) newErrors.street = 'Street address is required';
@@ -407,23 +412,60 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
       </div>
 
       <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">First Name</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <User className="w-5 h-5" />
+              </div>
+              <input
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => updateField('firstName', e.target.value)}
+                placeholder="Juan"
+                className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                  errors.firstName ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              />
+            </div>
+            {errors.firstName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.firstName}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Last Name</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <User className="w-5 h-5" />
+              </div>
+              <input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => updateField('lastName', e.target.value)}
+                placeholder="Dela Cruz"
+                className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                  errors.lastName ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              />
+            </div>
+            {errors.lastName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.lastName}</p>}
+          </div>
+        </div>
+
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Full Name</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">Middle Name (Optional)</label>
           <div className="relative">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
               <User className="w-5 h-5" />
             </div>
             <input
               type="text"
-              value={formData.fullName}
-              onChange={(e) => updateField('fullName', e.target.value)}
-              placeholder="Juan Dela Cruz"
-              className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
-                errors.fullName ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
-              }`}
+              value={formData.middleName}
+              onChange={(e) => updateField('middleName', e.target.value)}
+              placeholder="Santos"
+              className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
             />
           </div>
-          {errors.fullName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.fullName}</p>}
         </div>
 
         <div>
