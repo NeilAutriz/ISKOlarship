@@ -24,7 +24,9 @@ import {
   Shield,
   Loader2,
   AlertCircle,
-  X
+  X,
+  Eye,
+  Download
 } from 'lucide-react';
 import { userApi } from '../../services/apiClient';
 
@@ -63,6 +65,7 @@ interface StudentProfileData {
     annualFamilyIncome?: number;
     householdSize?: number;
     contactNumber?: string;
+    documents?: Document[];
   };
   createdAt?: string;
   updatedAt?: string;
@@ -105,19 +108,29 @@ const getSTBracketDisplay = (bracket?: string): string => {
   return bracketMap[bracket] || bracket;
 };
 
-// Document type (would come from API in a real implementation)
+// Document type from API
 interface Document {
+  _id: string;
   name: string;
-  status: 'verified' | 'pending';
-  date: string;
+  documentType: string;
+  filePath: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedAt: string;
+  url?: string; // Legacy field
 }
 
-// Mock documents - in a real implementation, these would come from the API
-const getDefaultDocuments = (): Document[] => [
-  { name: 'Certificate of Registration', status: 'pending', date: 'Not uploaded' },
-  { name: 'Grade Report (Latest Sem)', status: 'pending', date: 'Not uploaded' },
-  { name: 'Income Tax Return', status: 'pending', date: 'Not uploaded' },
-  { name: 'Barangay Certificate', status: 'pending', date: 'Not uploaded' },
+// Document status helper
+const getDocumentStatus = (doc: Document | undefined): 'completed' | 'pending' => {
+  return doc ? 'completed' : 'pending';
+};
+
+// Required documents list
+const REQUIRED_DOCUMENTS = [
+  { type: 'student_id', name: 'Student ID / Proof of Enrollment' },
+  { type: 'latest_grades', name: 'Latest Grades / Transcript' },
+  { type: 'certificate_of_registration', name: 'Certificate of Registration (Current Semester)' },
 ];
 
 const StudentProfile: React.FC = () => {
@@ -126,11 +139,16 @@ const StudentProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
-  const [documents, setDocuments] = useState<Document[]>(getDefaultDocuments());
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Fetch profile data on mount
   useEffect(() => {
@@ -146,7 +164,14 @@ const StudentProfile: React.FC = () => {
         
         if (profileResponse.success && profileResponse.data) {
           // Cast to our expected structure
-          setProfile(profileResponse.data as unknown as StudentProfileData);
+          const profileData = profileResponse.data as unknown as StudentProfileData;
+          setProfile(profileData);
+          
+          // Load documents from profile
+          if (profileData.studentProfile?.documents) {
+            console.log('📚 Documents from API:', profileData.studentProfile.documents);
+            setDocuments(profileData.studentProfile.documents as any);
+          }
         } else {
           setError('Failed to load profile data');
         }
@@ -164,6 +189,169 @@ const StudentProfile: React.FC = () => {
 
     fetchProfile();
   }, []);
+
+  // Load document preview with authentication
+  const loadDocumentPreview = async (document: Document) => {
+    try {
+      setLoadingPreview(true);
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('accessToken');
+      console.log('🔑 Token exists:', !!token);
+      console.log('📄 Document to load:', JSON.stringify(document, null, 2));
+      
+      if (!token) {
+        console.error('❌ No access token found');
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      // Fetch document with auth header
+      const url = `http://localhost:5001/api/users/documents/${document._id}`;
+      console.log('🌐 Fetching from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': '*/*'
+        },
+        credentials: 'include'
+      });
+
+      console.log('📡 Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        let errorMessage = `Server returned ${response.status}`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          console.error('❌ Error response:', errorData);
+          errorMessage = errorData.message || errorMessage;
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Error response text:', errorText);
+          errorMessage = errorText || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // Convert to blob and create object URL
+      const blob = await response.blob();
+      console.log('📦 Blob created:', blob.size, 'bytes, type:', blob.type);
+      
+      const blobUrl = URL.createObjectURL(blob);
+      console.log('✅ Blob URL created:', blobUrl);
+      
+      setPreviewUrl(blobUrl);
+      setPreviewDoc(document);
+      setIsPreviewOpen(true);
+    } catch (error: any) {
+      console.error('❌ Preview load error:', error);
+      alert(`Failed to load document preview: ${error.message}`);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  // Clean up preview URL when modal closes
+  useEffect(() => {
+    if (!isPreviewOpen && previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }, [isPreviewOpen]);
+
+  // Handle document download
+  const handleDownloadDocument = async (document: Document) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        alert('Authentication required');
+        return;
+      }
+
+      const response = await fetch(`http://localhost:5001/api/users/documents/${document._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download document');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = document.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Download error:', error);
+      alert('Failed to download document');
+    }
+  };
+
+  // Handle document upload
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string, docName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Only PDF, JPG, and PNG files are allowed');
+      return;
+    }
+
+    try {
+      setUploadingDoc(docType);
+      
+      // Import upload function
+      const { uploadDocuments } = await import('../../services/documentUpload');
+      
+      // Upload document
+      const result = await uploadDocuments([{
+        file,
+        name: docName,
+        type: docType
+      }]);
+
+      if (result.success) {
+        // Refresh profile to get updated documents
+        const profileResponse = await userApi.getProfile();
+        if (profileResponse.success && profileResponse.data) {
+          const profileData = profileResponse.data as unknown as StudentProfileData;
+          setProfile(profileData);
+          if (profileData.studentProfile?.documents) {
+            setDocuments(profileData.studentProfile.documents as any);
+          }
+        }
+        alert('Document uploaded successfully!');
+      } else {
+        alert(result.message || 'Failed to upload document');
+      }
+    } catch (error: any) {
+      console.error('Document upload error:', error);
+      alert(error.message || 'Failed to upload document');
+    } finally {
+      setUploadingDoc(null);
+      // Clear the input
+      e.target.value = '';
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -454,31 +642,107 @@ const StudentProfile: React.FC = () => {
                     <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
                       <FileText className="w-5 h-5 text-purple-600" />
                     </div>
-                    <h2 className="font-semibold text-slate-900">Documents</h2>
+                    <div>
+                      <h2 className="font-semibold text-slate-900">Documents</h2>
+                      <p className="text-sm text-slate-600">{documents.length} of {REQUIRED_DOCUMENTS.length} required documents uploaded</p>
+                    </div>
                   </div>
-                  <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white font-medium rounded-lg text-sm hover:bg-primary-700 transition-all">
-                    <Upload className="w-4 h-4" />Upload Document
-                  </button>
                 </div>
                 <div className="p-6">
                   <div className="space-y-3">
-                    {documents.map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-slate-500" />
+                    {REQUIRED_DOCUMENTS.map((reqDoc) => {
+                      const uploadedDoc = documents.find(d => d.documentType === reqDoc.type);
+                      const status = getDocumentStatus(uploadedDoc);
+                      
+                      return (
+                        <div key={reqDoc.type} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center ${status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'}`}>
+                              {status === 'completed' ? (
+                                <CheckCircle className="w-5 h-5 text-green-600" />
+                              ) : (
+                                <FileText className="w-5 h-5 text-slate-400" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium text-slate-900">{reqDoc.name}</div>
+                              {uploadedDoc ? (
+                                <div className="text-sm text-slate-500">
+                                  {uploadedDoc.fileName} • {(uploadedDoc.fileSize / 1024).toFixed(1)} KB • 
+                                  Uploaded {new Date(uploadedDoc.uploadedAt).toLocaleDateString()}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-amber-600">Not uploaded</div>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium text-slate-900">{doc.name}</div>
-                            <div className="text-sm text-slate-500">Uploaded: {doc.date}</div>
+                          <div className="flex items-center gap-2">
+                            {uploadedDoc ? (
+                              <>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  Completed
+                                </span>
+                                <button
+                                  onClick={() => loadDocumentPreview(uploadedDoc)}
+                                  disabled={loadingPreview}
+                                  className="p-2 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                                  title="View document"
+                                >
+                                  {loadingPreview && previewDoc?._id === uploadedDoc._id ? (
+                                    <Loader2 className="w-4 h-4 text-slate-600 animate-spin" />
+                                  ) : (
+                                    <Eye className="w-4 h-4 text-slate-600" />
+                                  )}
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                  <AlertCircle className="w-3.5 h-3.5" />
+                                  Pending
+                                </span>
+                                <label className={`inline-flex items-center gap-2 px-3 py-1.5 bg-primary-600 text-white font-medium rounded-lg text-sm hover:bg-primary-700 transition-all cursor-pointer ${uploadingDoc === reqDoc.type ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                  {uploadingDoc === reqDoc.type ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Uploading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-4 h-4" />
+                                      Upload
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    className="hidden"
+                                    disabled={uploadingDoc === reqDoc.type}
+                                    onChange={(e) => handleDocumentUpload(e, reqDoc.type, reqDoc.name)}
+                                  />
+                                </label>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${doc.status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {doc.status === 'verified' ? <CheckCircle className="w-3.5 h-3.5" /> : null}
-                          {doc.status === 'verified' ? 'Verified' : 'Pending'}
-                        </span>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Document Upload Info */}
+                  <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="flex gap-3">
+                      <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">Document Requirements</p>
+                        <ul className="list-disc list-inside space-y-1 text-blue-700">
+                          <li>Accepted formats: PDF, JPG, PNG</li>
+                          <li>Maximum file size: 5MB per document</li>
+                          <li>Documents must be clear and readable</li>
+                        </ul>
                       </div>
-                    ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -912,6 +1176,100 @@ const StudentProfile: React.FC = () => {
                     Save Changes
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {isPreviewOpen && previewDoc && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => {
+          setIsPreviewOpen(false);
+          setPreviewDoc(null);
+        }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-primary-600 text-white rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5" />
+                <div>
+                  <h3 className="font-bold text-lg">{previewDoc.name}</h3>
+                  <p className="text-sm text-primary-100">{previewDoc.fileName}</p>
+                </div>
+              </div>
+              <button onClick={() => {
+                setIsPreviewOpen(false);
+                setPreviewDoc(null);
+              }} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {loadingPreview ? (
+                <div className="flex items-center justify-center h-[600px]">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+                </div>
+              ) : previewUrl ? (
+                previewDoc.mimeType === 'application/pdf' ? (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-[600px] border-0 rounded-lg"
+                    title={previewDoc.fileName}
+                  />
+                ) : (
+                  <img
+                    src={previewUrl}
+                    alt={previewDoc.fileName}
+                    className="w-full h-auto rounded-lg"
+                  />
+                )
+              ) : (
+                <div className="flex items-center justify-center h-[600px] text-slate-500">
+                  Failed to load preview
+                </div>
+              )}
+              
+              {/* Document Details */}
+              <div className="mt-4 grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                <div>
+                  <p className="text-xs text-slate-600 mb-1">File Size</p>
+                  <p className="text-sm font-medium text-slate-900">{(previewDoc.fileSize / 1024).toFixed(1)} KB</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-600 mb-1">Upload Date</p>
+                  <p className="text-sm font-medium text-slate-900">{new Date(previewDoc.uploadedAt).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-600 mb-1">File Type</p>
+                  <p className="text-sm font-medium text-slate-900">{previewDoc.mimeType}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-600 mb-1">Document Type</p>
+                  <p className="text-sm font-medium text-slate-900">{previewDoc.documentType}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+              <button 
+                onClick={() => handleDownloadDocument(previewDoc)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </button>
+              <button
+                onClick={() => {
+                  setIsPreviewOpen(false);
+                  setPreviewDoc(null);
+                }}
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>

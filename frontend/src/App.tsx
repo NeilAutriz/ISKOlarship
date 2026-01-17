@@ -297,20 +297,21 @@ const App: React.FC = () => {
       console.log('Registration response:', response);
       
       if (response.success && response.data?.user) {
-        // Build the profile update matching backend schema (studentProfile nested structure)
-        // Match the exact structure used in backend seed data
+        console.log('✅ User registered successfully:', response.data.user.email);
+        
+        // Build the profile update WITHOUT documents (optimized approach)
         const profileUpdate = {
           firstName,
           lastName,
           phone: profileData.contactNumber,
-          // Student profile data matching backend User.model.js structure
           studentProfile: {
             studentNumber: profileData.studentNumber,
             firstName,
             middleName,
             lastName,
             contactNumber: profileData.contactNumber,
-            // homeAddress structure must match backend seed data format exactly
+            birthDate: profileData.dateOfBirth ? new Date(profileData.dateOfBirth) : undefined,
+            gender: profileData.gender,
             homeAddress: {
               street: profileData.street || '',
               barangay: profileData.barangay || '',
@@ -322,7 +323,7 @@ const App: React.FC = () => {
             provinceOfOrigin: profileData.provinceOfOrigin,
             college: profileData.college,
             course: profileData.course,
-            classification: profileData.yearLevel, // Backend uses 'classification' not 'yearLevel'
+            classification: profileData.yearLevel,
             gwa: parseFloat(profileData.gwa) || 0,
             unitsEnrolled: parseInt(profileData.unitsEnrolled) || 0,
             unitsPassed: parseInt(profileData.unitsPassed) || 0,
@@ -337,16 +338,102 @@ const App: React.FC = () => {
           }
         };
         
-        console.log('Profile update payload:', JSON.stringify(profileUpdate, null, 2));
+        console.log('📝 Updating profile with basic information...');
         
-        // Update profile with complete data
+        // Update profile WITHOUT documents first (much faster!)
         const updateResponse = await userApi.updateProfile(profileUpdate);
-        console.log('Profile update response:', JSON.stringify(updateResponse, null, 2));
         
-        // Use the UPDATED user from updateProfile response if available, otherwise use registration user
-        const updatedUser = updateResponse.success && updateResponse.data 
-          ? updateResponse.data 
-          : response.data.user;
+        if (!updateResponse.success) {
+          throw new Error(updateResponse.message || 'Profile update failed');
+        }
+        
+        console.log('✅ Profile updated successfully');
+        
+        // CRITICAL DEBUG: Check what we received
+        console.log('🔍 CRITICAL DEBUG - Full profileData:', {
+          hasDocuments: !!profileData.documents,
+          documentsLength: profileData.documents?.length,
+          documents: profileData.documents
+        });
+        
+        // Check each document individually
+        if (profileData.documents && profileData.documents.length > 0) {
+          console.log('📋 DOCUMENT ANALYSIS:');
+          profileData.documents.forEach((doc, idx) => {
+            console.log(`  Document ${idx}:`, {
+              name: doc.name,
+              type: doc.type,
+              uploaded: doc.uploaded,
+              hasFile: !!doc.file,
+              fileIsNull: doc.file === null,
+              fileIsUndefined: doc.file === undefined,
+              fileType: typeof doc.file,
+              fileName: doc.file?.name,
+              fileSize: doc.file?.size
+            });
+          });
+        } else {
+          console.error('❌ CRITICAL: profileData.documents is empty or undefined!');
+        }
+        
+        // Now upload documents separately using optimized approach
+        const documentsToUpload = (profileData.documents || [])
+          .filter(doc => {
+            const hasFile = doc.uploaded && doc.file;
+            console.log(`Filter check for "${doc.name}": uploaded=${doc.uploaded}, hasFile=${!!doc.file}, passes=${hasFile}`);
+            return hasFile;
+          })
+          .map(doc => ({
+            file: doc.file!,
+            name: doc.name,
+            type: doc.type
+          }));
+
+        console.log('📤 documentsToUpload length:', documentsToUpload.length);
+        console.log('📤 documentsToUpload:', documentsToUpload);
+
+        if (documentsToUpload.length > 0) {
+          console.log(`📤 Uploading ${documentsToUpload.length} document(s) using optimized method...`);
+          
+          try {
+            // Import the upload function dynamically
+            const { uploadDocuments } = await import('./services/documentUpload');
+            const uploadResult = await uploadDocuments(documentsToUpload);
+            
+            if (uploadResult.success) {
+              console.log(`✅ Successfully uploaded ${documentsToUpload.length} document(s)`);
+              
+              // IMPORTANT: Fetch updated user profile to get documents in the session
+              try {
+                const meResponse = await authApi.getMe();
+                if (meResponse.success && meResponse.data?.user) {
+                  console.log('✅ Fetched updated user with documents');
+                  // Use the fresh user data with documents
+                  login(meResponse.data.user as User);
+                  setShowProfileCompletion(false);
+                  setNavigateAfterLogin(pendingRole === 'admin' ? '/admin/dashboard' : '/dashboard');
+                  showToast(`🎉 Welcome to ISKOlarship, ${firstName}! Your student account has been created successfully.`, 'success');
+                  return; // Exit early since we've already logged in
+                }
+              } catch (fetchError) {
+                console.error('⚠️ Could not fetch updated user, using existing data');
+              }
+            } else {
+              console.error('⚠️ Document upload failed:', uploadResult.message);
+              // Don't fail the whole registration - documents can be uploaded later
+              showToast('Profile created, but some documents failed to upload. You can upload them later from your profile.', 'info');
+            }
+          } catch (uploadError: any) {
+            console.error('❌ Document upload error:', uploadError);
+            // Continue with login even if document upload fails
+            showToast('Profile created successfully. Documents can be uploaded later from your profile.', 'info');
+          }
+        } else {
+          console.log('ℹ️ No documents to upload');
+        }
+        
+        // Use the UPDATED user from updateProfile response (fallback if no documents or upload failed)
+        const updatedUser = updateResponse.data || response.data.user;
         
         console.log('Final user data for login:', updatedUser);
         

@@ -24,9 +24,15 @@ import {
   Building2,
   BarChart3,
   Award,
-  X
+  X,
+  Upload,
+  FileText,
+  File,
+  CheckCircle,
+  Eye
 } from 'lucide-react';
 import { YearLevel, UPLBCollege } from '../types';
+import { uploadDocuments, validateFile, formatFileSize } from '../services/documentUpload';
 
 export interface ProfileData {
   // Step 1: Personal Information
@@ -63,6 +69,18 @@ export interface ProfileData {
   // Step 4: Demographic Data
   provinceOfOrigin: string;
   citizenship: string;
+  
+  // Step 5: Required Documents
+  documents: Array<{
+    file: File | null;
+    type: string;
+    name: string;
+    required: boolean;
+    uploaded: boolean;
+    error?: string;
+    base64?: string;
+    previewUrl?: string; // Add preview URL
+  }>;
 }
 
 interface ProfileCompletionProps {
@@ -77,9 +95,11 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   onCancel
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+  const totalSteps = 5;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ name: string; type: string; previewUrl: string } | null>(null);
 
   const [formData, setFormData] = useState<ProfileData>({
     firstName: '',
@@ -108,6 +128,29 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     stBracket: '',
     provinceOfOrigin: '',
     citizenship: 'Filipino',
+    documents: [
+      {
+        file: null,
+        type: 'student_id',
+        name: 'Student ID / Proof of Enrollment',
+        required: true,
+        uploaded: false
+      },
+      {
+        file: null,
+        type: 'latest_grades',
+        name: 'Latest Grades / Transcript',
+        required: true,
+        uploaded: false
+      },
+      {
+        file: null,
+        type: 'certificate_of_registration',
+        name: 'Certificate of Registration (Current Semester)',
+        required: true,
+        uploaded: false
+      }
+    ]
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -185,10 +228,71 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         if (!formData.provinceOfOrigin) newErrors.provinceOfOrigin = 'Province is required';
         if (!formData.citizenship) newErrors.citizenship = 'Citizenship is required';
         break;
+      case 5:
+        // Check that all required documents are uploaded
+        const missingDocs = formData.documents.filter(doc => doc.required && !doc.uploaded);
+        if (missingDocs.length > 0) {
+          newErrors.documents = `Please upload all required documents (${missingDocs.length} missing)`;
+        }
+        break;
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+  
+  // Handle file upload - Optimized approach (no base64 conversion)
+  const handleFileChange = async (index: number, file: File | null) => {
+    console.log(`📎 handleFileChange called - index: ${index}, file:`, file);
+    
+    if (!file) {
+      console.log('❌ No file provided');
+      return;
+    }
+
+    // Validate file using utility function
+    const validation = validateFile(file);
+    console.log(`📋 Validation result:`, validation);
+    
+    if (!validation.valid) {
+      const updatedDocs = [...formData.documents];
+      updatedDocs[index].error = validation.error;
+      setFormData(prev => ({ ...prev, documents: updatedDocs }));
+      return;
+    }
+
+    // Create preview URL for the file
+    const previewUrl = URL.createObjectURL(file);
+
+    // Store file directly (no base64 conversion!)
+    const updatedDocs = [...formData.documents];
+    updatedDocs[index].file = file;
+    updatedDocs[index].uploaded = true;
+    updatedDocs[index].error = undefined;
+    updatedDocs[index].previewUrl = previewUrl;
+    
+    console.log(`✅ File stored in state - index: ${index}, file name: ${file.name}, file size: ${file.size}`);
+    console.log(`📋 Updated docs array:`, updatedDocs.map(d => ({ name: d.name, hasFile: !!d.file, uploaded: d.uploaded })));
+    
+    setFormData(prev => ({ ...prev, documents: updatedDocs }));
+    
+    console.log(`✅ File selected: ${file.name} (${formatFileSize(file.size)})`);
+  };
+
+  // Remove uploaded file
+  const handleRemoveFile = (index: number) => {
+    const updatedDocs = [...formData.documents];
+    
+    // Revoke preview URL to free memory
+    if (updatedDocs[index].previewUrl) {
+      URL.revokeObjectURL(updatedDocs[index].previewUrl!);
+    }
+    
+    updatedDocs[index].file = null;
+    updatedDocs[index].uploaded = false;
+    updatedDocs[index].error = undefined;
+    updatedDocs[index].previewUrl = undefined;
+    setFormData(prev => ({ ...prev, documents: updatedDocs }));
   };
 
   const handleNext = async () => {
@@ -200,6 +304,16 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         setSubmitting(true);
         setSubmitError('');
         try {
+          // DEBUG: Log documents state before submission
+          console.log('📤 ProfileCompletion - Submitting with documents:', formData.documents.map(d => ({
+            name: d.name,
+            type: d.type,
+            uploaded: d.uploaded,
+            hasFile: !!d.file,
+            fileName: d.file?.name,
+            fileSize: d.file?.size
+          })));
+          
           await onComplete(formData);
         } catch (error: any) {
           console.error('Profile completion error:', error);
@@ -331,7 +445,8 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     { icon: User, label: 'Personal' },
     { icon: GraduationCap, label: 'Academic' },
     { icon: DollarSign, label: 'Financial' },
-    { icon: Globe, label: 'Demographic' }
+    { icon: Globe, label: 'Demographic' },
+    { icon: Upload, label: 'Documents' }
   ];
 
   const renderProgressBar = () => (
@@ -385,7 +500,7 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
       </div>
       {/* Progress bar */}
       <div className="flex gap-1">
-        {[1, 2, 3, 4].map((step) => (
+        {[1, 2, 3, 4, 5].map((step) => (
           <div
             key={step}
             className={`flex-1 h-1.5 rounded-full transition-all ${
@@ -1025,6 +1140,146 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
       </div>
     </div>
   );
+  
+  const renderStep5 = () => (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+          <Upload className="w-5 h-5 text-blue-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Required Documents</h3>
+          <p className="text-slate-500 text-sm">Upload necessary documents for profile verification</p>
+        </div>
+      </div>
+
+      {errors.documents && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {errors.documents}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {formData.documents.map((doc, index) => (
+          <div key={index} className="border border-slate-200 rounded-xl p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-slate-900">{doc.name}</h3>
+                  {doc.required && (
+                    <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded">
+                      Required
+                    </span>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1">PDF, JPG, or PNG (max 5MB)</p>
+                </div>
+              </div>
+              {doc.uploaded && (
+                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+              )}
+            </div>
+
+            {!doc.uploaded ? (
+              <label className="block">
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => handleFileChange(index, e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+                <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer">
+                  <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-600 font-medium">Click to upload</p>
+                  <p className="text-xs text-slate-500 mt-1">PDF, JPG, PNG (max 5MB)</p>
+                </div>
+              </label>
+            ) : (
+              <div className="space-y-3">
+                {/* File Preview */}
+                {doc.file && doc.previewUrl && (
+                  <div 
+                    className="border border-green-200 rounded-xl overflow-hidden cursor-pointer hover:border-green-400 transition-colors relative group"
+                    onClick={() => {
+                      console.log('🔍 Preview clicked:', {
+                        name: doc.name,
+                        fileType: doc.file?.type,
+                        previewUrl: doc.previewUrl,
+                        hasPreviewUrl: !!doc.previewUrl
+                      });
+                      setPreviewDoc({
+                        name: doc.name,
+                        type: doc.file?.type || 'application/pdf',
+                        previewUrl: doc.previewUrl || ''
+                      });
+                      setPreviewModalOpen(true);
+                    }}
+                  >
+                    {doc.file.type === 'application/pdf' ? (
+                      <div className="bg-slate-50 p-4 flex items-center justify-center">
+                        <div className="text-center">
+                          <FileText className="w-12 h-12 text-slate-400 mx-auto mb-2" />
+                          <p className="text-sm text-slate-600">PDF Preview</p>
+                          <p className="text-xs text-slate-500">{doc.file.name}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <img 
+                        src={doc.previewUrl} 
+                        alt={doc.name}
+                        className="w-full h-48 object-cover"
+                      />
+                    )}
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="bg-white rounded-full p-3">
+                        <Eye className="w-6 h-6 text-slate-700" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* File Info */}
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <File className="w-6 h-6 text-green-600" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{doc.file?.name}</p>
+                      <p className="text-xs text-slate-600">
+                        {doc.file && (doc.file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFile(index)}
+                    className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                    title="Remove file"
+                  >
+                    <X className="w-5 h-5 text-red-600" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {doc.error && (
+              <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
+                ⚠ {doc.error}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+      
+      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>Note:</strong> These documents will be used to verify your profile information and may be reviewed during scholarship application processing.
+        </p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -1043,6 +1298,7 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
         {currentStep === 4 && renderStep4()}
+        {currentStep === 5 && renderStep5()}
 
         {/* Navigation Buttons */}
         <div className="flex gap-4 mt-6">
@@ -1091,6 +1347,73 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewModalOpen && previewDoc && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setPreviewModalOpen(false);
+            setPreviewDoc(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-primary-600 text-white rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5" />
+                <div>
+                  <h3 className="font-bold text-lg">{previewDoc.name}</h3>
+                  <p className="text-sm text-primary-100">Document Preview</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setPreviewModalOpen(false);
+                  setPreviewDoc(null);
+                }} 
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {previewDoc.type === 'application/pdf' ? (
+                <embed
+                  src={previewDoc.previewUrl}
+                  type="application/pdf"
+                  className="w-full h-[600px] border-0 rounded-lg"
+                  title={previewDoc.name}
+                />
+              ) : (
+                <img
+                  src={previewDoc.previewUrl}
+                  alt={previewDoc.name}
+                  className="w-full h-auto rounded-lg"
+                />
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => {
+                  setPreviewModalOpen(false);
+                  setPreviewDoc(null);
+                }}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

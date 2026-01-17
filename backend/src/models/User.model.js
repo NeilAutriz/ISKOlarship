@@ -281,6 +281,10 @@ const userSchema = new mongoose.Schema({
     // Contact Information
     contactNumber: String,
     birthDate: Date,
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Other', 'Prefer not to say']
+    },
     
     // =====================================================================
     // Scholarship Eligibility Status Fields
@@ -310,7 +314,36 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
-    profileCompletedAt: Date
+    profileCompletedAt: Date,
+    
+    // =====================================================================
+    // Profile Documents (for verification during profile completion)
+    // Optimized: Store file paths instead of base64 for better performance
+    // =====================================================================
+    documents: [{
+      name: String,
+      documentType: {
+        type: String,
+        enum: [
+          'student_id',
+          'latest_grades',
+          'certificate_of_registration',
+          'proof_of_enrollment',
+          'photo_id',
+          'other'
+        ]
+      },
+      filePath: String, // Relative path to uploaded file (e.g., 'documents/userId/filename.pdf')
+      fileName: String, // Original filename
+      fileSize: Number, // File size in bytes
+      mimeType: String, // MIME type (e.g., 'application/pdf', 'image/jpeg')
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      },
+      // Legacy field for backward compatibility (deprecated)
+      url: String // Old base64 data - will be gradually phased out
+    }]
   },
   
   // =========================================================================
