@@ -300,9 +300,9 @@ export const userApi = {
     return response.data;
   },
 
-  updateProfile: async (updates: Partial<StudentProfile>) => {
+  updateProfile: async (updates: any) => {
     console.log('updateProfile request:', updates);
-    const response = await api.put<ApiResponse<StudentProfile>>('/users/profile', updates);
+    const response = await api.put<ApiResponse<any>>('/users/profile', updates);
     console.log('updateProfile response:', response.data);
     return response.data;
   },

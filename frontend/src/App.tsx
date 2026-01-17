@@ -429,9 +429,7 @@ const App: React.FC = () => {
             officeLocation: profileData.officeLocation,
             accessLevel: profileData.accessLevel,
             responsibilities: profileData.responsibilities,
-            canCreateScholarships: profileData.canCreateScholarships,
-            canApproveApplications: profileData.canApproveApplications,
-            canManageUsers: profileData.canManageUsers,
+            permissions: profileData.permissions,
             profileCompleted: true
           }
         };
@@ -502,7 +500,7 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <AuthContext.Provider value={authContextValue}>
-        <Router>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           {/* Toast Notification */}
           {toast && (
             <div className="fixed top-4 right-4 z-[9999] animate-slide-in">

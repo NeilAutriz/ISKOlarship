@@ -190,11 +190,8 @@ router.put('/profile',
           'college',
           'position',
           'officeLocation',
-          'accessLevel',
           'responsibilities',
-          'canCreateScholarships',
-          'canApproveApplications',
-          'canManageUsers',
+          'accessLevel',
           'profileCompleted'
         ];
 
@@ -203,6 +200,21 @@ router.put('/profile',
           if (adminData[field] !== undefined) {
             req.user.adminProfile[field] = adminData[field];
           }
+        }
+        
+        // Handle address as nested object
+        if (adminData.address) {
+          req.user.adminProfile.address = {
+            ...req.user.adminProfile.address,
+            ...adminData.address
+          };
+          console.log('Updated admin address:', req.user.adminProfile.address);
+        }
+        
+        // Handle permissions array
+        if (adminData.permissions && Array.isArray(adminData.permissions)) {
+          req.user.adminProfile.permissions = adminData.permissions;
+          console.log('Updated admin permissions:', req.user.adminProfile.permissions);
         }
         
         // Mark profile as completed if we have essential fields

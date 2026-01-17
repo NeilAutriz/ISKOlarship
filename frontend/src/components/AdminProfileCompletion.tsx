@@ -38,9 +38,7 @@ export interface AdminProfileData {
   
   // Step 3: Responsibilities
   responsibilities: string;
-  canCreateScholarships: boolean;
-  canApproveApplications: boolean;
-  canManageUsers: boolean;
+  permissions: string[]; // Changed to permissions array matching database
 }
 
 interface AdminProfileCompletionProps {
@@ -71,9 +69,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
     position: '',
     accessLevel: '',
     responsibilities: '',
-    canCreateScholarships: false,
-    canApproveApplications: false,
-    canManageUsers: false,
+    permissions: [], // Changed to empty array
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -569,74 +565,47 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
           </label>
           <p className="text-sm text-slate-600 mb-3">Select the permissions you need for your role</p>
           <div className="space-y-3">
-            <div
-              onClick={() => updateField('canCreateScholarships', !formData.canCreateScholarships)}
-              className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                formData.canCreateScholarships
-                  ? 'border-primary-600 bg-primary-50 shadow-sm'
-                  : 'border-slate-300 hover:border-primary-400 hover:bg-slate-50'
-              }`}
-            >
-              <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                formData.canCreateScholarships
-                  ? 'border-primary-600 bg-primary-600'
-                  : 'border-slate-300'
-              }`}>
-                {formData.canCreateScholarships && (
-                  <Check className="w-3 h-3 text-white" />
-                )}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-slate-900 text-base">Create & Manage Scholarships</h4>
-                <p className="text-sm text-slate-600 mt-1">Post new scholarship opportunities and edit existing ones</p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => updateField('canApproveApplications', !formData.canApproveApplications)}
-              className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                formData.canApproveApplications
-                  ? 'border-primary-600 bg-primary-50 shadow-sm'
-                  : 'border-slate-300 hover:border-primary-400 hover:bg-slate-50'
-              }`}
-            >
-              <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                formData.canApproveApplications
-                  ? 'border-primary-600 bg-primary-600'
-                  : 'border-slate-300'
-              }`}>
-                {formData.canApproveApplications && (
-                  <Check className="w-3 h-3 text-white" />
-                )}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-slate-900 text-base">Review & Approve Applications</h4>
-                <p className="text-sm text-slate-600 mt-1">Evaluate student applications and make decisions</p>
-              </div>
-            </div>
-
-            <div
-              onClick={() => updateField('canManageUsers', !formData.canManageUsers)}
-              className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                formData.canManageUsers
-                  ? 'border-primary-600 bg-primary-50 shadow-sm'
-                  : 'border-slate-300 hover:border-primary-400 hover:bg-slate-50'
-              }`}
-            >
-              <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                formData.canManageUsers
-                  ? 'border-primary-600 bg-primary-600'
-                  : 'border-slate-300'
-              }`}>
-                {formData.canManageUsers && (
-                  <Check className="w-3 h-3 text-white" />
-                )}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-slate-900 text-base">Manage Users & Admins</h4>
-                <p className="text-sm text-slate-600 mt-1">Add, edit, or remove user accounts (requires elevated privileges)</p>
-              </div>
-            </div>
+            {[
+              { value: 'manage_scholarships', label: 'Create & Manage Scholarships', description: 'Post new scholarship opportunities and edit existing ones' },
+              { value: 'review_applications', label: 'Review Applications', description: 'View and review student applications' },
+              { value: 'approve_applications', label: 'Approve Applications', description: 'Evaluate student applications and make decisions' },
+              { value: 'manage_users', label: 'Manage Users & Admins', description: 'Add, edit, or remove user accounts (requires elevated privileges)' },
+              { value: 'view_analytics', label: 'View Analytics', description: 'Access platform analytics and reports' },
+              { value: 'system_settings', label: 'System Settings', description: 'Configure platform settings' },
+            ].map((permission) => {
+              const isChecked = formData.permissions.includes(permission.value);
+              return (
+                <div
+                  key={permission.value}
+                  onClick={() => {
+                    if (isChecked) {
+                      setFormData(prev => ({ ...prev, permissions: prev.permissions.filter(p => p !== permission.value) }));
+                    } else {
+                      setFormData(prev => ({ ...prev, permissions: [...prev.permissions, permission.value] }));
+                    }
+                  }}
+                  className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    isChecked
+                      ? 'border-primary-600 bg-primary-50 shadow-sm'
+                      : 'border-slate-300 hover:border-primary-400 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                    isChecked
+                      ? 'border-primary-600 bg-primary-600'
+                      : 'border-slate-300'
+                  }`}>
+                    {isChecked && (
+                      <Check className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-slate-900 text-base">{permission.label}</h4>
+                    <p className="text-sm text-slate-600 mt-1">{permission.description}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

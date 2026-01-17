@@ -24,7 +24,9 @@ import {
   AlertCircle,
   History,
   FileText,
-  Loader2
+  Loader2,
+  X,
+  Briefcase
 } from 'lucide-react';
 import { userApi } from '../../services/apiClient';
 
@@ -35,11 +37,15 @@ interface AdminProfileData {
   role: string;
   adminProfile: {
     firstName: string;
+    middleName?: string;
     lastName: string;
     department: string;
     accessLevel: string;
     permissions: string[];
     college?: string;
+    position?: string;
+    officeLocation?: string;
+    responsibilities?: string;
   };
   createdAt?: string;
   updatedAt?: string;
@@ -88,6 +94,11 @@ const AdminProfile: React.FC = () => {
   const [admin, setAdmin] = useState<AdminProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [editPermissions, setEditPermissions] = useState<string[]>([]);
 
   // Fetch admin profile on mount
   useEffect(() => {
@@ -188,7 +199,30 @@ const AdminProfile: React.FC = () => {
               </p>
             </div>
 
-            <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-600 font-semibold rounded-xl hover:bg-white/90 transition-all shadow-lg">
+            <button 
+              onClick={() => {
+                setEditFormData({
+                  firstName: ap?.firstName || '',
+                  middleName: ap?.middleName || '',
+                  lastName: ap?.lastName || '',
+                  department: ap?.department || '',
+                  college: ap?.college || '',
+                  position: ap?.position || '',
+                  officeLocation: ap?.officeLocation || '',
+                  responsibilities: ap?.responsibilities || '',
+                  address: {
+                    street: ap?.address?.street || '',
+                    barangay: ap?.address?.barangay || '',
+                    city: ap?.address?.city || '',
+                    zipCode: ap?.address?.zipCode || '',
+                    fullAddress: ap?.address?.fullAddress || ''
+                  }
+                });
+                setEditPermissions(ap?.permissions || []);
+                setIsEditModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-600 font-semibold rounded-xl hover:bg-white/90 transition-all shadow-lg"
+            >
               <Edit3 className="w-4 h-4" />Edit Profile
             </button>
           </div>
@@ -261,10 +295,14 @@ const AdminProfile: React.FC = () => {
                 </div>
                 <div className="p-6 grid md:grid-cols-2 gap-6">
                   {[
-                    { label: 'Full Name', value: `${ap?.firstName || ''} ${ap?.lastName || ''}`.trim() || 'N/A', icon: User },
+                    { label: 'First Name', value: ap?.firstName || 'N/A', icon: User },
+                    { label: 'Middle Name', value: ap?.middleName || 'N/A', icon: User },
+                    { label: 'Last Name', value: ap?.lastName || 'N/A', icon: User },
                     { label: 'Email Address', value: admin.email, icon: Mail },
                     { label: 'Department', value: ap?.department || 'N/A', icon: Building2 },
                     { label: 'College', value: ap?.college || 'University-wide', icon: Building2 },
+                    { label: 'Position', value: ap?.position || 'N/A', icon: Briefcase },
+                    { label: 'Office Location', value: ap?.officeLocation || 'N/A', icon: MapPin },
                     { label: 'Access Level', value: formatAccessLevel(ap?.accessLevel || ''), icon: Shield },
                     { label: 'Member Since', value: formatDate(admin.createdAt), icon: Calendar },
                   ].map((field, index) => (
@@ -278,6 +316,17 @@ const AdminProfile: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                  {ap?.responsibilities && (
+                    <div className="md:col-span-2 flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <div>
+                        <div className="text-sm text-slate-500 mb-0.5">Responsibilities</div>
+                        <div className="font-medium text-slate-900">{ap.responsibilities}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -395,6 +444,254 @@ const AdminProfile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setIsEditModalOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-primary-600 text-white rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <Edit3 className="w-5 h-5" />
+                <h3 className="font-bold text-lg text-white">Edit Profile</h3>
+              </div>
+              <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {saveError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {saveError}
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {/* Personal Information */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <User className="w-4 h-4 text-primary-600" />
+                    Personal Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
+                      <input
+                        type="text"
+                        value={editFormData.firstName}
+                        onChange={(e) => setEditFormData({...editFormData, firstName: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Middle Name</label>
+                      <input
+                        type="text"
+                        value={editFormData.middleName}
+                        onChange={(e) => setEditFormData({...editFormData, middleName: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
+                      <input
+                        type="text"
+                        value={editFormData.lastName}
+                        onChange={(e) => setEditFormData({...editFormData, lastName: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Work Information */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-primary-600" />
+                    Work Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Department *</label>
+                      <input
+                        type="text"
+                        value={editFormData.department}
+                        onChange={(e) => setEditFormData({...editFormData, department: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="e.g., Office of Student Affairs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">College</label>
+                      <select
+                        value={editFormData.college}
+                        onChange={(e) => setEditFormData({...editFormData, college: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        <option value="">University-wide</option>
+                        <option value="CAS">CAS - College of Arts and Sciences</option>
+                        <option value="CAFS">CAFS - College of Agriculture and Food Science</option>
+                        <option value="CEM">CEM - College of Economics and Management</option>
+                        <option value="CEAT">CEAT - College of Engineering and Agro-industrial Technology</option>
+                        <option value="CFNR">CFNR - College of Forestry and Natural Resources</option>
+                        <option value="CHE">CHE - College of Human Ecology</option>
+                        <option value="CVM">CVM - College of Veterinary Medicine</option>
+                        <option value="CDC">CDC - College of Development Communication</option>
+                        <option value="CPAf">CPAf - College of Public Affairs and Development</option>
+                        <option value="GS">GS - Graduate School</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Position *</label>
+                      <input
+                        type="text"
+                        value={editFormData.position}
+                        onChange={(e) => setEditFormData({...editFormData, position: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="e.g., Scholarship Coordinator"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Office Location</label>
+                      <input
+                        type="text"
+                        value={editFormData.officeLocation}
+                        onChange={(e) => setEditFormData({...editFormData, officeLocation: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="e.g., Room 201, Admin Building"
+                      />
+                      <p className="text-slate-400 text-xs mt-1">Optional: Where students can find you</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Responsibilities</label>
+                      <textarea
+                        rows={3}
+                        value={editFormData.responsibilities}
+                        onChange={(e) => setEditFormData({...editFormData, responsibilities: e.target.value})}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        placeholder="Describe your main responsibilities..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Permissions */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary-600" />
+                    Permissions & Access
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { value: 'manage_scholarships', label: 'Manage Scholarships', description: 'Create, edit, and delete scholarship programs' },
+                      { value: 'review_applications', label: 'Review Applications', description: 'View and review student applications' },
+                      { value: 'approve_applications', label: 'Approve Applications', description: 'Approve or reject applications' },
+                      { value: 'manage_users', label: 'Manage Users', description: 'Add, edit, and remove user accounts' },
+                      { value: 'view_analytics', label: 'View Analytics', description: 'Access platform analytics and reports' },
+                      { value: 'system_settings', label: 'System Settings', description: 'Configure platform settings' },
+                    ].map((permission) => (
+                      <div key={permission.value} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            id={permission.value}
+                            checked={editPermissions.includes(permission.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditPermissions([...editPermissions, permission.value]);
+                              } else {
+                                setEditPermissions(editPermissions.filter(p => p !== permission.value));
+                              }
+                            }}
+                            className="mt-0.5 w-5 h-5 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+                          />
+                          <div className="flex-1">
+                            <label htmlFor={permission.value} className="text-sm font-semibold text-slate-900 block mb-1 cursor-pointer">
+                              {permission.label}
+                            </label>
+                            <p className="text-xs text-slate-600">{permission.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-end gap-3 flex-shrink-0">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                disabled={saving}
+                className="px-4 py-2 bg-slate-600 text-white text-sm font-bold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    setSaving(true);
+                    setSaveError(null);
+                    
+                    // Prepare update data
+                    const updateData = {
+                      adminProfile: {
+                        firstName: editFormData.firstName,
+                        middleName: editFormData.middleName,
+                        lastName: editFormData.lastName,
+                        department: editFormData.department,
+                        college: editFormData.college || undefined,
+                        position: editFormData.position,
+                        officeLocation: editFormData.officeLocation,
+                        responsibilities: editFormData.responsibilities,
+                        address: editFormData.address,
+                        permissions: editPermissions
+                      }
+                    };
+
+                    console.log('Updating admin profile with:', updateData);
+                    const response = await userApi.updateProfile(updateData);
+                    
+                    if (response.success) {
+                      // Refresh profile data
+                      const profileResponse = await userApi.getProfile();
+                      if (profileResponse.success && profileResponse.data) {
+                        setAdmin(profileResponse.data as unknown as AdminProfileData);
+                      }
+                      
+                      setIsEditModalOpen(false);
+                    } else {
+                      setSaveError(response.message || 'Failed to update profile');
+                    }
+                  } catch (err: any) {
+                    console.error('Error updating profile:', err);
+                    setSaveError(err.response?.data?.message || err.message || 'Failed to update profile');
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 shadow-md"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
