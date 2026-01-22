@@ -457,12 +457,17 @@ export const applicationApi = {
     return response.data;
   },
 
-  create: async (data: { 
+  create: async (data: FormData | { 
     scholarshipId: string; 
     personalStatement?: string; 
     additionalInfo?: string;
     documents?: any[];
   }) => {
+    // Set correct content type for FormData
+    const config = data instanceof FormData ? {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    } : {};
+    
     const response = await api.post<ApiResponse<{
       application: Application;
       eligibility: {
@@ -470,7 +475,7 @@ export const applicationApi = {
         score: number;
         checks: Array<{ criterion: string; passed: boolean }>;
       };
-    }>>('/applications', data);
+    }>>('/applications', data, config);
     return response.data;
   },
 

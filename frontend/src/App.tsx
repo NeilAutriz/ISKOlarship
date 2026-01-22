@@ -500,7 +500,41 @@ const App: React.FC = () => {
       console.log('Admin registration response:', response);
       
       if (response.success && response.data?.user) {
-        // Build the admin profile update
+        // Upload employee ID document if provided
+        if (profileData.employeeIdDocument.file) {
+          console.log('📤 Uploading employee ID document...');
+          const formData = new FormData();
+          formData.append('documents', profileData.employeeIdDocument.file);
+          formData.append('documentTypes', 'employee_id');
+          formData.append('documentNames', 'UPLB Employee ID');
+          
+          try {
+            const uploadResponse = await fetch('http://localhost:5001/api/users/documents/upload', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${response.data.accessToken}`
+              },
+              body: formData
+            });
+            
+            const uploadResult = await uploadResponse.json();
+            console.log('📋 Employee ID upload result:', uploadResult);
+            
+            if (uploadResult.success) {
+              console.log('✅ Employee ID document uploaded and saved to adminProfile.employeeIdDocument');
+            } else {
+              console.error('❌ Employee ID upload failed:', uploadResult.message);
+              throw new Error(uploadResult.message || 'Failed to upload employee ID');
+            }
+          } catch (uploadError) {
+            console.error('❌ Failed to upload employee ID:', uploadError);
+            throw new Error('Failed to upload employee ID document. Please try again.');
+          }
+        } else {
+          throw new Error('Employee ID document is required');
+        }
+        
+        // Build the admin profile update (document already saved during upload)
         const profileUpdate = {
           firstName,
           lastName,

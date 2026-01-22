@@ -46,6 +46,15 @@ interface AdminProfileData {
     position?: string;
     officeLocation?: string;
     responsibilities?: string;
+    documents?: Array<{
+      name?: string;
+      documentType: string;
+      fileName: string;
+      filePath: string;
+      fileSize: number;
+      mimeType: string;
+      uploadedAt: string;
+    }>;
   };
   createdAt?: string;
   updatedAt?: string;
@@ -82,15 +91,8 @@ const permissions = [
   { name: 'System Settings', description: 'Configure platform settings', enabled: false },
 ];
 
-const recentActivity = [
-  { action: 'Approved application', target: 'Maria Santos - Sterix HOPE Scholarship', time: '2 hours ago' },
-  { action: 'Created scholarship', target: 'New Engineering Merit Award', time: '5 hours ago' },
-  { action: 'Rejected application', target: 'Pedro Cruz - DOST Merit Scholarship', time: '1 day ago' },
-  { action: 'Updated scholarship', target: 'SM Foundation Scholarship deadline', time: '2 days ago' },
-];
-
 const AdminProfile: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<'profile' | 'permissions' | 'security' | 'activity'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'permissions' | 'security' | 'documents'>('profile');
   const [admin, setAdmin] = useState<AdminProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +101,10 @@ const AdminProfile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<any>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Fetch admin profile on mount
   useEffect(() => {
@@ -125,6 +131,66 @@ const AdminProfile: React.FC = () => {
 
     fetchProfile();
   }, []);
+
+  // Load document preview with authentication
+  const loadDocumentPreview = async (document: any) => {
+    try {
+      setLoadingPreview(true);
+      
+      // Get token from localStorage
+      const token = localStorage.getItem('accessToken');
+      
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+
+      // Fetch document with auth header
+      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${document._id}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': '*/*'
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        let errorMessage = `Server returned ${response.status}`;
+        
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // Convert to blob and create object URL
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      setPreviewUrl(blobUrl);
+      setPreviewDoc(document);
+      setIsPreviewOpen(true);
+    } catch (error: any) {
+      console.error('Preview load error:', error);
+      alert(`Failed to load document preview: ${error.message}`);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  // Clean up preview URL when modal closes
+  useEffect(() => {
+    if (!isPreviewOpen && previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }, [isPreviewOpen]);
 
   // Loading state
   if (loading) {
@@ -264,7 +330,7 @@ const AdminProfile: React.FC = () => {
                   { id: 'profile', label: 'Profile Info', icon: User },
                   { id: 'permissions', label: 'Permissions', icon: Shield },
                   { id: 'security', label: 'Security', icon: Lock },
-                  { id: 'activity', label: 'Activity Log', icon: History },
+                  { id: 'documents', label: 'Documents', icon: FileText },
                 ].map((item) => (
                   <button
                     key={item.id}
@@ -414,30 +480,77 @@ const AdminProfile: React.FC = () => {
               </div>
             )}
 
-            {/* Activity Log */}
-            {activeSection === 'activity' && (
+            {/* Documents */}
+            {activeSection === 'documents' && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                    <History className="w-5 h-5 text-purple-600" />
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-blue-600" />
                   </div>
-                  <h2 className="font-semibold text-slate-900">Recent Activity</h2>
+                  <div>
+                    <h2 className="font-semibold text-slate-900">Uploaded Documents</h2>
+                    <p className="text-sm text-slate-500">Your verification documents</p>
+                  </div>
                 </div>
                 <div className="p-6">
-                  <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
-                      <div key={index} className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl">
-                        <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-5 h-5 text-slate-500" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-medium text-slate-900">{activity.action}</div>
-                          <div className="text-sm text-slate-600">{activity.target}</div>
-                          <div className="text-xs text-slate-400 mt-1">{activity.time}</div>
-                        </div>
+                  {!ap?.documents || ap.documents.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <FileText className="w-8 h-8 text-slate-400" />
                       </div>
-                    ))}
-                  </div>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">No Documents Uploaded</h3>
+                      <p className="text-slate-500 mb-4">You haven't uploaded any verification documents yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {ap.documents.map((doc: any, index: number) => {
+                        const fileSize = (doc.fileSize / 1024).toFixed(2);
+                        const uploadDate = new Date(doc.uploadedAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        });
+                        
+                        return (
+                          <div key={doc._id || index} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50/50 transition-all group">
+                            <div className="flex items-center gap-4 flex-1">
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                                <FileText className="w-6 h-6 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-slate-900 mb-0.5 truncate">
+                                  {doc.name || doc.documentType.replace('_', ' ').toUpperCase()}
+                                </div>
+                                <div className="text-sm text-slate-600 truncate mb-1">{doc.fileName}</div>
+                                <div className="flex items-center gap-3 text-xs text-slate-500">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {uploadDate}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{fileSize} KB</span>
+                                  <span>•</span>
+                                  <span className="uppercase">{doc.mimeType.split('/')[1]}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => loadDocumentPreview(doc)}
+                              disabled={loadingPreview}
+                              className="ml-4 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                            >
+                              {loadingPreview ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <FileText className="w-4 h-4" />
+                              )}
+                              View
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -515,13 +628,33 @@ const AdminProfile: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Department *</label>
-                      <input
-                        type="text"
+                      <select
                         value={editFormData.department}
                         onChange={(e) => setEditFormData({...editFormData, department: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                        placeholder="e.g., Office of Student Affairs"
-                      />
+                      >
+                        <option value="">Select Department</option>
+                        <option value="Office of the Vice Chancellor for Academic Affairs (OVCAA)">Office of the Vice Chancellor for Academic Affairs (OVCAA)</option>
+                        <option value="Office of the Vice Chancellor for Research and Extension (OVCRE)">Office of the Vice Chancellor for Research and Extension (OVCRE)</option>
+                        <option value="Office of the Vice Chancellor for Community Affairs (OVCCA)">Office of the Vice Chancellor for Community Affairs (OVCCA)</option>
+                        <option value="Office of the Vice Chancellor for Planning and Development (OVCPD)">Office of the Vice Chancellor for Planning and Development (OVCPD)</option>
+                        <option value="Office of the Vice Chancellor for Administration (OVCA)">Office of the Vice Chancellor for Administration (OVCA)</option>
+                        <option value="Office of Student Affairs">Office of Student Affairs</option>
+                        <option value="Office of Scholarships and Financial Assistance">Office of Scholarships and Financial Assistance</option>
+                        <option value="University Registrar">University Registrar</option>
+                        <option value="Office of the University Library">Office of the University Library</option>
+                        <option value="Human Resource Development Office">Human Resource Development Office</option>
+                        <option value="College of Agriculture and Food Science">College of Agriculture and Food Science</option>
+                        <option value="College of Arts and Sciences">College of Arts and Sciences</option>
+                        <option value="College of Development Communication">College of Development Communication</option>
+                        <option value="College of Economics and Management">College of Economics and Management</option>
+                        <option value="College of Engineering and Agro-Industrial Technology">College of Engineering and Agro-Industrial Technology</option>
+                        <option value="College of Forestry and Natural Resources">College of Forestry and Natural Resources</option>
+                        <option value="College of Human Ecology">College of Human Ecology</option>
+                        <option value="College of Public Affairs and Development">College of Public Affairs and Development</option>
+                        <option value="College of Veterinary Medicine">College of Veterinary Medicine</option>
+                        <option value="Graduate School">Graduate School</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">College</label>
@@ -545,13 +678,30 @@ const AdminProfile: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Position *</label>
-                      <input
-                        type="text"
+                      <select
                         value={editFormData.position}
                         onChange={(e) => setEditFormData({...editFormData, position: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                        placeholder="e.g., Scholarship Coordinator"
-                      />
+                      >
+                        <option value="">Select Position</option>
+                        <option value="Chancellor">Chancellor</option>
+                        <option value="Vice Chancellor">Vice Chancellor</option>
+                        <option value="Dean">Dean</option>
+                        <option value="Associate Dean">Associate Dean</option>
+                        <option value="Assistant Dean">Assistant Dean</option>
+                        <option value="Director">Director</option>
+                        <option value="Assistant Director">Assistant Director</option>
+                        <option value="Chief">Chief</option>
+                        <option value="Head">Head</option>
+                        <option value="Coordinator">Coordinator</option>
+                        <option value="Scholarship Coordinator">Scholarship Coordinator</option>
+                        <option value="Financial Aid Officer">Financial Aid Officer</option>
+                        <option value="Student Affairs Officer">Student Affairs Officer</option>
+                        <option value="Academic Advisor">Academic Advisor</option>
+                        <option value="Program Manager">Program Manager</option>
+                        <option value="Administrative Officer">Administrative Officer</option>
+                        <option value="Staff">Staff</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Office Location</label>
@@ -688,6 +838,78 @@ const AdminProfile: React.FC = () => {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {isPreviewOpen && previewUrl && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">
+                  {previewDoc?.name || previewDoc?.documentType.replace('_', ' ').toUpperCase()}
+                </h3>
+                <p className="text-sm text-slate-600 mt-1">{previewDoc?.fileName}</p>
+              </div>
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-slate-600" />
+              </button>
+            </div>
+
+            {/* Preview Content */}
+            <div className="flex-1 overflow-auto p-6 bg-slate-50">
+              {previewDoc?.mimeType?.startsWith('image/') ? (
+                <img 
+                  src={previewUrl} 
+                  alt={previewDoc.fileName}
+                  className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
+                />
+              ) : previewDoc?.mimeType === 'application/pdf' ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-full min-h-[600px] rounded-lg shadow-lg"
+                  title={previewDoc.fileName}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">Preview not available for this file type</p>
+                    <a
+                      href={previewUrl}
+                      download={previewDoc?.fileName}
+                      className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                    >
+                      Download File
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3 flex-shrink-0">
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="px-4 py-2 bg-slate-600 text-white text-sm font-bold rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+              <a
+                href={previewUrl}
+                download={previewDoc?.fileName}
+                className="px-4 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors inline-flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                Download
+              </a>
             </div>
           </div>
         </div>

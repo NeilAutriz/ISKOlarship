@@ -87,6 +87,9 @@ const uploadSingle = upload.single('document');
 // Multiple files upload (for profile documents)
 const uploadMultiple = upload.array('documents', 10);
 
+// Application documents upload (same as profile documents)
+const uploadApplicationDocuments = upload.array('documents', 10);
+
 // Fields-based upload (different types)
 const uploadFields = upload.fields([
   { name: 'studentId', maxCount: 1 },
@@ -202,6 +205,7 @@ const getFileInfo = (filePath) => {
 module.exports = {
   uploadSingle,
   uploadMultiple,
+  uploadApplicationDocuments,
   uploadFields,
   handleUploadError,
   deleteFile,

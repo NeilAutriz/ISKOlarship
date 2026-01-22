@@ -16,7 +16,8 @@ import {
   CheckCircle,
   Loader2,
   Info,
-  Award
+  Award,
+  Eye
 } from 'lucide-react';
 import { Scholarship, StudentProfile } from '../../types';
 import { scholarshipApi, applicationApi } from '../../services/apiClient';
@@ -33,7 +34,7 @@ interface DocumentUpload {
   required: boolean;
   uploaded: boolean;
   error?: string;
-  base64?: string; // Store base64 encoded file data
+  previewUrl?: string; // Preview URL for local files
 }
 
 interface ApplicationFormData {
@@ -69,6 +70,9 @@ const ApplyScholarship: React.FC = () => {
     message: string;
     type: 'success' | 'error' | 'info';
   }>({ show: false, message: '', type: 'info' });
+  
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ name: string; type: string; previewUrl: string } | null>(null);
 
   // Fetch scholarship and student profile
   useEffect(() => {
@@ -202,17 +206,7 @@ const ApplyScholarship: React.FC = () => {
     return results[0] || null;
   }, [scholarship, studentProfile]);
 
-  // Convert file to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
-  };
-
-  // Handle file upload
+  // Handle file upload (no base64 conversion - use FormData instead)
   const handleFileChange = async (index: number, file: File | null) => {
     if (!file) return;
 
@@ -222,6 +216,7 @@ const ApplyScholarship: React.FC = () => {
       const updatedDocs = [...formData.documents];
       updatedDocs[index].error = 'File size must be less than 5MB';
       setFormData(prev => ({ ...prev, documents: updatedDocs }));
+      showToast('File size must be less than 5MB', 'error');
       return;
     }
 
@@ -231,19 +226,22 @@ const ApplyScholarship: React.FC = () => {
       const updatedDocs = [...formData.documents];
       updatedDocs[index].error = 'Only PDF, JPG, and PNG files are allowed';
       setFormData(prev => ({ ...prev, documents: updatedDocs }));
+      showToast('Only PDF, JPG, and PNG files are allowed', 'error');
       return;
     }
 
     try {
-      // Convert file to base64 for storage
-      const base64 = await fileToBase64(file);
+      // Create preview URL (no base64 conversion needed!)
+      const previewUrl = URL.createObjectURL(file);
       
       const updatedDocs = [...formData.documents];
       updatedDocs[index].file = file;
       updatedDocs[index].uploaded = true;
       updatedDocs[index].error = undefined;
-      updatedDocs[index].base64 = base64; // Store base64 data
+      updatedDocs[index].previewUrl = previewUrl;
       setFormData(prev => ({ ...prev, documents: updatedDocs }));
+      
+      showToast(`${file.name} ready to upload`, 'success');
     } catch (error) {
       const updatedDocs = [...formData.documents];
       updatedDocs[index].error = 'Failed to process file';
@@ -254,10 +252,18 @@ const ApplyScholarship: React.FC = () => {
   // Remove uploaded file
   const handleRemoveFile = (index: number) => {
     const updatedDocs = [...formData.documents];
+    
+    // Revoke preview URL to free memory
+    if (updatedDocs[index].previewUrl) {
+      URL.revokeObjectURL(updatedDocs[index].previewUrl!);
+    }
+    
     updatedDocs[index].file = null;
     updatedDocs[index].uploaded = false;
     updatedDocs[index].error = undefined;
+    updatedDocs[index].previewUrl = undefined;
     setFormData(prev => ({ ...prev, documents: updatedDocs }));
+    showToast('File removed', 'info');
   };
 
   // Validate form
@@ -298,35 +304,30 @@ const ApplyScholarship: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // In a real implementation, you would upload files to a storage service
-      // and get URLs back, then submit the application with those URLs
-      
       if (!id) {
         throw new Error('Scholarship ID is missing');
       }
       
-      const applicationData = {
-        scholarshipId: id,
-        personalStatement: formData.personalStatement,
-        additionalInfo: formData.additionalInfo,
-        documents: formData.documents
-          .filter(doc => doc.uploaded)
-          .map(doc => ({
-            name: doc.name,
-            documentType: doc.type,
-            fileName: doc.file?.name,
-            fileSize: doc.file?.size,
-            mimeType: doc.file?.type,
-            url: (doc as any).base64 || '' // Store base64 data as URL
-          }))
-      };
+      // Create FormData for multipart/form-data upload (efficient!)
+      const formDataToSend = new FormData();
+      formDataToSend.append('scholarshipId', id);
+      formDataToSend.append('personalStatement', formData.personalStatement);
+      formDataToSend.append('additionalInfo', formData.additionalInfo);
+      
+      // Append files and their metadata
+      formData.documents
+        .filter(doc => doc.uploaded && doc.file)
+        .forEach(doc => {
+          formDataToSend.append('documents', doc.file!); // Append actual file
+          formDataToSend.append('documentNames', doc.name);
+          formDataToSend.append('documentTypes', doc.type);
+        });
 
-      console.log('📝 Sending application data:', applicationData);
-      console.log('📄 Documents being sent:', applicationData.documents);
-      console.log('📊 Document count:', applicationData.documents.length);
+      console.log('📝 Submitting application with FormData');
+      console.log('📄 Document count:', formData.documents.filter(doc => doc.uploaded).length);
 
       // Create the application
-      const response = await applicationApi.create(applicationData);
+      const response = await applicationApi.create(formDataToSend);
 
       if (response.success) {
         // If application was created successfully, submit it
@@ -644,23 +645,80 @@ const ApplyScholarship: React.FC = () => {
                             </div>
                           </label>
                         ) : (
-                          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <File className="w-6 h-6 text-green-600" />
-                              <div>
-                                <p className="text-sm font-medium text-slate-900">{doc.file?.name}</p>
-                                <p className="text-xs text-slate-600">
-                                  {doc.file && (doc.file.size / 1024 / 1024).toFixed(2)} MB
-                                </p>
+                          <div className="space-y-3">
+                            {/* File Preview Box (Clickable) */}
+                            {doc.file && doc.previewUrl && (
+                              <div 
+                                className="border border-green-200 rounded-xl overflow-hidden cursor-pointer hover:border-green-400 transition-colors relative group"
+                                onClick={() => {
+                                  setPreviewDoc({
+                                    name: doc.name,
+                                    type: doc.file?.type || 'application/pdf',
+                                    previewUrl: doc.previewUrl || ''
+                                  });
+                                  setPreviewModalOpen(true);
+                                }}
+                              >
+                                {doc.file.type === 'application/pdf' ? (
+                                  <div className="bg-slate-50 p-4 flex items-center justify-center">
+                                    <div className="text-center">
+                                      <FileText className="w-12 h-12 text-slate-400 mx-auto mb-2" />
+                                      <p className="text-sm text-slate-600">PDF Preview</p>
+                                      <p className="text-xs text-slate-500">{doc.file.name}</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <img 
+                                    src={doc.previewUrl} 
+                                    alt={doc.name}
+                                    className="w-full h-48 object-cover"
+                                  />
+                                )}
+                                {/* Hover overlay */}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <div className="bg-white rounded-full p-3">
+                                    <Eye className="w-6 h-6 text-slate-700" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* File Info Card */}
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <File className="w-6 h-6 text-green-600" />
+                                <div>
+                                  <p className="text-sm font-medium text-slate-900">{doc.file?.name}</p>
+                                  <p className="text-xs text-slate-600">
+                                    {doc.file && (doc.file.size / 1024 / 1024).toFixed(2)} MB
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPreviewDoc({
+                                      name: doc.name,
+                                      type: doc.file?.type || 'application/pdf',
+                                      previewUrl: doc.previewUrl || ''
+                                    });
+                                    setPreviewModalOpen(true);
+                                  }}
+                                  className="text-primary-600 hover:text-primary-700 p-2 rounded-lg hover:bg-primary-50 transition-colors"
+                                  title="Preview document"
+                                >
+                                  <Eye className="w-5 h-5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveFile(index)}
+                                  className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                >
+                                  <X className="w-5 h-5" />
+                                </button>
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveFile(index)}
-                              className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                              <X className="w-5 h-5" />
-                            </button>
                           </div>
                         )}
 
@@ -878,6 +936,73 @@ const ApplyScholarship: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* Preview Modal */}
+      {previewModalOpen && previewDoc && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            setPreviewModalOpen(false);
+            setPreviewDoc(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-primary-600 text-white rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5" />
+                <div>
+                  <h3 className="font-bold text-lg">{previewDoc.name}</h3>
+                  <p className="text-sm text-primary-100">Document Preview</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setPreviewModalOpen(false);
+                  setPreviewDoc(null);
+                }} 
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-6">
+              {previewDoc.type === 'application/pdf' ? (
+                <embed
+                  src={previewDoc.previewUrl}
+                  type="application/pdf"
+                  className="w-full h-[600px] border-0 rounded-lg"
+                  title={previewDoc.name}
+                />
+              ) : (
+                <img
+                  src={previewDoc.previewUrl}
+                  alt={previewDoc.name}
+                  className="w-full h-auto rounded-lg"
+                />
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => {
+                  setPreviewModalOpen(false);
+                  setPreviewDoc(null);
+                }}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

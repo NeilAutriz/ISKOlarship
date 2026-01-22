@@ -17,9 +17,22 @@ import {
   Briefcase,
   Shield,
   Users,
-  X
+  X,
+  Upload,
+  FileText,
+  CheckCircle,
+  Eye,
+  File,
+  Loader2
 } from 'lucide-react';
 import { UPLBCollege, AdminAccessLevel } from '../types';
+
+interface EmployeeIdDocument {
+  file: File | null;
+  uploaded: boolean;
+  error?: string;
+  previewUrl?: string;
+}
 
 export interface AdminProfileData {
   // Step 1: Personal Information
@@ -29,6 +42,7 @@ export interface AdminProfileData {
   email: string;
   contactNumber: string;
   officeLocation: string;
+  employeeIdDocument: EmployeeIdDocument;
   
   // Step 2: Administrative Details
   department: string;
@@ -53,7 +67,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   onCancel
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
 
@@ -64,6 +78,10 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
     email: email,
     contactNumber: '',
     officeLocation: '',
+    employeeIdDocument: {
+      file: null,
+      uploaded: false
+    },
     department: '',
     college: '',
     position: '',
@@ -73,6 +91,8 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const updateField = (field: keyof AdminProfileData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -99,6 +119,9 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
         break;
       case 3:
         if (!formData.responsibilities.trim()) newErrors.responsibilities = 'Please describe your responsibilities';
+        break;
+      case 4:
+        if (!formData.employeeIdDocument.uploaded) newErrors.employeeIdDocument = 'Employee ID document is required';
         break;
     }
 
@@ -132,6 +155,82 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  // Handle employee ID document upload
+  const handleEmployeeIdUpload = async (file: File | null) => {
+    if (!file) return;
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setFormData(prev => ({
+        ...prev,
+        employeeIdDocument: {
+          ...prev.employeeIdDocument,
+          error: 'File size must be less than 5MB'
+        }
+      }));
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      setFormData(prev => ({
+        ...prev,
+        employeeIdDocument: {
+          ...prev.employeeIdDocument,
+          error: 'Only PDF, JPG, and PNG files are allowed'
+        }
+      }));
+      return;
+    }
+
+    try {
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      
+      setFormData(prev => ({
+        ...prev,
+        employeeIdDocument: {
+          file,
+          uploaded: true,
+          previewUrl,
+          error: undefined
+        }
+      }));
+      
+      // Clear error if exists
+      if (errors.employeeIdDocument) {
+        setErrors(prev => ({ ...prev, employeeIdDocument: '' }));
+      }
+    } catch (error) {
+      setFormData(prev => ({
+        ...prev,
+        employeeIdDocument: {
+          ...prev.employeeIdDocument,
+          error: 'Failed to process file'
+        }
+      }));
+    }
+  };
+
+  // Remove employee ID document
+  const handleRemoveEmployeeId = () => {
+    if (formData.employeeIdDocument.previewUrl) {
+      URL.revokeObjectURL(formData.employeeIdDocument.previewUrl);
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      employeeIdDocument: {
+        file: null,
+        uploaded: false,
+        error: undefined,
+        previewUrl: undefined
+      }
+    }));
   };
 
   // College options
@@ -196,7 +295,8 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   const stepInfo = [
     { icon: User, label: 'Personal' },
     { icon: Building2, label: 'Administrative' },
-    { icon: Shield, label: 'Permissions' }
+    { icon: Shield, label: 'Permissions' },
+    { icon: FileText, label: 'Upload' }
   ];
 
   const renderProgressBar = () => (
@@ -627,6 +727,178 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
     </div>
   );
 
+  const renderStep4 = () => (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+          <FileText className="w-5 h-5 text-purple-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">Document Verification</h3>
+          <p className="text-slate-500 text-sm">Upload your UPLB Employee ID for verification</p>
+        </div>
+      </div>
+
+      {/* Important Verification Notice */}
+      <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded-lg">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-5 h-5 text-blue-600 mt-0.5">
+            <Shield className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-blue-900 mb-1">Document Verification Required</h4>
+            <p className="text-sm text-blue-800">
+              Your employee ID will be verified by the system administrator to confirm your identity and authorization to manage scholarships. 
+              This process typically takes 1-2 business days. You will receive an email notification once your account is approved.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Employee ID Document Upload */}
+      <div>
+        <label className="block text-sm font-semibold text-slate-700 mb-2">
+          UPLB Employee ID <span className="text-red-500">*</span>
+        </label>
+        <p className="text-sm text-slate-600 mb-4">Upload a clear photo or scan of your official UPLB Employee ID card (front side)</p>
+        
+        {!formData.employeeIdDocument.uploaded ? (
+          <label className="block">
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => handleEmployeeIdUpload(e.target.files?.[0] || null)}
+              className="hidden"
+            />
+            <div className={`border-2 border-dashed rounded-xl p-8 text-center hover:border-primary-400 hover:bg-primary-50 transition-colors cursor-pointer ${
+              errors.employeeIdDocument ? 'border-red-300 bg-red-50' : 'border-slate-300'
+            }`}>
+              <Upload className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+              <p className="text-base text-slate-700 font-semibold mb-1">Click to upload Employee ID</p>
+              <p className="text-sm text-slate-500">PDF, JPG, PNG (max 5MB)</p>
+            </div>
+          </label>
+        ) : (
+          <div className="space-y-3">
+            {formData.employeeIdDocument.file && formData.employeeIdDocument.previewUrl && (
+              <div 
+                className="border-2 border-green-300 rounded-xl overflow-hidden cursor-pointer hover:border-green-500 transition-colors relative group"
+                onClick={() => setPreviewModalOpen(true)}
+              >
+                {formData.employeeIdDocument.file.type === 'application/pdf' ? (
+                  <div className="bg-slate-50 p-8 flex items-center justify-center">
+                    <div className="text-center">
+                      <FileText className="w-16 h-16 text-slate-400 mx-auto mb-3" />
+                      <p className="text-base text-slate-700 font-medium">PDF Document</p>
+                      <p className="text-sm text-slate-500 mt-1">{formData.employeeIdDocument.file.name}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <img 
+                    src={formData.employeeIdDocument.previewUrl} 
+                    alt="Employee ID"
+                    className="w-full h-64 object-contain bg-slate-50"
+                  />
+                )}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="bg-white rounded-full p-4">
+                    <Eye className="w-8 h-8 text-slate-700" />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-7 h-7 text-green-600" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{formData.employeeIdDocument.file?.name}</p>
+                  <p className="text-xs text-slate-600">
+                    {formData.employeeIdDocument.file && (formData.employeeIdDocument.file.size / 1024 / 1024).toFixed(2)} MB • Ready for verification
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewModalOpen(true);
+                  }}
+                  className="text-primary-600 hover:text-primary-700 p-2 rounded-lg hover:bg-primary-50 transition-colors"
+                  title="Preview document"
+                >
+                  <Eye className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveEmployeeId();
+                  }}
+                  className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                  title="Remove document"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {errors.employeeIdDocument && (
+          <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+            ⚠ {errors.employeeIdDocument}
+          </p>
+        )}
+        {formData.employeeIdDocument.error && (
+          <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+            ⚠ {formData.employeeIdDocument.error}
+          </p>
+        )}
+      </div>
+
+      {/* Guidelines */}
+      <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <h4 className="text-sm font-semibold text-slate-900 mb-2">Upload Guidelines:</h4>
+        <ul className="text-sm text-slate-600 space-y-1.5">
+          <li className="flex items-start gap-2">
+            <span className="text-primary-600 mt-0.5">•</span>
+            <span>Ensure the photo is clear and all text is readable</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-600 mt-0.5">•</span>
+            <span>ID card should be fully visible within the frame</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-600 mt-0.5">•</span>
+            <span>Accepted formats: PDF, JPG, PNG (maximum 5MB)</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-600 mt-0.5">•</span>
+            <span>Your information will be kept confidential and secure</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* Final Verification Notice */}
+      <div className="mt-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-lg">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-5 h-5 text-amber-600 mt-0.5">
+            <Shield className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-amber-900 mb-1">What happens next?</h4>
+            <p className="text-sm text-amber-800">
+              After submission, a system administrator will review your employee ID and verify your credentials. 
+              Once approved, you'll gain access to the scholarship management dashboard and all assigned permissions.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="max-w-xl mx-auto px-4 py-12">
@@ -643,6 +915,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
+        {currentStep === 4 && renderStep4()}
 
         {/* Navigation Buttons */}
         <div className="flex gap-4 mt-6">
@@ -691,6 +964,60 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Employee ID Preview Modal */}
+      {previewModalOpen && formData.employeeIdDocument.previewUrl && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setPreviewModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 bg-primary-600 text-white rounded-t-2xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Briefcase className="w-5 h-5" />
+                <div>
+                  <h3 className="font-bold text-lg">Employee ID Document</h3>
+                  <p className="text-sm text-primary-100">Preview</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setPreviewModalOpen(false)} 
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6">
+              {formData.employeeIdDocument.file?.type === 'application/pdf' ? (
+                <embed
+                  src={formData.employeeIdDocument.previewUrl}
+                  type="application/pdf"
+                  className="w-full h-[600px] border-0 rounded-lg"
+                />
+              ) : (
+                <img
+                  src={formData.employeeIdDocument.previewUrl}
+                  alt="Employee ID"
+                  className="w-full h-auto rounded-lg"
+                />
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setPreviewModalOpen(false)}
+                className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

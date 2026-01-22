@@ -413,10 +413,58 @@ const userSchema = new mongoose.Schema({
         'view_analytics',
         'system_settings'
       ]
+    }],
+    
+    // Admin Documents (for verification)
+    documents: [{
+      name: String,
+      documentType: {
+        type: String,
+        enum: [
+          'employee_id',
+          'authorization_letter',
+          'proof_of_employment',
+          'other'
+        ]
+      },
+      filePath: String,
+      fileName: String,
+      fileSize: Number,
+      mimeType: String,
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
     }]
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: {
+    transform: function(doc, ret) {
+      // Remove studentProfile from admins in JSON output
+      if (ret.role === 'admin' && ret.studentProfile) {
+        delete ret.studentProfile;
+      }
+      // Remove adminProfile from students in JSON output
+      if (ret.role === 'student' && ret.adminProfile) {
+        delete ret.adminProfile;
+      }
+      return ret;
+    }
+  },
+  toObject: {
+    transform: function(doc, ret) {
+      // Remove studentProfile from admins in object output
+      if (ret.role === 'admin' && ret.studentProfile) {
+        delete ret.studentProfile;
+      }
+      // Remove adminProfile from students in object output
+      if (ret.role === 'student' && ret.adminProfile) {
+        delete ret.adminProfile;
+      }
+      return ret;
+    }
+  }
 });
 
 // =============================================================================
@@ -444,6 +492,42 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
+// Ensure only appropriate profile exists for each role
+userSchema.pre('save', function(next) {
+  // Remove studentProfile from admin users - use $unset to actually remove from DB
+  if (this.role === UserRole.ADMIN) {
+    // Always remove studentProfile for admins, even if it's just default values
+    this.studentProfile = undefined;
+    // Mark the path as undefined to prevent Mongoose from saving it
+    this.markModified('studentProfile');
+  }
+  // Remove adminProfile from student users
+  if (this.role === UserRole.STUDENT) {
+    // Always remove adminProfile for students
+    this.adminProfile = undefined;
+    this.markModified('adminProfile');
+  }
+  next();
+});
+
+// Post-save hook to clean up the database
+userSchema.post('save', async function(doc) {
+  // After saving, if admin still has studentProfile in DB, remove it
+  if (doc.role === UserRole.ADMIN) {
+    await doc.constructor.updateOne(
+      { _id: doc._id },
+      { $unset: { studentProfile: "" } }
+    );
+  }
+  // After saving, if student still has adminProfile in DB, remove it
+  if (doc.role === UserRole.STUDENT) {
+    await doc.constructor.updateOne(
+      { _id: doc._id },
+      { $unset: { adminProfile: "" } }
+    );
+  }
+});
+
 // Update profile completion status
 userSchema.pre('save', function(next) {
   if (this.role === UserRole.STUDENT && this.studentProfile) {
@@ -466,6 +550,18 @@ userSchema.pre('save', function(next) {
     }
   }
   next();
+});
+
+// Clean up inappropriate profiles after loading from database
+userSchema.post('init', function() {
+  // Remove studentProfile from admin users when loading from DB
+  if (this.role === UserRole.ADMIN && this.studentProfile) {
+    this.studentProfile = undefined;
+  }
+  // Remove adminProfile from student users when loading from DB
+  if (this.role === UserRole.STUDENT && this.adminProfile) {
+    this.adminProfile = undefined;
+  }
 });
 
 // =============================================================================

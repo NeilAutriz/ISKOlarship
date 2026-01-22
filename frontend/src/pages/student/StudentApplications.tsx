@@ -695,8 +695,9 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
                             });
                           }}
                           className="p-1.5 hover:bg-purple-100 rounded transition-colors flex-shrink-0"
+                          title="Preview document"
                         >
-                          <FileText className="w-4 h-4 text-purple-600" />
+                          <Eye className="w-4 h-4 text-purple-600" />
                         </button>
                       )}
                     </div>

@@ -349,6 +349,47 @@ router.put('/profile',
           console.log('Updated admin permissions:', req.user.adminProfile.permissions);
         }
         
+        // Handle documents array (for admin verification documents)
+        console.log('🔍 Checking for documents in adminData...');
+        console.log('adminData.documents:', adminData.documents);
+        console.log('Is array?', Array.isArray(adminData.documents));
+        console.log('Length:', adminData.documents?.length);
+        
+        if (adminData.documents !== undefined) {
+          if (Array.isArray(adminData.documents) && adminData.documents.length > 0) {
+            req.user.adminProfile.documents = adminData.documents.map(doc => {
+              console.log('Processing admin document:', {
+                name: doc.name,
+                type: doc.type,
+                hasBase64: !!doc.base64,
+                base64Length: doc.base64?.length || 0,
+                fileName: doc.fileName
+              });
+              return {
+                name: doc.name || '',
+                documentType: doc.type || 'other',
+                filePath: doc.filePath || '',
+                fileName: doc.fileName || '',
+                fileSize: doc.fileSize || 0,
+                mimeType: doc.mimeType || '',
+                uploadedAt: new Date()
+              };
+            });
+            console.log('✅ Updated admin documents:', req.user.adminProfile.documents.length, 'document(s)');
+            
+            // CRITICAL: Mark the documents array as modified for Mongoose
+            req.user.markModified('adminProfile.documents');
+            console.log('🔄 Marked adminProfile.documents as modified');
+          } else {
+            console.log('⚠️ Admin documents array is empty or not an array');
+            // Initialize empty array if not provided
+            req.user.adminProfile.documents = [];
+            req.user.markModified('adminProfile.documents');
+          }
+        } else {
+          console.log('⚠️ No documents field in adminData');
+        }
+        
         // Mark profile as completed if we have essential fields
         if (adminData.department && adminData.position) {
           req.user.adminProfile.profileCompleted = true;
@@ -676,11 +717,10 @@ router.get('/stats/overview',
 /**
  * @route   POST /api/users/documents/upload
  * @desc    Upload profile documents (optimized approach - files stored on disk)
- * @access  Private (Student only)
+ * @access  Private (Student and Admin)
  */
 router.post('/documents/upload',
   authMiddleware,
-  requireRole(UserRole.STUDENT),
   (req, res, next) => {
     uploadMultiple(req, res, (err) => {
       if (err) {
@@ -691,7 +731,7 @@ router.post('/documents/upload',
   },
   async (req, res, next) => {
     try {
-      console.log('📤 Document upload request from user:', req.user.email);
+      console.log('📤 Document upload request from user:', req.user.email, 'Role:', req.user.role);
       
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({
@@ -729,38 +769,105 @@ router.post('/documents/upload',
         };
       });
 
-      // Update user's document list (append new documents)
-      if (!req.user.studentProfile) {
-        req.user.studentProfile = {};
-      }
-      
-      if (!req.user.studentProfile.documents) {
-        req.user.studentProfile.documents = [];
-      }
+      // Handle based on user role
+      if (req.user.role === UserRole.STUDENT) {
+        // Update student's document list
+        if (!req.user.studentProfile) {
+          req.user.studentProfile = {};
+        }
+        
+        if (!req.user.studentProfile.documents) {
+          req.user.studentProfile.documents = [];
+        }
 
-      // Add new documents to existing array
-      req.user.studentProfile.documents.push(...uploadedDocuments);
-      
-      // Mark as modified and save
-      req.user.markModified('studentProfile.documents');
-      await req.user.save();
+        // Add new documents to existing array
+        req.user.studentProfile.documents.push(...uploadedDocuments);
+        
+        // Mark as modified and save
+        req.user.markModified('studentProfile.documents');
+        await req.user.save();
 
-      console.log(`✅ Successfully uploaded and saved ${uploadedDocuments.length} document(s)`);
+        console.log(`✅ Successfully uploaded and saved ${uploadedDocuments.length} document(s) to studentProfile`);
+      } else if (req.user.role === UserRole.ADMIN) {
+        // Handle admin employee ID document
+        console.log('🔧 Processing admin document upload...');
+        console.log('   Current adminProfile:', req.user.adminProfile);
+        
+        if (!req.user.adminProfile) {
+          console.log('   Creating new adminProfile object');
+          req.user.adminProfile = {};
+        }
+
+        // For admin, we expect only employee_id document
+        const employeeIdDoc = uploadedDocuments.find(doc => doc.documentType === 'employee_id');
+        console.log('   Looking for employee_id document type...');
+        console.log('   Found:', employeeIdDoc ? 'YES' : 'NO');
+        
+        if (employeeIdDoc) {
+          // Initialize documents array if needed
+          if (!req.user.adminProfile.documents) {
+            req.user.adminProfile.documents = [];
+          }
+          
+          const docData = {
+            name: 'Employee ID',
+            documentType: 'employee_id',
+            fileName: employeeIdDoc.fileName,
+            filePath: employeeIdDoc.filePath,
+            fileSize: employeeIdDoc.fileSize,
+            mimeType: employeeIdDoc.mimeType,
+            uploadedAt: employeeIdDoc.uploadedAt
+          };
+          
+          console.log('   Adding document to adminProfile.documents:', JSON.stringify(docData, null, 2));
+          req.user.adminProfile.documents.push(docData);
+          
+          // Mark as modified and save
+          req.user.markModified('adminProfile.documents');
+          console.log('   Marked adminProfile.documents as modified');
+          
+          const savedUser = await req.user.save();
+          console.log('   User saved successfully');
+          
+          // Verify it was saved
+          console.log('   🔎 VERIFYING SAVE...');
+          const freshUser = await User.findById(req.user._id);
+          if (freshUser.adminProfile?.documents?.length > 0) {
+            console.log('   ✅ SUCCESS! Document found in database after save');
+            console.log('   📄 Documents count:', freshUser.adminProfile.documents.length);
+            console.log('   📄 Latest document:', JSON.stringify(freshUser.adminProfile.documents[freshUser.adminProfile.documents.length - 1], null, 2));
+          } else {
+            console.log('   ❌ FAILURE! Document NOT in database after save');
+            console.log('   This means Mongoose did NOT persist the document');
+          }
+
+          console.log(`✅ Successfully uploaded and saved employee ID document to adminProfile.documents`);
+        } else {
+          console.log('   ❌ No employee_id document type found in uploads');
+          console.log('   Uploaded document types:', uploadedDocuments.map(d => d.documentType));
+          return res.status(400).json({
+            success: false,
+            message: 'Employee ID document type required for admin uploads',
+            error: 'INVALID_DOCUMENT_TYPE'
+          });
+        }
+      }
 
       res.json({
         success: true,
         message: `Successfully uploaded ${uploadedDocuments.length} document(s)`,
         data: {
           documents: uploadedDocuments.map(doc => ({
-            _id: doc._id, // MongoDB will add this
             name: doc.name,
             documentType: doc.documentType,
             fileName: doc.fileName,
+            filePath: doc.filePath,
             fileSize: doc.fileSize,
             mimeType: doc.mimeType,
             uploadedAt: doc.uploadedAt
           })),
-          totalDocuments: req.user.studentProfile.documents.length
+          totalDocuments: req.user.role === UserRole.STUDENT ? 
+            req.user.studentProfile.documents.length : 1
         }
       });
     } catch (error) {
@@ -782,6 +889,8 @@ router.get('/documents/:documentId',
       const { documentId } = req.params;
       
       console.log('📥 Document download request:', documentId, 'by user:', req.user.email);
+      console.log('🔍 User role:', req.user.role);
+      console.log('📁 Admin documents count:', req.user.adminProfile?.documents?.length || 0);
 
       // Find the document in user's profile
       let document;
@@ -791,25 +900,57 @@ router.get('/documents/:documentId',
         document = req.user.studentProfile?.documents?.id(documentId);
         userId = req.user._id;
       } else if (req.user.role === UserRole.ADMIN) {
-        // Admins can access any student's documents
-        const studentId = req.query.studentId;
-        if (!studentId) {
-          return res.status(400).json({
-            success: false,
-            message: 'Student ID required for admin access'
-          });
+        // Check if admin is trying to access their own document first
+        // Try using .id() method first, then fallback to manual search
+        let ownDocument = req.user.adminProfile?.documents?.id(documentId);
+        
+        console.log('🔍 Looking for document ID:', documentId);
+        if (req.user.adminProfile?.documents) {
+          console.log('📋 Available document IDs:', 
+            req.user.adminProfile.documents.map(d => ({
+              id: d._id?.toString(),
+              fileName: d.fileName
+            }))
+          );
         }
         
-        const student = await User.findById(studentId);
-        if (!student || student.role !== UserRole.STUDENT) {
-          return res.status(404).json({
-            success: false,
-            message: 'Student not found'
-          });
+        if (!ownDocument && req.user.adminProfile?.documents) {
+          // Fallback: manually search through documents array
+          ownDocument = req.user.adminProfile.documents.find(
+            doc => doc._id && doc._id.toString() === documentId
+          );
+          console.log('🔍 Manual search result:', ownDocument ? 'Found!' : 'Not found');
         }
         
-        document = student.studentProfile?.documents?.id(documentId);
-        userId = studentId;
+        if (ownDocument) {
+          // Admin accessing their own document
+          console.log('✅ Found admin own document:', ownDocument.fileName);
+          document = ownDocument;
+          userId = req.user._id;
+        } else {
+          // Admin accessing a student's document - requires studentId query param
+          const studentId = req.query.studentId;
+          
+          if (!studentId) {
+            console.log('❌ Document not in admin profile, no studentId provided');
+            console.log('Admin documents:', req.user.adminProfile?.documents?.length || 0);
+            return res.status(400).json({
+              success: false,
+              message: 'Document not found in your profile'
+            });
+          }
+          
+          const student = await User.findById(studentId);
+          if (!student || student.role !== UserRole.STUDENT) {
+            return res.status(404).json({
+              success: false,
+              message: 'Student not found'
+            });
+          }
+          
+          document = student.studentProfile?.documents?.id(documentId);
+          userId = studentId;
+        }
       }
 
       if (!document) {

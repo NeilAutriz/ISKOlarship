@@ -8,6 +8,9 @@ const router = express.Router();
 const { body, query, param, validationResult } = require('express-validator');
 const { Application, ApplicationStatus, Scholarship, User } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel, requireOwnerOrAdmin } = require('../middleware/auth.middleware');
+const { uploadApplicationDocuments } = require('../middleware/upload.middleware');
+const path = require('path');
+const fs = require('fs');
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
 
 // =============================================================================
@@ -151,25 +154,51 @@ router.get('/my/stats', authMiddleware, async (req, res, next) => {
 router.post('/', 
   authMiddleware, 
   requireRole('student'),
-  applicationValidation,
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
+  (req, res, next) => {
+    uploadApplicationDocuments(req, res, (err) => {
+      if (err) {
+        console.error('❌ Multer error:', err);
         return res.status(400).json({
           success: false,
+          message: err.message || 'File upload error',
+          error: err.code || 'UPLOAD_ERROR'
+        });
+      }
+      next();
+    });
+  },
+  applicationValidation, // THEN validate
+  async (req, res, next) => {
+    try {
+      console.log('📥 Received application request');
+      console.log('📦 Request body:', req.body);
+      console.log('📎 Files:', req.files?.length || 0);
+      console.log('📋 Content-Type:', req.headers['content-type']);
+      
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        console.error('❌ Validation errors:', JSON.stringify(errors.array(), null, 2));
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
           errors: errors.array()
         });
       }
 
-      const { scholarshipId, personalStatement, additionalInfo, documents } = req.body;
+      const { scholarshipId, personalStatement, additionalInfo, documentNames, documentTypes } = req.body;
+      const uploadedFiles = req.files || [];
 
-      // Debug logging
       console.log('📝 Application Creation Request:');
-      console.log('Documents received:', documents);
-      console.log('Documents type:', typeof documents);
-      console.log('Documents is array:', Array.isArray(documents));
-      console.log('Documents length:', documents?.length);
+      console.log('📤 Files uploaded:', uploadedFiles.length);
+      console.log('📋 Document names:', documentNames);
+      console.log('📋 Document types:', documentTypes);
+      console.log('🔍 Uploaded files details:', JSON.stringify(uploadedFiles.map(f => ({
+        fieldname: f.fieldname,
+        originalname: f.originalname,
+        filename: f.filename,
+        size: f.size,
+        mimetype: f.mimetype
+      })), null, 2));
 
       // Check if scholarship exists and is open
       const scholarship = await Scholarship.findById(scholarshipId);
@@ -227,16 +256,24 @@ router.post('/',
         hasFailingGrade: req.user.studentProfile?.academicInfo?.hasFailingGrade
       };
 
-      // Process documents if provided
-      const processedDocuments = documents && Array.isArray(documents) ? documents.map(doc => ({
-        name: doc.name,
-        documentType: doc.documentType,
-        url: doc.url || '',
-        fileName: doc.fileName,
-        fileSize: doc.fileSize,
-        mimeType: doc.mimeType,
-        uploadedAt: new Date()
-      })) : [];
+      // Process documents from uploaded files
+      const namesArray = Array.isArray(documentNames) ? documentNames : [documentNames].filter(Boolean);
+      const typesArray = Array.isArray(documentTypes) ? documentTypes : [documentTypes].filter(Boolean);
+      
+      const processedDocuments = uploadedFiles.map((file, index) => {
+        const userId = req.user._id.toString();
+        const relativePath = `documents/${userId}/${file.filename}`;
+        
+        return {
+          name: namesArray[index] || 'Uploaded Document',
+          documentType: typesArray[index] || 'other',
+          filePath: relativePath,
+          fileName: file.originalname,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          uploadedAt: new Date()
+        };
+      });
 
       console.log('📄 Processed Documents:', processedDocuments);
       console.log('📄 Processed Documents Count:', processedDocuments.length);
