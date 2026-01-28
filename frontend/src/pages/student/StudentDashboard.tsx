@@ -168,7 +168,7 @@ const StudentDashboard: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-gold-300 text-xs font-semibold rounded-full uppercase tracking-wide border border-white/10">Student Portal</span>
+                  <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold rounded-full uppercase tracking-wide border border-white/10">Student Portal</span>
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Welcome back, {studentUser.firstName}!</h1>
                 <p className="text-primary-100 flex items-center gap-2 flex-wrap">
@@ -185,10 +185,10 @@ const StudentDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-3">
-              <Link to="/my-profile" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white font-medium rounded-xl hover:bg-white/20 transition-all">
+              <Link to="/my-profile" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white font-medium rounded-xl hover:bg-white/30 hover:border-white/40 transition-all shadow-lg">
                 <Edit2 className="w-4 h-4" />Edit Profile
               </Link>
-              <Link to="/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-400 text-primary-900 font-semibold rounded-xl hover:bg-gold-300 transition-all shadow-lg shadow-gold-400/25">
+              <Link to="/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-slate-50 transition-all shadow-lg">
                 <Target className="w-4 h-4" />Find Scholarships
               </Link>
             </div>

@@ -5,9 +5,9 @@
 // 
 // Two-Stage Approach:
 // 1. RULE-BASED FILTERING: Binary eligibility checks (pass/fail)
-//    - Academic: GWA, year level, college, course (BOOLEAN)
-//    - Financial: Income threshold, ST bracket (RANGE-BASED for income, BOOLEAN for bracket)
-//    - Special: Thesis requirement, no other scholarship (BOOLEAN)
+//    - Range-based: GWA, Income, Units (min/max comparisons)
+//    - List-based: Year Level, College, Course, ST Bracket (must be in list)
+//    - Boolean: Has Thesis, No Other Scholarship, etc. (true/false)
 //
 // 2. LOGISTIC REGRESSION: Success probability prediction (0-100%)
 //    - Uses 7 continuous features from eligible applications
@@ -17,331 +17,62 @@
 // Field Naming Convention:
 // - User.studentProfile.annualFamilyIncome (canonical)
 // - User.studentProfile.classification (year level)
-// - User.studentProfile.stBracket (ST bracket: FDS, FD, PD80, etc.)
+// - User.studentProfile.stBracket (ST bracket: Full Discount with Stipend, Full Discount, etc.)
 // =============================================================================
 
 const { Application, Scholarship } = require('../models');
 const logisticRegression = require('./logisticRegression.service');
 
+// Import modular eligibility checking system
+const eligibilityModule = require('./eligibility');
+
+// Re-export normalizers for backward compatibility
+const { normalizeSTBracket, stBracketsMatch } = require('./eligibility/normalizers');
+
 // =============================================================================
 // Model Version and State
 // =============================================================================
 
-const MODEL_VERSION = '2.0.0';
+const MODEL_VERSION = '2.1.0';
 
 // Re-export logistic regression weights for backward compatibility
 const MODEL_WEIGHTS = logisticRegression.DEFAULT_WEIGHTS;
 
 // =============================================================================
 // Eligibility Checking (Rule-Based Filtering)
-// Implements 3-stage filtering from research paper
+// Uses the modular eligibility system from ./eligibility/
 // =============================================================================
 
 /**
- * Stage 1: Academic Eligibility Check (BINARY CHECKS)
- * Research: "For eligibility requirements, most of it is boolean value like if you are 
- * included in the course, if you are in this level like senior, freshman, junior, etc. 
- * That should always be binary or boolean values and if you are not included there then 
- * you are not eligible."
- */
-function checkAcademicEligibility(user, scholarship) {
-  const checks = [];
-  // Student profile stores data directly (NOT nested in academicInfo)
-  const profile = user.studentProfile || {};
-  const criteria = scholarship.eligibilityCriteria || {};
-
-  // GWA Check (RANGE-BASED: scholarship uses maxGWA, lower is better in UP system)
-  if (criteria.minGWA || criteria.maxGWA) {
-    const requiredGWA = criteria.maxGWA || criteria.minGWA;
-    const passed = profile.gwa && profile.gwa <= requiredGWA;
-    checks.push({
-      criterion: 'Minimum GWA',
-      passed,
-      applicantValue: profile.gwa ? profile.gwa.toFixed(2) : 'Not provided',
-      requiredValue: `≤ ${requiredGWA.toFixed(2)}`,
-      notes: passed ? 'Meets GWA requirement' : 'Does not meet GWA requirement',
-      type: 'range' // For distinction
-    });
-  }
-
-  // Year Level/Classification Check (BINARY: in list or not)
-  if (criteria.requiredYearLevels?.length > 0 || criteria.eligibleClassifications?.length > 0) {
-    const eligibleLevels = criteria.requiredYearLevels || criteria.eligibleClassifications || [];
-    const passed = eligibleLevels.includes(profile.classification);
-    checks.push({
-      criterion: 'Year Level',
-      passed,
-      applicantValue: profile.classification || 'Not provided',
-      requiredValue: eligibleLevels.join(', '),
-      notes: passed ? 'Year level matches' : 'Year level does not match',
-      type: 'binary' // Must be in the list
-    });
-  }
-
-  // College Check (BINARY: in list or not)
-  if (criteria.eligibleColleges?.length > 0) {
-    const passed = criteria.eligibleColleges.includes(profile.college);
-    checks.push({
-      criterion: 'College',
-      passed,
-      applicantValue: profile.college || 'Not provided',
-      requiredValue: criteria.eligibleColleges.join(', '),
-      notes: passed ? 'College is eligible' : 'College is not eligible',
-      type: 'binary'
-    });
-  }
-
-  // Course Check (BINARY: in list or not)
-  if (criteria.eligibleCourses?.length > 0) {
-    const passed = criteria.eligibleCourses.includes(profile.course);
-    checks.push({
-      criterion: 'Course',
-      passed,
-      applicantValue: profile.course || 'Not provided',
-      requiredValue: `${criteria.eligibleCourses.length} eligible courses`,
-      notes: passed ? 'Course is eligible' : 'Course is not eligible',
-      type: 'binary'
-    });
-  }
-
-  // Major Check (BINARY: in list or not)
-  if (criteria.eligibleMajors?.length > 0) {
-    const passed = profile.major && criteria.eligibleMajors.includes(profile.major);
-    checks.push({
-      criterion: 'Major',
-      passed,
-      applicantValue: profile.major || 'Not provided',
-      requiredValue: criteria.eligibleMajors.join(', '),
-      notes: passed ? 'Major is eligible' : 'Major is not eligible',
-      type: 'binary'
-    });
-  }
-
-  // Units Check (RANGE-BASED: >= threshold)
-  if (criteria.minUnitsEnrolled) {
-    const passed = profile.unitsEnrolled && profile.unitsEnrolled >= criteria.minUnitsEnrolled;
-    checks.push({
-      criterion: 'Enrolled Units',
-      passed,
-      applicantValue: profile.unitsEnrolled || 'Not provided',
-      requiredValue: `≥ ${criteria.minUnitsEnrolled}`,
-      notes: passed ? 'Meets minimum units' : 'Does not meet minimum units',
-      type: 'range'
-    });
-  }
-
-  // Units Passed Check (RANGE-BASED: for thesis grants)
-  if (criteria.minUnitsPassed) {
-    const passed = profile.unitsPassed && profile.unitsPassed >= criteria.minUnitsPassed;
-    checks.push({
-      criterion: 'Units Passed',
-      passed,
-      applicantValue: profile.unitsPassed || 'Not provided',
-      requiredValue: `≥ ${criteria.minUnitsPassed}`,
-      notes: passed ? 'Meets minimum units passed' : 'Does not meet minimum units passed',
-      type: 'range'
-    });
-  }
-
-  return checks;
-}
-
-/**
- * Stage 2: Financial Eligibility Check (RANGE + BINARY)
- * Research: "While for the GWA, Family Income, ST Bracket as long as it is within 
- * the range, you can use the previous data in creating your projections."
- */
-function checkFinancialEligibility(user, scholarship) {
-  const checks = [];
-  // Student profile stores financial data directly (NOT nested)
-  const profile = user.studentProfile || {};
-  const criteria = scholarship.eligibilityCriteria || {};
-
-  // Income Check (RANGE-BASED: <= threshold)
-  // CANONICAL FIELD: annualFamilyIncome (not familyAnnualIncome)
-  if (criteria.maxAnnualFamilyIncome) {
-    const income = profile.annualFamilyIncome; // Use canonical field name
-    const passed = income && income <= criteria.maxAnnualFamilyIncome;
-    checks.push({
-      criterion: 'Maximum Family Income',
-      passed,
-      applicantValue: income 
-        ? `₱${income.toLocaleString()}` 
-        : 'Not provided',
-      requiredValue: `≤ ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}`,
-      notes: passed ? 'Within income limit' : 'Exceeds income limit',
-      type: 'range' // Income is range-based, not binary
-    });
-  }
-
-  // ST Bracket Check (BINARY: in list or not)
-  if (criteria.requiredSTBrackets?.length > 0 || criteria.eligibleSTBrackets?.length > 0) {
-    const eligibleBrackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
-    const passed = profile.stBracket && eligibleBrackets.includes(profile.stBracket);
-    checks.push({
-      criterion: 'ST Bracket',
-      passed,
-      applicantValue: profile.stBracket || 'Not provided',
-      requiredValue: eligibleBrackets.join(', '),
-      notes: passed ? 'ST bracket matches' : 'ST bracket does not match',
-      type: 'binary' // Must be in the eligible list
-    });
-  }
-
-  return checks;
-}
-
-/**
- * Stage 3: Additional Requirements Check (ALL BINARY)
- * Research: These are hard boolean requirements - either you meet them or you don't
- */
-function checkAdditionalRequirements(user, scholarship) {
-  const checks = [];
-  const profile = user.studentProfile || {};
-  const criteria = scholarship.eligibilityCriteria || {};
-
-  // Thesis Approval Check (BINARY)
-  if (criteria.requiresApprovedThesis || criteria.requiresApprovedThesisOutline) {
-    const passed = profile.hasApprovedThesisOutline === true;
-    checks.push({
-      criterion: 'Approved Thesis Outline',
-      passed,
-      applicantValue: passed ? 'Yes' : 'No',
-      requiredValue: 'Required',
-      notes: passed ? 'Has approved thesis outline' : 'No approved thesis outline',
-      type: 'binary'
-    });
-  }
-
-  // No Other Scholarship Check (BINARY)
-  if (criteria.mustNotHaveOtherScholarship) {
-    const passed = !profile.hasExistingScholarship;
-    checks.push({
-      criterion: 'No Other Scholarship',
-      passed,
-      applicantValue: passed ? 'No current scholarship' : 'Has scholarship',
-      requiredValue: 'Must not have other scholarship',
-      notes: passed ? 'No conflicting scholarship' : 'Already has scholarship',
-      type: 'binary'
-    });
-  }
-
-  // No Disciplinary Action Check (BINARY)
-  if (criteria.mustNotHaveDisciplinaryAction) {
-    const passed = !profile.hasDisciplinaryAction;
-    checks.push({
-      criterion: 'No Disciplinary Action',
-      passed,
-      applicantValue: passed ? 'None' : 'Has record',
-      requiredValue: 'Must not have disciplinary action',
-      notes: passed ? 'Clean record' : 'Has disciplinary record',
-      type: 'binary'
-    });
-  }
-
-  // No Failing Grade Check (BINARY)
-  if (criteria.mustNotHaveFailingGrade) {
-    const passed = !profile.hasFailingGrade;
-    checks.push({
-      criterion: 'No Failing Grade',
-      passed,
-      applicantValue: passed ? 'None' : 'Has failing grade',
-      requiredValue: 'Must not have failing grade',
-      notes: passed ? 'No failing grades' : 'Has failing grades',
-      type: 'binary'
-    });
-  }
-
-  // No Grade of 4 Check (BINARY)
-  if (criteria.mustNotHaveGradeOf4) {
-    const passed = !profile.hasGradeOf4;
-    checks.push({
-      criterion: 'No Grade of 4',
-      passed,
-      applicantValue: passed ? 'None' : 'Has grade of 4',
-      requiredValue: 'Must not have grade of 4',
-      notes: passed ? 'No conditional grades' : 'Has conditional grades',
-      type: 'binary'
-    });
-  }
-
-  // No Incomplete Grade Check (BINARY)
-  if (criteria.mustNotHaveIncompleteGrade) {
-    const passed = !profile.hasIncompleteGrade;
-    checks.push({
-      criterion: 'No Incomplete Grade',
-      passed,
-      applicantValue: passed ? 'None' : 'Has incomplete',
-      requiredValue: 'Must not have incomplete grades',
-      notes: passed ? 'No incomplete grades' : 'Has incomplete grades',
-      type: 'binary'
-    });
-  }
-
-  // Must Be Graduating Check (BINARY)
-  if (criteria.mustBeGraduating) {
-    const passed = profile.isGraduating === true;
-    checks.push({
-      criterion: 'Graduating Student',
-      passed,
-      applicantValue: passed ? 'Yes' : 'No',
-      requiredValue: 'Must be graduating',
-      notes: passed ? 'Is a graduating student' : 'Not a graduating student',
-      type: 'binary'
-    });
-  }
-
-  // Province Check (BINARY: in list or not)
-  if (criteria.eligibleProvinces?.length > 0) {
-    const passed = profile.provinceOfOrigin && criteria.eligibleProvinces.includes(profile.provinceOfOrigin);
-    checks.push({
-      criterion: 'Province of Origin',
-      passed,
-      applicantValue: profile.provinceOfOrigin || 'Not provided',
-      requiredValue: criteria.eligibleProvinces.join(', '),
-      notes: passed ? 'Province matches requirement' : 'Province does not match',
-      type: 'binary'
-    });
-  }
-
-  return checks;
-}
-
-/**
- * Complete Eligibility Check
+ * Complete Eligibility Check - Uses new modular system
+ * Combines range-based, list-based, and boolean checks
  */
 async function checkEligibility(user, scholarship) {
-  const academicChecks = checkAcademicEligibility(user, scholarship);
-  const financialChecks = checkFinancialEligibility(user, scholarship);
-  const additionalChecks = checkAdditionalRequirements(user, scholarship);
-
-  const allChecks = [...academicChecks, ...financialChecks, ...additionalChecks];
-  const passedChecks = allChecks.filter(c => c.passed).length;
-  const totalChecks = allChecks.length;
-
+  // Use the new modular eligibility system
+  const result = await eligibilityModule.checkEligibility(user, scholarship);
+  
+  // Transform to legacy format for backward compatibility
   return {
-    passed: allChecks.every(c => c.passed),
-    score: totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 100,
-    checks: allChecks,
-    summary: {
-      total: totalChecks,
-      passed: passedChecks,
-      failed: totalChecks - passedChecks
-    },
+    passed: result.passed,
+    score: result.score,
+    checks: result.checks,
+    summary: result.summary,
     stages: {
       academic: {
-        checks: academicChecks,
-        passed: academicChecks.every(c => c.passed)
+        checks: result.checks.filter(c => c.category === 'academic'),
+        passed: result.checks.filter(c => c.category === 'academic').every(c => c.passed)
       },
       financial: {
-        checks: financialChecks,
-        passed: financialChecks.every(c => c.passed)
+        checks: result.checks.filter(c => c.category === 'financial'),
+        passed: result.checks.filter(c => c.category === 'financial').every(c => c.passed)
       },
       additional: {
-        checks: additionalChecks,
-        passed: additionalChecks.every(c => c.passed)
+        checks: result.checks.filter(c => c.category === 'status' || c.category === 'location' || c.category === 'personal'),
+        passed: result.checks.filter(c => c.category === 'status' || c.category === 'location' || c.category === 'personal').every(c => c.passed)
       }
-    }
+    },
+    // New: detailed breakdown by check type
+    breakdown: result.breakdown
   };
 }
 
@@ -717,8 +448,14 @@ function generateRecommendation(probability, detailedFactors) {
 
 /**
  * Get scholarship recommendations for a user
+ * Returns both fully eligible and partial matches (>= 50% eligibility score)
+ * 
+ * @param {Object} user - User object with studentProfile
+ * @param {number} limit - Maximum number of recommendations to return
+ * @param {boolean} includePartial - Include partial matches (default: true)
+ * @param {number} minEligibilityScore - Minimum eligibility score for partial matches (default: 50)
  */
-async function getRecommendations(user, limit = 10) {
+async function getRecommendations(user, limit = 10, includePartial = true, minEligibilityScore = 50) {
   // Get active scholarships
   const scholarships = await Scholarship.findActive();
 
@@ -727,39 +464,79 @@ async function getRecommendations(user, limit = 10) {
     scholarships.map(async (scholarship) => {
       const eligibility = await checkEligibility(user, scholarship);
       
-      if (!eligibility.passed) {
+      // Calculate overall eligibility score percentage
+      const eligibilityScore = eligibility.score || 0;
+      
+      // For fully eligible scholarships, get ML prediction
+      if (eligibility.passed) {
+        const prediction = await predictApprovalProbability(user, scholarship);
+        
         return {
-          scholarship,
-          score: 0,
-          eligible: false,
-          eligibility
+          scholarship: {
+            _id: scholarship._id,
+            name: scholarship.name,
+            type: scholarship.type,
+            sponsor: scholarship.sponsor,
+            awardAmount: scholarship.awardAmount,
+            applicationDeadline: scholarship.applicationDeadline,
+            daysUntilDeadline: scholarship.daysUntilDeadline,
+            description: scholarship.description
+          },
+          score: prediction.probability,
+          eligibilityScore: 100,
+          eligible: true,
+          matchType: 'full',
+          eligibility,
+          prediction
         };
       }
-
-      const prediction = await predictApprovalProbability(user, scholarship);
-
-      return {
-        scholarship: {
-          _id: scholarship._id,
-          name: scholarship.name,
-          type: scholarship.type,
-          sponsor: scholarship.sponsor,
-          awardAmount: scholarship.awardAmount,
-          applicationDeadline: scholarship.applicationDeadline,
-          daysUntilDeadline: scholarship.daysUntilDeadline
-        },
-        score: prediction.probability,
-        eligible: true,
-        eligibility,
-        prediction
-      };
+      
+      // For partial matches, use eligibility score
+      if (includePartial && eligibilityScore >= minEligibilityScore) {
+        // Get the failed checks for display
+        const failedChecks = eligibility.checks.filter(c => !c.passed);
+        
+        return {
+          scholarship: {
+            _id: scholarship._id,
+            name: scholarship.name,
+            type: scholarship.type,
+            sponsor: scholarship.sponsor,
+            awardAmount: scholarship.awardAmount,
+            applicationDeadline: scholarship.applicationDeadline,
+            daysUntilDeadline: scholarship.daysUntilDeadline,
+            description: scholarship.description
+          },
+          score: eligibilityScore, // Use eligibility score for ranking
+          eligibilityScore: eligibilityScore,
+          eligible: false,
+          matchType: 'partial',
+          eligibility,
+          failedChecks: failedChecks.map(c => ({
+            criterion: c.criterion,
+            applicantValue: c.applicantValue,
+            requiredValue: c.requiredValue,
+            notes: c.notes
+          }))
+        };
+      }
+      
+      // Not eligible and doesn't meet partial match threshold
+      return null;
     })
   );
 
-  // Sort by score and return top recommendations
+  // Filter out nulls, sort by score, and return top recommendations
+  // Prioritize full matches over partial matches
   return scored
-    .filter(s => s.eligible)
-    .sort((a, b) => b.score - a.score)
+    .filter(s => s !== null)
+    .sort((a, b) => {
+      // Full matches come first
+      if (a.matchType === 'full' && b.matchType !== 'full') return -1;
+      if (a.matchType !== 'full' && b.matchType === 'full') return 1;
+      // Then sort by score
+      return b.score - a.score;
+    })
     .slice(0, limit);
 }
 

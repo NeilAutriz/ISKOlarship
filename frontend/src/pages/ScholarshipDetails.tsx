@@ -38,6 +38,31 @@ import { matchStudentToScholarships } from '../services/filterEngine';
 import { predictScholarshipSuccess } from '../services/logisticRegression';
 import { Scholarship, MatchResult, EligibilityCheckResult, isStudentProfile } from '../types';
 
+// UPLB HD Background Images for scholarship headers
+const UPLB_BACKGROUND_IMAGES = [
+  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNNZcCKU_PnkRSsJVAKABHG2rC0MYHJF5jFQ&s',
+  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB4xDHTenrtBAXmTIcanGT_D8KrQ3T1dBDyQ&s',
+  'https://our.uplb.edu.ph/wp-content/uploads/2020/03/59_big.jpg',
+  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxhwlb2uQ1O4C88fZRqueSWYVAKizshz3nyw&s',
+  'https://thumbs.dreamstime.com/b/laguna-philippines-april-people-jog-pili-drive-uplb-mount-makiling-as-backdrop-los-banos-inside-campus-morning-320638266.jpg',
+  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4gNKJQnOM6Ctezm6d8eriqu2DCfcwgXwIkA&s',
+  'https://the-post-cdn.sgp1.digitaloceanspaces.com/2023/02/UPLB_thumbnail.jpg',
+];
+
+// Get a consistent random background based on scholarship ID
+const getScholarshipBackground = (scholarshipId: string | undefined): string => {
+  if (!scholarshipId) return UPLB_BACKGROUND_IMAGES[0];
+  // Use a simple hash of the ID to get a consistent index
+  let hash = 0;
+  for (let i = 0; i < scholarshipId.length; i++) {
+    const char = scholarshipId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  const index = Math.abs(hash) % UPLB_BACKGROUND_IMAGES.length;
+  return UPLB_BACKGROUND_IMAGES[index];
+};
+
 const ScholarshipDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -124,23 +149,36 @@ const ScholarshipDetails: React.FC = () => {
     }).format(amount);
   };
 
-  // Format date
-  const formatDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('en-PH', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
+  // Format date - handles both Date objects and strings
+  const formatDate = (date: Date | string | undefined): string => {
+    if (!date) return 'Not specified';
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      if (isNaN(dateObj.getTime())) return 'Invalid date';
+      return new Intl.DateTimeFormat('en-PH', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(dateObj);
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   // Calculate days until deadline
-  const getDaysUntil = (date: Date): number => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const deadline = new Date(date);
-    deadline.setHours(0, 0, 0, 0);
-    return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const getDaysUntil = (date: Date | string | undefined): number | null => {
+    if (!date) return null;
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const deadline = date instanceof Date ? new Date(date) : new Date(date);
+      if (isNaN(deadline.getTime())) return null;
+      deadline.setHours(0, 0, 0, 0);
+      return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    } catch {
+      return null;
+    }
   };
 
   // Get probability color
@@ -148,6 +186,15 @@ const ScholarshipDetails: React.FC = () => {
     if (probability >= 0.7) return 'text-green-600';
     if (probability >= 0.4) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  // Helper to get eligibility status from matchResult for a specific criterion
+  const getEligibilityStatus = (criterionPattern: string): boolean | null => {
+    if (!matchResult || !matchResult.eligibilityDetails || !Array.isArray(matchResult.eligibilityDetails)) return null;
+    const detail = matchResult.eligibilityDetails.find(d => 
+      d && d.criterion && d.criterion.toLowerCase().includes(criterionPattern.toLowerCase())
+    );
+    return detail ? detail.passed : null;
   };
 
   const getProbabilityBg = (probability: number) => {
@@ -203,18 +250,26 @@ const ScholarshipDetails: React.FC = () => {
 
   const daysUntil = scholarship.applicationDeadline ? getDaysUntil(scholarship.applicationDeadline) : null;
 
+  // Get consistent background image for this scholarship
+  const backgroundImage = getScholarshipBackground(id);
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-primary-600 to-primary-700">
-        <div className="container-app py-6">
+      {/* Header with UPLB Background Image */}
+      <div 
+        className="relative bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${backgroundImage})` }}
+      >
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-900/85 to-primary-800/80 backdrop-blur-[1px]" />
+        <div className="relative container-app py-6">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-white mb-6">
-            <Link to="/" className="hover:text-white/80 transition-colors">Home</Link>
-            <ChevronRight className="w-4 h-4" />
-            <Link to="/scholarships" className="hover:text-white/80 transition-colors">Scholarships</Link>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-white truncate max-w-[200px]">{scholarship.name}</span>
+          <nav className="flex items-center gap-2 text-sm text-white/90 mb-6">
+            <Link to="/" className="text-white hover:text-white/80 transition-colors no-underline">Home</Link>
+            <ChevronRight className="w-4 h-4 text-white/70" />
+            <Link to="/scholarships" className="text-white hover:text-white/80 transition-colors no-underline">Scholarships</Link>
+            <ChevronRight className="w-4 h-4 text-white/70" />
+            <span className="text-white font-medium truncate max-w-[200px]">{scholarship.name}</span>
           </nav>
 
           <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
@@ -285,135 +340,148 @@ const ScholarshipDetails: React.FC = () => {
               </h2>
 
               <div className="grid md:grid-cols-2 gap-4">
-                {/* GWA */}
-                {scholarship.eligibilityCriteria?.minGWA && (
-                  <div className={`p-4 rounded-xl border ${
-                    matchResult
-                      ? studentUser && studentUser.gwa >= scholarship.eligibilityCriteria.minGWA
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <TrendingUp className={`w-5 h-5 ${
-                        matchResult
-                          ? studentUser && studentUser.gwa >= scholarship.eligibilityCriteria.minGWA
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                          : 'text-slate-400'
-                      }`} />
-                      <div>
-                        <div className="text-sm text-slate-500">Minimum GWA</div>
-                        <div className="font-semibold text-slate-900">
-                          {scholarship.eligibilityCriteria.minGWA.toFixed(2)}
+                {/* GWA - Note: In Philippine grading system, lower GWA is better (1.0 = highest)
+                    We display maxGWA as the requirement (the threshold students must meet or beat) */}
+                {(scholarship.eligibilityCriteria?.maxGWA || scholarship.eligibilityCriteria?.minGWA) && (() => {
+                  const gwaStatus = getEligibilityStatus('gwa');
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? gwaStatus
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className={`w-5 h-5 ${
+                          matchResult
+                            ? gwaStatus
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">GWA Required</div>
+                          <div className="font-semibold text-slate-900">
+                            {(scholarship.eligibilityCriteria?.maxGWA || scholarship.eligibilityCriteria?.minGWA || 0).toFixed(2)} or better
+                          </div>
                         </div>
+                        {matchResult && (
+                          gwaStatus
+                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                        )}
                       </div>
-                      {matchResult && studentUser && (
-                        studentUser.gwa >= scholarship.eligibilityCriteria.minGWA
-                          ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                          : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
-                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Year Levels */}
-                {scholarship.eligibilityCriteria?.requiredYearLevels && scholarship.eligibilityCriteria.requiredYearLevels.length > 0 && (
-                  <div className={`p-4 rounded-xl border ${
-                    matchResult
-                      ? studentUser && scholarship.eligibilityCriteria.requiredYearLevels.includes(studentUser.yearLevel)
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <GraduationCap className={`w-5 h-5 ${
-                        matchResult
-                          ? studentUser && scholarship.eligibilityCriteria.requiredYearLevels.includes(studentUser.yearLevel)
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                          : 'text-slate-400'
-                      }`} />
-                      <div>
-                        <div className="text-sm text-slate-500">Year Level</div>
-                        <div className="font-semibold text-slate-900">
-                          {scholarship.eligibilityCriteria.requiredYearLevels.join(', ')}
+                {scholarship.eligibilityCriteria?.requiredYearLevels && scholarship.eligibilityCriteria.requiredYearLevels.length > 0 && (() => {
+                  const yearLevelStatus = getEligibilityStatus('year level');
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? yearLevelStatus
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <GraduationCap className={`w-5 h-5 ${
+                          matchResult
+                            ? yearLevelStatus
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">Year Level</div>
+                          <div className="font-semibold text-slate-900">
+                            {scholarship.eligibilityCriteria.requiredYearLevels.join(', ')}
+                          </div>
                         </div>
+                        {matchResult && (
+                          yearLevelStatus
+                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                        )}
                       </div>
-                      {matchResult && studentUser && (
-                        scholarship.eligibilityCriteria.requiredYearLevels.includes(studentUser.yearLevel)
-                          ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                          : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
-                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Colleges */}
-                {scholarship.eligibilityCriteria?.eligibleColleges && scholarship.eligibilityCriteria.eligibleColleges.length > 0 && (
-                  <div className={`p-4 rounded-xl border ${
-                    matchResult
-                      ? studentUser && scholarship.eligibilityCriteria.eligibleColleges.includes(studentUser.college)
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      <Users className={`w-5 h-5 mt-0.5 ${
-                        matchResult
-                          ? studentUser && scholarship.eligibilityCriteria.eligibleColleges.includes(studentUser.college)
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                          : 'text-slate-400'
-                      }`} />
-                      <div className="flex-1">
-                        <div className="text-sm text-slate-500">Eligible Colleges</div>
-                        <div className="font-semibold text-slate-900">
-                          {scholarship.eligibilityCriteria.eligibleColleges.length <= 2
-                            ? scholarship.eligibilityCriteria.eligibleColleges.join(', ')
-                            : `${scholarship.eligibilityCriteria.eligibleColleges.length} colleges`}
+                {scholarship.eligibilityCriteria?.eligibleColleges && scholarship.eligibilityCriteria.eligibleColleges.length > 0 && (() => {
+                  const collegeStatus = getEligibilityStatus('college');
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? collegeStatus
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <Users className={`w-5 h-5 mt-0.5 ${
+                          matchResult
+                            ? collegeStatus
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            : 'text-slate-400'
+                        }`} />
+                        <div className="flex-1">
+                          <div className="text-sm text-slate-500">Eligible Colleges</div>
+                          <div className="font-semibold text-slate-900">
+                            {scholarship.eligibilityCriteria.eligibleColleges.length <= 2
+                              ? scholarship.eligibilityCriteria.eligibleColleges.join(', ')
+                              : `${scholarship.eligibilityCriteria.eligibleColleges.length} colleges`}
+                          </div>
                         </div>
+                        {matchResult && (
+                          collegeStatus
+                            ? <CheckCircle className="w-5 h-5 text-green-600" />
+                            : <XCircle className="w-5 h-5 text-red-600" />
+                        )}
                       </div>
-                      {matchResult && studentUser && (
-                        scholarship.eligibilityCriteria.eligibleColleges.includes(studentUser.college)
-                          ? <CheckCircle className="w-5 h-5 text-green-600" />
-                          : <XCircle className="w-5 h-5 text-red-600" />
-                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Income */}
-                {scholarship.eligibilityCriteria?.maxAnnualFamilyIncome && (
-                  <div className={`p-4 rounded-xl border ${
-                    matchResult
-                      ? studentUser && studentUser.annualFamilyIncome <= scholarship.eligibilityCriteria.maxAnnualFamilyIncome
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-red-50 border-red-200'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <DollarSign className={`w-5 h-5 ${
-                        matchResult
-                          ? studentUser && studentUser.annualFamilyIncome <= scholarship.eligibilityCriteria.maxAnnualFamilyIncome
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                          : 'text-slate-400'
-                      }`} />
-                      <div>
-                        <div className="text-sm text-slate-500">Max Annual Income</div>
-                        <div className="font-semibold text-slate-900">
-                          {formatCurrency(scholarship.eligibilityCriteria.maxAnnualFamilyIncome)}
+                {scholarship.eligibilityCriteria?.maxAnnualFamilyIncome && (() => {
+                  const incomeStatus = getEligibilityStatus('income');
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? incomeStatus
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <DollarSign className={`w-5 h-5 ${
+                          matchResult
+                            ? incomeStatus
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">Max Annual Income</div>
+                          <div className="font-semibold text-slate-900">
+                            {formatCurrency(scholarship.eligibilityCriteria.maxAnnualFamilyIncome)}
+                          </div>
                         </div>
+                        {matchResult && (
+                          incomeStatus
+                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                        )}
                       </div>
-                      {matchResult && studentUser && (
-                        studentUser.annualFamilyIncome <= scholarship.eligibilityCriteria.maxAnnualFamilyIncome
-                          ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                          : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
-                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Province */}
                 {scholarship.eligibilityCriteria?.eligibleProvinces && scholarship.eligibilityCriteria.eligibleProvinces.length > 0 && (

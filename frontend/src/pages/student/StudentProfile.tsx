@@ -416,8 +416,11 @@ const StudentProfile: React.FC = () => {
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             {/* Profile Avatar */}
             <div className="relative">
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-bold text-3xl shadow-lg shadow-gold-400/30">
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-white to-slate-100 flex items-center justify-center text-primary-600 font-bold text-3xl shadow-lg shadow-primary-900/30 border-2 border-white/20">
                 {sp?.firstName?.[0] || 'S'}{sp?.lastName?.[0] || 'T'}
+              </div>
+              <div className="absolute -top-2 -left-2 w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-lg">
+                <GraduationCap className="w-4 h-4 text-primary-600" />
               </div>
             </div>
             

@@ -87,6 +87,14 @@
     @apply text-primary-600 hover:text-primary-500 transition-colors duration-200;
   }
   
+  /* White link override for dark backgrounds - uses CSS to avoid circular @apply */
+  a.text-white {
+    color: white !important;
+  }
+  a.text-white:hover {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+  
   /* Focus styles */
   :focus-visible {
     @apply outline-none ring-2 ring-primary-600 ring-offset-2;

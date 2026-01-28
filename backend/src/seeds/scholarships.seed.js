@@ -816,15 +816,43 @@ The CHE Alumni Association is dedicated to supporting current students and foste
 ];
 
 // =============================================================================
+// Import Comprehensive Scholarships (50 realistic scholarships)
+// =============================================================================
+
+const { scholarships: comprehensiveScholarships } = require('./scholarships-comprehensive.seed');
+
+// =============================================================================
 // Seed Function
 // =============================================================================
 
-const seedScholarships = async (Scholarship, adminUserId) => {
+/**
+ * Seed scholarships to database
+ * @param {Model} Scholarship - Mongoose Scholarship model
+ * @param {ObjectId} adminUserId - Admin user ID for createdBy
+ * @param {Object} options - Seeding options
+ * @param {boolean} options.useComprehensive - Use 50 comprehensive scholarships (default: true)
+ * @param {boolean} options.includeLegacy - Include legacy scholarships too (default: false)
+ */
+const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
+  const { useComprehensive = true, includeLegacy = false } = options;
+  
   try {
     await Scholarship.deleteMany({});
     console.log('Cleared existing scholarships');
 
-    const scholarshipsWithAdmin = scholarshipsData.map(scholarship => ({
+    let dataToInsert = [];
+    
+    if (useComprehensive) {
+      console.log('Using comprehensive scholarships (50 realistic UPLB scholarships)');
+      dataToInsert = [...comprehensiveScholarships];
+    }
+    
+    if (includeLegacy || !useComprehensive) {
+      console.log('Including legacy scholarships');
+      dataToInsert = [...dataToInsert, ...scholarshipsData];
+    }
+
+    const scholarshipsWithAdmin = dataToInsert.map(scholarship => ({
       ...scholarship,
       createdBy: adminUserId
     }));
@@ -841,5 +869,6 @@ const seedScholarships = async (Scholarship, adminUserId) => {
 
 module.exports = {
   scholarshipsData,
+  comprehensiveScholarships,
   seedScholarships
 };

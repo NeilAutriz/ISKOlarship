@@ -139,8 +139,8 @@ const extractFeatures = (
   const meetsIncomeReq = !criteria.maxAnnualFamilyIncome || 
     studentIncome <= criteria.maxAnnualFamilyIncome ? 1 : 0;
   
-  // Meets GWA requirement
-  const meetsGWAReq = !criteria.minGWA || studentGwa <= criteria.minGWA ? 1 : 0;
+  // Meets GWA requirement (in UPLB, maxGWA is the threshold - student GWA must be <= maxGWA)
+  const meetsGWAReq = !criteria.maxGWA || studentGwa <= criteria.maxGWA ? 1 : 0;
   
   // Profile completeness (simple check)
   const profileCompleteness = student.profileCompleted ? 1 : 0.7;
@@ -216,32 +216,32 @@ const generatePredictionFactors = (
   const factors: PredictionFactor[] = [];
   const criteria = scholarship.eligibilityCriteria;
   
-  // GWA Factor
-  if (criteria.minGWA && student.gwa !== undefined && student.gwa !== null) {
-    const gwaMargin = criteria.minGWA - student.gwa;
+  // GWA Factor (in UPLB, maxGWA is the threshold - lower GWA is better)
+  if (criteria.maxGWA && student.gwa !== undefined && student.gwa !== null) {
+    const gwaMargin = criteria.maxGWA - student.gwa; // Positive means student qualifies with margin to spare
     if (gwaMargin > 0.5) {
       factors.push({
         factor: 'Academic Performance',
         contribution: 0.15,
-        description: `Your GWA (${student.gwa.toFixed(2)}) is significantly better than the requirement (${criteria.minGWA})`
+        description: `Your GWA (${student.gwa.toFixed(2)}) is significantly better than the requirement (≤${criteria.maxGWA})`
       });
-    } else if (gwaMargin > 0) {
+    } else if (gwaMargin >= 0) {
       factors.push({
         factor: 'Academic Performance',
         contribution: 0.08,
-        description: `Your GWA (${student.gwa.toFixed(2)}) meets the requirement (${criteria.minGWA})`
+        description: `Your GWA (${student.gwa.toFixed(2)}) meets the requirement (≤${criteria.maxGWA})`
       });
     } else if (gwaMargin > -0.2) {
       factors.push({
         factor: 'Academic Performance',
         contribution: -0.05,
-        description: `Your GWA (${student.gwa.toFixed(2)}) is slightly below the requirement (${criteria.minGWA})`
+        description: `Your GWA (${student.gwa.toFixed(2)}) is slightly above the requirement (≤${criteria.maxGWA})`
       });
     } else {
       factors.push({
         factor: 'Academic Performance',
         contribution: -0.20,
-        description: `Your GWA (${student.gwa.toFixed(2)}) does not meet the requirement (${criteria.minGWA})`
+        description: `Your GWA (${student.gwa.toFixed(2)}) does not meet the requirement (≤${criteria.maxGWA})`
       });
     }
   }

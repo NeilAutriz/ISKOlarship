@@ -3,7 +3,7 @@
 // Unified API client for backend communication with fallback to mock data
 // ============================================================================
 
-import { scholarshipApi, applicationApi, userApi, statisticsApi, predictionApi, authApi, setTokens, clearTokens, getAccessToken } from './apiClient';
+import { scholarshipApi, applicationApi, userApi, statisticsApi, predictionApi, authApi, setTokens, clearTokens, getAccessToken, normalizeScholarship } from './apiClient';
 import { Scholarship, StudentProfile, HistoricalApplication, Application } from '../types';
 
 // ============================================================================
@@ -30,54 +30,6 @@ async function apiWithFallback<T>(
 }
 
 // ============================================================================
-// Data Transformation Helpers
-// ============================================================================
-
-/**
- * Transform backend scholarship data to frontend format
- */
-function transformScholarship(data: any): Scholarship {
-  return {
-    id: data._id || data.id,
-    name: data.name,
-    description: data.description,
-    sponsor: data.sponsor,
-    type: data.type,
-    awardAmount: data.awardAmount,
-    awardDescription: data.awardDescription,
-    eligibilityCriteria: {
-      minGWA: data.eligibilityCriteria?.minGWA,
-      maxGWA: data.eligibilityCriteria?.maxGWA,
-      requiredYearLevels: data.eligibilityCriteria?.requiredYearLevels || [],
-      minUnitsEnrolled: data.eligibilityCriteria?.minUnitsEnrolled,
-      eligibleColleges: data.eligibilityCriteria?.eligibleColleges || [],
-      eligibleCourses: data.eligibilityCriteria?.eligibleCourses || [],
-      eligibleMajors: data.eligibilityCriteria?.eligibleMajors || [],
-      maxAnnualFamilyIncome: data.eligibilityCriteria?.maxAnnualFamilyIncome,
-      minAnnualFamilyIncome: data.eligibilityCriteria?.minAnnualFamilyIncome,
-      requiredSTBrackets: data.eligibilityCriteria?.requiredSTBrackets || [],
-      eligibleProvinces: data.eligibilityCriteria?.eligibleProvinces || [],
-      requiresApprovedThesis: data.eligibilityCriteria?.requiresApprovedThesis || false,
-      mustNotHaveOtherScholarship: data.eligibilityCriteria?.mustNotHaveOtherScholarship || false,
-      mustNotHaveThesisGrant: data.eligibilityCriteria?.mustNotHaveThesisGrant || false,
-      mustNotHaveDisciplinaryAction: data.eligibilityCriteria?.mustNotHaveDisciplinaryAction || false,
-      isFilipinoOnly: data.eligibilityCriteria?.isFilipinoOnly ?? true,
-      additionalRequirements: data.eligibilityCriteria?.additionalRequirements || []
-    },
-    requirements: data.requirements || [],
-    applicationDeadline: new Date(data.applicationDeadline),
-    academicYear: data.academicYear,
-    semester: data.semester,
-    slots: data.slots,
-    isActive: data.isActive ?? true,
-    createdBy: data.createdBy,
-    createdAt: new Date(data.createdAt),
-    updatedAt: new Date(data.updatedAt),
-    tags: data.tags || []
-  };
-}
-
-// ============================================================================
 // Scholarship API
 // ============================================================================
 
@@ -95,7 +47,7 @@ export const fetchScholarships = async (filters?: {
     async () => {
       const response = await scholarshipApi.getAll(filters || {});
       if (response.success && response.data?.scholarships) {
-        return response.data.scholarships.map(transformScholarship);
+        return response.data.scholarships.map(normalizeScholarship);
       }
       throw new Error('Failed to fetch scholarships');
     },
@@ -111,7 +63,7 @@ export const fetchScholarshipDetails = async (id: string): Promise<Scholarship |
     async () => {
       const response = await scholarshipApi.getById(id);
       if (response.success && response.data) {
-        return transformScholarship(response.data);
+        return normalizeScholarship(response.data);
       }
       return null;
     },
@@ -127,7 +79,7 @@ export const searchScholarships = async (query: string): Promise<Scholarship[]> 
     async () => {
       const response = await scholarshipApi.getAll({ search: query });
       if (response.success && response.data?.scholarships) {
-        return response.data.scholarships.map(transformScholarship);
+        return response.data.scholarships.map(normalizeScholarship);
       }
       throw new Error('Failed to search scholarships');
     },

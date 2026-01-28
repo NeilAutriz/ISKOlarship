@@ -69,6 +69,18 @@ export const useAuth = () => {
   return context;
 };
 
+// Helper function to get user's display name from various user object structures
+const getUserDisplayName = (userData: User | any | null | undefined, fallback: string = 'User'): string => {
+  if (!userData) return fallback;
+  // Try direct firstName (for frontend-normalized users)
+  if (userData.firstName) return userData.firstName;
+  // Try nested studentProfile (from backend API response)
+  if (userData.studentProfile?.firstName) return userData.studentProfile.firstName;
+  // Try nested adminProfile (from backend API response)
+  if (userData.adminProfile?.firstName) return userData.adminProfile.firstName;
+  return fallback;
+};
+
 // ============================================================================
 // MOCK USER FOR DEMO
 // ============================================================================
@@ -201,7 +213,7 @@ const App: React.FC = () => {
   };
 
   const logout = async () => {
-    const userName = user?.firstName || 'User';
+    const userName = getUserDisplayName(user);
     try {
       await authApi.logout();
     } catch (error) {
@@ -238,7 +250,7 @@ const App: React.FC = () => {
         login(userData);
         setShowAuthModal(false);
         setNavigateAfterLogin(role === 'admin' ? '/admin/dashboard' : '/dashboard');
-        showToast(`Welcome back, ${userData.firstName || 'User'}!`, 'success');
+        showToast(`Welcome back, ${getUserDisplayName(userData)}!`, 'success');
       } else {
         throw new Error(response.message || 'Login failed');
       }

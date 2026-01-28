@@ -163,19 +163,38 @@ function normalizeIncome(income, maxThreshold = 500000) {
  * Normalize ST bracket (Socialized Tuition discount level)
  * Research: ST bracket is strong positive predictor (weight 1.5)
  * Higher discount = higher financial need
+ * 
+ * Supports both short codes (FDS, FD, etc.) and full names from database
  */
 function normalizeSTBracket(stBracket) {
+  if (!stBracket) return 0.5; // Neutral if unknown
+  
+  // Normalize to uppercase and trim for comparison
+  const normalizedBracket = stBracket.toString().trim().toUpperCase();
+  
   // UP Socialized Tuition brackets from highest to lowest need
+  // Support both short codes and full names
   const brackets = {
+    // Short codes
     'FDS': 1.0,  // Full Discount with Stipend (highest need)
     'FD': 0.85,  // Full Discount
     'PD80': 0.7, // 80% Partial Discount
     'PD60': 0.55, // 60% Partial Discount
     'PD40': 0.4, // 40% Partial Discount
     'PD20': 0.25, // 20% Partial Discount
-    'ND': 0.1    // No Discount (lowest need)
+    'ND': 0.1,   // No Discount (lowest need)
+    
+    // Full names (as stored in database)
+    'FULL DISCOUNT WITH STIPEND': 1.0,
+    'FULL DISCOUNT': 0.85,
+    '80% PARTIAL DISCOUNT': 0.7,
+    '60% PARTIAL DISCOUNT': 0.55,
+    '40% PARTIAL DISCOUNT': 0.4,
+    '20% PARTIAL DISCOUNT': 0.25,
+    'NO DISCOUNT': 0.1
   };
-  return brackets[stBracket] || 0.5; // Neutral if unknown
+  
+  return brackets[normalizedBracket] || 0.5; // Neutral if unknown
 }
 
 /**

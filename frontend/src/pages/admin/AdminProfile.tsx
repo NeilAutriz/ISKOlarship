@@ -83,13 +83,23 @@ const formatDate = (date: Date | string | undefined): string => {
   });
 };
 
-const permissions = [
-  { name: 'Manage Scholarships', description: 'Create, edit, and delete scholarship programs', enabled: true },
-  { name: 'Review Applications', description: 'Approve or reject student applications', enabled: true },
-  { name: 'Manage Users', description: 'Add, edit, and remove user accounts', enabled: true },
-  { name: 'View Analytics', description: 'Access platform analytics and reports', enabled: true },
-  { name: 'System Settings', description: 'Configure platform settings', enabled: false },
+// Define all available permissions with their display info
+const allPermissions = [
+  { key: 'manage_scholarships', name: 'Manage Scholarships', description: 'Create, edit, and delete scholarship programs' },
+  { key: 'review_applications', name: 'Review Applications', description: 'Approve or reject student applications' },
+  { key: 'approve_applications', name: 'Approve Applications', description: 'Final approval authority for applications' },
+  { key: 'manage_users', name: 'Manage Users', description: 'Add, edit, and remove user accounts' },
+  { key: 'view_analytics', name: 'View Analytics', description: 'Access platform analytics and reports' },
+  { key: 'system_settings', name: 'System Settings', description: 'Configure platform settings' },
 ];
+
+// Helper function to get permissions display list based on user's actual permissions
+const getPermissionsDisplay = (userPermissions: string[] = []) => {
+  return allPermissions.map(permission => ({
+    ...permission,
+    enabled: userPermissions.includes(permission.key)
+  }));
+};
 
 const AdminProfile: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'profile' | 'permissions' | 'security' | 'documents'>('profile');
@@ -406,11 +416,11 @@ const AdminProfile: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="font-semibold text-slate-900">Permissions & Access</h2>
-                    <p className="text-sm text-slate-500">Manage your account permissions</p>
+                    <p className="text-sm text-slate-500">Your account permissions based on your role</p>
                   </div>
                 </div>
                 <div className="p-6 space-y-4">
-                  {permissions.map((permission, index) => (
+                  {getPermissionsDisplay(ap?.permissions || []).map((permission, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-lg ${permission.enabled ? 'bg-green-100' : 'bg-slate-100'} flex items-center justify-center`}>

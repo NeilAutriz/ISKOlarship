@@ -197,12 +197,12 @@ const StudentApplications: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-gold-300 text-xs font-semibold rounded-full uppercase tracking-wide border border-white/10">Applications</span>
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold rounded-full uppercase tracking-wide border border-white/10">Applications</span>
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">My Applications</h1>
               <p className="text-primary-100">Track and manage your scholarship applications</p>
             </div>
-            <Link to="/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-400 text-primary-900 font-semibold rounded-xl hover:bg-gold-300 transition-all shadow-lg shadow-gold-400/25">
+            <Link to="/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-slate-50 transition-all shadow-lg">
               Browse More<ArrowUpRight className="w-4 h-4" />
             </Link>
           </div>

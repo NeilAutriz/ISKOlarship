@@ -19,6 +19,41 @@ import {
 } from '../types';
 
 // ============================================================================
+// HELPER: ST Bracket Normalization
+// Backend stores full names, frontend uses short codes
+// ============================================================================
+
+const ST_BRACKET_MAPPING: Record<string, STBracket> = {
+  // Short codes
+  'FDS': STBracket.FULL_DISCOUNT_WITH_STIPEND,
+  'FD': STBracket.FULL_DISCOUNT,
+  'PD80': STBracket.PD80,
+  'PD60': STBracket.PD60,
+  'PD40': STBracket.PD40,
+  'PD20': STBracket.PD20,
+  'ND': STBracket.NO_DISCOUNT,
+  // Full names (as stored in database)
+  'FULL DISCOUNT WITH STIPEND': STBracket.FULL_DISCOUNT_WITH_STIPEND,
+  'FULL DISCOUNT': STBracket.FULL_DISCOUNT,
+  'NO DISCOUNT': STBracket.NO_DISCOUNT
+};
+
+const normalizeSTBracket = (bracket: string | undefined): STBracket | undefined => {
+  if (!bracket) return undefined;
+  const normalized = bracket.toString().trim().toUpperCase();
+  return ST_BRACKET_MAPPING[normalized] || (bracket as STBracket);
+};
+
+const stBracketsMatch = (studentBracket: string | undefined, requiredBrackets: (string | STBracket)[]): boolean => {
+  if (!studentBracket || requiredBrackets.length === 0) return false;
+  const normalizedStudent = normalizeSTBracket(studentBracket);
+  return requiredBrackets.some(req => {
+    const normalizedReq = normalizeSTBracket(req);
+    return normalizedStudent === normalizedReq;
+  });
+};
+
+// ============================================================================
 // HELPER: Normalize student data from API to expected format
 // The API returns nested studentProfile, but our checks expect flat access
 // ============================================================================
@@ -45,6 +80,10 @@ const normalizeStudent = (student: StudentProfile | any): NormalizedStudent => {
   // Handle nested studentProfile from API
   const profile = student.studentProfile || student;
   
+  // Normalize ST Bracket from database format (full names) to frontend format (short codes)
+  const rawStBracket = profile.stBracket || student.stBracket;
+  const normalizedBracket = normalizeSTBracket(rawStBracket);
+  
   return {
     gwa: profile.gwa ?? student.gwa ?? 5.0,
     yearLevel: profile.classification || profile.yearLevel || student.yearLevel || YearLevel.FRESHMAN,
@@ -52,7 +91,7 @@ const normalizeStudent = (student: StudentProfile | any): NormalizedStudent => {
     course: profile.course || student.course || '',
     major: profile.major || student.major,
     annualFamilyIncome: profile.familyAnnualIncome ?? profile.annualFamilyIncome ?? student.annualFamilyIncome ?? 0,
-    stBracket: profile.stBracket || student.stBracket,
+    stBracket: normalizedBracket,
     hometown: profile.provinceOfOrigin || profile.hometown || student.hometown || profile.homeAddress?.province || '',
     unitsEnrolled: profile.unitsEnrolled ?? student.unitsEnrolled ?? 0,
     hasApprovedThesis: profile.hasApprovedThesisOutline ?? profile.hasApprovedThesis ?? student.hasApprovedThesis ?? false,
@@ -77,15 +116,29 @@ interface HardRequirementCheck {
 }
 
 const hardRequirementChecks: HardRequirementCheck[] = [
-  // GWA Check (lower is better in Philippine system, 1.0 = highest)
+  // GWA Check (lower is better in Philippine system, 1.0 = highest, 5.0 = lowest)
+  // Scholarship specifies maxGWA as the threshold (student's GWA must be <= maxGWA)
+  // minGWA is typically 1.0 (the theoretical floor)
   {
-    criterion: 'Minimum GWA Requirement',
+    criterion: 'GWA Requirement',
     check: (student, criteria) => {
-      if (!criteria.minGWA) return true;
-      return student.gwa <= criteria.minGWA;
+      // If no GWA requirement, pass
+      if (!criteria.maxGWA && !criteria.minGWA) return true;
+      if (student.gwa == null) return false;
+      
+      // maxGWA is the main requirement - student's GWA must be at or below this
+      const maxGWA = criteria.maxGWA || 5.0;
+      const minGWA = criteria.minGWA || 1.0;
+      
+      // Student passes if their GWA is within the acceptable range
+      return student.gwa >= minGWA && student.gwa <= maxGWA;
     },
-    getStudentValue: (student) => student.gwa ?? 'N/A',
-    getRequiredValue: (criteria) => criteria.minGWA || 'No requirement'
+    getStudentValue: (student) => student.gwa?.toFixed(2) ?? 'N/A',
+    getRequiredValue: (criteria) => {
+      if (criteria.maxGWA) return `${criteria.maxGWA.toFixed(2)} or better`;
+      if (criteria.minGWA) return `${criteria.minGWA.toFixed(2)} or better`;
+      return 'No requirement';
+    }
   },
   
   // Year Level Check
@@ -158,16 +211,22 @@ const hardRequirementChecks: HardRequirementCheck[] = [
       : 'No limit'
   },
   
-  // ST Bracket Check
+  // ST Bracket Check (handles both short codes and full names)
   {
     criterion: 'Required ST Bracket',
     check: (student, criteria) => {
-      if (!criteria.requiredSTBrackets || criteria.requiredSTBrackets.length === 0) return true;
+      // Handle both field name variations from API
+      const requiredBrackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
+      if (requiredBrackets.length === 0) return true;
       if (!student.stBracket) return false;
-      return criteria.requiredSTBrackets.includes(student.stBracket);
+      // Use normalized matching to handle different formats
+      return stBracketsMatch(student.stBracket, requiredBrackets);
     },
     getStudentValue: (student) => student.stBracket || 'Not specified',
-    getRequiredValue: (criteria) => criteria.requiredSTBrackets?.join(', ') || 'Any bracket'
+    getRequiredValue: (criteria) => {
+      const brackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
+      return brackets.join(', ') || 'Any bracket';
+    }
   },
   
   // Province/Location Check
@@ -311,8 +370,9 @@ const calculateCompatibilityScore = (
   const criteria = scholarship.eligibilityCriteria;
   
   // GWA bonus (the better the GWA, the higher the bonus)
-  if (criteria.minGWA && student.gwa) {
-    const gwaMargin = criteria.minGWA - student.gwa; // Positive means better than required
+  // In UPLB: maxGWA is the threshold, lower GWA is better
+  if (criteria.maxGWA && student.gwa) {
+    const gwaMargin = criteria.maxGWA - student.gwa; // Positive means student qualifies with margin to spare
     if (gwaMargin > 0) {
       score += Math.min(gwaMargin * 10, 15); // Up to 15 bonus points
     }

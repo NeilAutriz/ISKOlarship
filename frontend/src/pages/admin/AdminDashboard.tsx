@@ -154,7 +154,7 @@ const AdminDashboard: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-gold-300 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-white/10">
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-white/10">
                   <Shield className="w-3.5 h-3.5" />Administrator Portal
                 </span>
               </div>
@@ -162,10 +162,10 @@ const AdminDashboard: React.FC = () => {
               <p className="text-primary-100">Manage scholarships, applications, and platform analytics</p>
             </div>
             <div className="flex items-center gap-3">
-              <Link to="/admin/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-600 text-slate-200 font-semibold rounded-xl hover:bg-slate-800 transition-all">
+              <Link to="/admin/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white font-semibold rounded-xl hover:bg-white/30 hover:border-white/40 transition-all">
                 <GraduationCap className="w-4 h-4" />Scholarships
               </Link>
-              <Link to="/admin/applicants" className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-400 text-slate-900 font-semibold rounded-xl hover:bg-gold-300 transition-all shadow-lg shadow-gold-400/25">
+              <Link to="/admin/applicants" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-slate-50 transition-all shadow-lg">
                 <FileText className="w-4 h-4" />Review Applications
               </Link>
             </div>

@@ -130,7 +130,13 @@ router.post('/register', registerValidation, async (req, res, next) => {
       userData.adminProfile = {
         firstName,
         middleName: middleName || '',
-        lastName
+        lastName,
+        accessLevel: 'department', // Default to department level
+        permissions: [
+          'manage_scholarships',
+          'review_applications',
+          'view_analytics'
+        ] // Default permissions for new admins
       };
     }
     
