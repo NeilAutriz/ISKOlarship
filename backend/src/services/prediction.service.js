@@ -14,10 +14,35 @@
 //    - Trained on historical UPLB scholarship data
 //    - Accuracy: 91% (Philippine education context)
 //
-// Field Naming Convention:
-// - User.studentProfile.annualFamilyIncome (canonical)
-// - User.studentProfile.classification (year level)
-// - User.studentProfile.stBracket (ST bracket: Full Discount with Stipend, Full Discount, etc.)
+// =============================================================================
+// CANONICAL FIELD NAMES (from User.model.js - studentProfile)
+// =============================================================================
+// All services in this codebase MUST use these field names consistently:
+//
+// ACADEMIC FIELDS:
+// - studentProfile.gwa                  (General Weighted Average, 1.0-5.0)
+// - studentProfile.classification       (Year level: Freshman, Sophomore, Junior, Senior, Graduate)
+// - studentProfile.college              (Full college name from UPLBCollege enum)
+// - studentProfile.course               (Course/program name)
+// - studentProfile.major                (Major/specialization)
+// - studentProfile.unitsEnrolled        (Current units enrolled this semester)
+// - studentProfile.unitsPassed          (Total units passed)
+//
+// FINANCIAL FIELDS:
+// - studentProfile.annualFamilyIncome   (Annual family income in PHP)
+// - studentProfile.householdSize        (Number of household members)
+// - studentProfile.stBracket            (ST bracket: Full Discount with Stipend, Full Discount, PD80, etc.)
+//
+// PERSONAL FIELDS:
+// - studentProfile.firstName            (First name)
+// - studentProfile.lastName             (Last name)
+// - studentProfile.citizenship          (Filipino, Dual Citizen, Foreign National)
+// - studentProfile.provinceOfOrigin     (Province for location-based scholarships)
+//
+// STATUS FLAGS:
+// - studentProfile.hasExistingScholarship  (Boolean)
+// - studentProfile.hasThesisGrant          (Boolean)
+// - studentProfile.hasDisciplinaryAction   (Boolean)
 // =============================================================================
 
 const { Application, Scholarship } = require('../models');
@@ -89,67 +114,81 @@ function sigmoid(x) {
 
 /**
  * Extract features from user and scholarship
+ * 
+ * CANONICAL FIELD NAMES (from User.model.js):
+ * - user.studentProfile.gwa (General Weighted Average)
+ * - user.studentProfile.classification (Year level: Freshman, Sophomore, Junior, Senior, Graduate)
+ * - user.studentProfile.college (Full college name)
+ * - user.studentProfile.course (Course/program name)
+ * - user.studentProfile.annualFamilyIncome (Annual family income in PHP)
+ * - user.studentProfile.stBracket (ST bracket: Full Discount with Stipend, Full Discount, PD80, etc.)
+ * - user.studentProfile.unitsEnrolled (Current units enrolled)
+ * - user.studentProfile.unitsPassed (Total units passed)
+ * - user.studentProfile.householdSize (Number of household members)
  */
 function extractFeatures(user, scholarship) {
-  const academic = user.studentProfile?.academicInfo || {};
-  const financial = user.studentProfile?.financialInfo || {};
+  const profile = user.studentProfile || {};
   const criteria = scholarship.eligibilityCriteria || {};
 
   // Normalize GWA (1.0 is best, 5.0 is worst, so invert)
-  const gwaNormalized = academic.currentGWA 
-    ? (5 - academic.currentGWA) / 4 
+  const gwaNormalized = profile.gwa 
+    ? (5 - profile.gwa) / 4 
     : 0.5;
 
-  // Year level encoding
+  // Year level encoding using canonical classification field
   const yearLevelMap = {
-    '1st Year': 0.2,
-    '2nd Year': 0.4,
-    '3rd Year': 0.6,
-    '4th Year': 0.8,
-    '5th Year': 1.0
+    'Incoming Freshman': 0.1,
+    'Freshman': 0.2,
+    'Sophomore': 0.4,
+    'Junior': 0.6,
+    'Senior': 0.8,
+    'Graduate': 1.0
   };
-  const yearLevelNormalized = yearLevelMap[academic.yearLevel] || 0.5;
+  const yearLevelNormalized = yearLevelMap[profile.classification] || 0.5;
 
   // Financial need score (inverse of income)
   const maxIncome = 1000000; // Reference max income
-  const financialNeed = financial.annualFamilyIncome 
-    ? 1 - (financial.annualFamilyIncome / maxIncome)
+  const financialNeed = profile.annualFamilyIncome 
+    ? 1 - (profile.annualFamilyIncome / maxIncome)
     : 0.5;
 
-  // ST Bracket encoding (Bracket A = highest need)
+  // ST Bracket encoding (higher need = higher score)
+  // Uses canonical ST bracket names from User.model.js
   const stBracketMap = {
-    'Bracket A': 1.0,
-    'Bracket B': 0.8,
-    'Bracket C': 0.6,
-    'Bracket D': 0.4,
-    'Bracket E': 0.2
+    'Full Discount with Stipend': 1.0,
+    'Full Discount': 0.85,
+    'PD80': 0.7,
+    'PD60': 0.55,
+    'PD40': 0.4,
+    'PD20': 0.25,
+    'No Discount': 0.1
   };
-  const stBracketNormalized = stBracketMap[financial.stBracket] || 0.5;
+  const stBracketNormalized = stBracketMap[profile.stBracket] || 0.5;
 
   // College match
-  const collegeMatch = criteria.eligibleColleges?.length === 0 ||
-    criteria.eligibleColleges?.includes(academic.college) ? 1 : 0;
+  const collegeMatch = !criteria.eligibleColleges?.length ||
+    criteria.eligibleColleges.includes(profile.college) ? 1 : 0;
 
   // Course match
-  const courseMatch = criteria.eligibleCourses?.length === 0 ||
-    criteria.eligibleCourses?.includes(academic.course) ? 1 : 0;
+  const courseMatch = !criteria.eligibleCourses?.length ||
+    criteria.eligibleCourses.includes(profile.course) ? 1 : 0;
 
-  // Profile completeness
+  // Profile completeness - using canonical field names
   const profileFields = [
-    academic.currentGWA,
-    academic.yearLevel,
-    academic.college,
-    academic.course,
-    financial.annualFamilyIncome,
-    user.firstName,
-    user.lastName,
+    profile.gwa,
+    profile.classification,
+    profile.college,
+    profile.course,
+    profile.annualFamilyIncome,
+    profile.firstName,
+    profile.lastName,
     user.email
   ];
   const profileCompleteness = profileFields.filter(f => f != null).length / profileFields.length;
 
   // Units normalized (assuming 21 is full load)
-  const unitsNormalized = academic.unitsEnrolled 
-    ? Math.min(academic.unitsEnrolled / 21, 1)
+  const unitsNormalized = profile.unitsEnrolled 
+    ? Math.min(profile.unitsEnrolled / 21, 1)
     : 0.7;
 
   return {
@@ -229,6 +268,10 @@ function getMatchLevel(probability) {
 
 /**
  * Analyze detailed factors for comprehensive UI display
+ * 
+ * Uses canonical field names from User.model.js:
+ * - profile.gwa, profile.classification, profile.college, profile.course
+ * - profile.annualFamilyIncome, profile.stBracket, profile.householdSize
  */
 function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
   const profile = user.studentProfile || {};
@@ -236,7 +279,7 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
   const workingInFavor = [];
   const areasToConsider = [];
 
-  // Analyze Family Income
+  // Analyze Family Income (using canonical field: annualFamilyIncome)
   if (profile.annualFamilyIncome != null && criteria.maxAnnualFamilyIncome) {
     const isEligible = profile.annualFamilyIncome <= criteria.maxAnnualFamilyIncome;
     const percentOfMax = (profile.annualFamilyIncome / criteria.maxAnnualFamilyIncome) * 100;
@@ -261,7 +304,7 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
     }
   }
 
-  // Analyze Year Level
+  // Analyze Year Level (using canonical field: classification)
   if (criteria.requiredYearLevels?.length > 0 || criteria.eligibleClassifications?.length > 0) {
     const eligibleLevels = criteria.requiredYearLevels || criteria.eligibleClassifications || [];
     const isEligible = eligibleLevels.includes(profile.classification);
@@ -285,7 +328,32 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
     }
   }
 
-  // Analyze Course Alignment
+  // Analyze College (using canonical field: college)
+  if (criteria.eligibleColleges?.length > 0) {
+    const isEligible = criteria.eligibleColleges.includes(profile.college);
+    
+    const factor = {
+      title: 'College',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible
+        ? 'Your college is eligible for this scholarship.'
+        : 'Your college is not among the eligible colleges.',
+      details: {
+        required: criteria.eligibleColleges.length <= 3 
+          ? criteria.eligibleColleges.join(', ')
+          : `${criteria.eligibleColleges.length} eligible colleges`,
+        yourValue: profile.college || 'Not provided'
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
+    }
+  }
+
+  // Analyze Course Alignment (using canonical field: course)
   if (criteria.eligibleCourses?.length > 0) {
     const isEligible = criteria.eligibleCourses.includes(profile.course);
     
@@ -296,7 +364,9 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
         ? 'Your course is one of the preferred programs for this scholarship.'
         : 'Your course is not among the preferred programs.',
       details: {
-        typicalRange: criteria.eligibleCourses.join(', '),
+        typicalRange: criteria.eligibleCourses.length <= 3
+          ? criteria.eligibleCourses.join(', ')
+          : `${criteria.eligibleCourses.length} eligible courses`,
         yourValue: profile.course || 'Not provided'
       }
     };
@@ -308,7 +378,7 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
     }
   }
 
-  // Analyze Academic Performance (GWA)
+  // Analyze Academic Performance (using canonical field: gwa)
   if (criteria.maxGWA || criteria.minGWA) {
     const requiredGWA = criteria.maxGWA || criteria.minGWA;
     const isEligible = profile.gwa && profile.gwa <= requiredGWA;
@@ -334,9 +404,12 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
     }
   }
 
-  // Analyze ST Bracket
-  if (criteria.eligibleSTBrackets?.length > 0) {
-    const isEligible = criteria.eligibleSTBrackets.includes(profile.stBracket);
+  // Analyze ST Bracket (using canonical field: stBracket)
+  // Use normalizer for proper comparison
+  if (criteria.eligibleSTBrackets?.length > 0 || criteria.requiredSTBrackets?.length > 0) {
+    const eligibleBrackets = criteria.eligibleSTBrackets || criteria.requiredSTBrackets || [];
+    const normalizedStudentBracket = normalizeSTBracket(profile.stBracket);
+    const isEligible = stBracketsMatch(profile.stBracket, eligibleBrackets);
     
     const factor = {
       title: 'Socialized Tuition Bracket',
@@ -345,8 +418,8 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
         ? 'Your ST bracket qualifies for this scholarship.'
         : 'Your ST bracket does not meet the requirement.',
       details: {
-        required: criteria.eligibleSTBrackets.join(', '),
-        yourValue: profile.stBracket || 'Not provided'
+        required: eligibleBrackets.map(b => normalizeSTBracket(b)).join(', '),
+        yourValue: normalizedStudentBracket || 'Not provided'
       }
     };
     
@@ -357,7 +430,53 @@ function analyzeDetailedFactors(user, scholarship, eligibility, prediction) {
     }
   }
 
-  // Check profile completeness
+  // Analyze Units Enrolled (using canonical field: unitsEnrolled)
+  if (criteria.minUnitsEnrolled) {
+    const isEligible = profile.unitsEnrolled && profile.unitsEnrolled >= criteria.minUnitsEnrolled;
+    
+    const factor = {
+      title: 'Units Enrolled',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible
+        ? 'You meet the minimum units enrolled requirement.'
+        : `You have ${profile.unitsEnrolled || 0} units enrolled, but ${criteria.minUnitsEnrolled} are required.`,
+      details: {
+        required: `≥ ${criteria.minUnitsEnrolled} units`,
+        yourValue: profile.unitsEnrolled ? `${profile.unitsEnrolled} units` : 'Not provided'
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
+    }
+  }
+
+  // Analyze Units Passed (using canonical field: unitsPassed) - for thesis grants
+  if (criteria.minUnitsPassed) {
+    const isEligible = profile.unitsPassed && profile.unitsPassed >= criteria.minUnitsPassed;
+    
+    const factor = {
+      title: 'Units Passed',
+      status: isEligible ? 'positive' : 'negative',
+      message: isEligible
+        ? 'You meet the minimum units passed requirement.'
+        : `You have ${profile.unitsPassed || 0} units passed, but ${criteria.minUnitsPassed} are required.`,
+      details: {
+        required: `≥ ${criteria.minUnitsPassed} units`,
+        yourValue: profile.unitsPassed ? `${profile.unitsPassed} units` : 'Not provided'
+      }
+    };
+    
+    if (isEligible) {
+      workingInFavor.push(factor);
+    } else {
+      areasToConsider.push(factor);
+    }
+  }
+
+  // Check profile completeness using canonical field names
   const requiredFields = ['gwa', 'classification', 'college', 'course', 'annualFamilyIncome', 'stBracket', 'householdSize'];
   const missingFields = requiredFields.filter(field => !profile[field]);
   

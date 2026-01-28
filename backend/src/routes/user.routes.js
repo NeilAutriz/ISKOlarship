@@ -540,7 +540,7 @@ router.get('/',
       const query = {};
       
       if (role) query.role = role;
-      if (college) query['studentProfile.academicInfo.college'] = college;
+      if (college) query['studentProfile.college'] = college;
       
       if (search) {
         query.$or = [
@@ -678,11 +678,11 @@ router.get('/stats/overview',
             ],
             byCollege: [
               { $match: { role: 'student' } },
-              { $group: { _id: '$studentProfile.academicInfo.college', count: { $sum: 1 } } }
+              { $group: { _id: '$studentProfile.college', count: { $sum: 1 } } }
             ],
             byYearLevel: [
               { $match: { role: 'student' } },
-              { $group: { _id: '$studentProfile.academicInfo.yearLevel', count: { $sum: 1 } } }
+              { $group: { _id: '$studentProfile.classification', count: { $sum: 1 } } }
             ],
             recentRegistrations: [
               { $sort: { createdAt: -1 } },

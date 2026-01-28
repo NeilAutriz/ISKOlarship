@@ -85,10 +85,38 @@ router.get('/my', authMiddleware, async (req, res, next) => {
     const elapsed = Date.now() - startTime;
     console.log(`✅ Query completed in ${elapsed}ms - Found ${applications.length} applications (total: ${total})`);
 
+    // Build applicantSnapshot from current user profile if snapshot is empty
+    const userProfile = req.user.studentProfile || {};
+    const enrichedApplications = applications.map(app => {
+      const storedSnapshot = app.applicantSnapshot || {};
+      const hasValidSnapshot = storedSnapshot.gwa || storedSnapshot.course || storedSnapshot.classification;
+      
+      if (!hasValidSnapshot) {
+        app.applicantSnapshot = {
+          studentNumber: storedSnapshot.studentNumber || userProfile.studentNumber,
+          firstName: userProfile.firstName || req.user.firstName,
+          lastName: userProfile.lastName || req.user.lastName,
+          gwa: userProfile.gwa,
+          classification: userProfile.classification,
+          college: userProfile.college,
+          course: userProfile.course,
+          major: userProfile.major,
+          unitsEnrolled: userProfile.unitsEnrolled,
+          unitsPassed: userProfile.unitsPassed,
+          annualFamilyIncome: userProfile.annualFamilyIncome,
+          stBracket: userProfile.stBracket,
+          householdSize: userProfile.householdSize,
+          provinceOfOrigin: userProfile.provinceOfOrigin,
+          citizenship: userProfile.citizenship
+        };
+      }
+      return app;
+    });
+
     res.json({
       success: true,
       data: {
-        applications,
+        applications: enrichedApplications,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -234,26 +262,38 @@ router.post('/',
       const eligibilityResult = await calculateEligibility(req.user, scholarship);
 
       // Create applicant snapshot with complete student data
+      // Uses FLAT structure matching User.model.js studentProfile schema
+      const profile = req.user.studentProfile || {};
       const applicantSnapshot = {
-        studentNumber: req.user.studentProfile?.studentNumber,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        gwa: req.user.studentProfile?.academicInfo?.currentGWA,
-        classification: req.user.studentProfile?.academicInfo?.yearLevel,
-        college: req.user.studentProfile?.academicInfo?.college,
-        course: req.user.studentProfile?.academicInfo?.course,
-        major: req.user.studentProfile?.academicInfo?.major,
-        annualFamilyIncome: req.user.studentProfile?.financialInfo?.annualFamilyIncome,
-        unitsEnrolled: req.user.studentProfile?.academicInfo?.unitsEnrolled,
-        unitsPassed: req.user.studentProfile?.academicInfo?.unitsPassed,
-        provinceOfOrigin: req.user.studentProfile?.personalInfo?.provinceOfOrigin,
-        citizenship: req.user.studentProfile?.personalInfo?.citizenship,
-        stBracket: req.user.studentProfile?.financialInfo?.stBracket,
-        hasExistingScholarship: req.user.studentProfile?.scholarshipInfo?.hasExistingScholarship,
-        hasThesisGrant: req.user.studentProfile?.scholarshipInfo?.hasThesisGrant,
-        hasApprovedThesisOutline: req.user.studentProfile?.scholarshipInfo?.hasApprovedThesisOutline,
-        hasDisciplinaryAction: req.user.studentProfile?.academicInfo?.hasDisciplinaryAction,
-        hasFailingGrade: req.user.studentProfile?.academicInfo?.hasFailingGrade
+        // Identity
+        studentNumber: profile.studentNumber,
+        firstName: profile.firstName || req.user.firstName,
+        lastName: profile.lastName || req.user.lastName,
+        
+        // Academic Info (flat fields from User.model.js)
+        gwa: profile.gwa,
+        classification: profile.classification,
+        college: profile.college,
+        course: profile.course,
+        major: profile.major,
+        unitsEnrolled: profile.unitsEnrolled,
+        unitsPassed: profile.unitsPassed,
+        
+        // Financial Info (flat fields from User.model.js)
+        annualFamilyIncome: profile.annualFamilyIncome,
+        stBracket: profile.stBracket,
+        householdSize: profile.householdSize,
+        
+        // Personal Info (flat fields from User.model.js)
+        provinceOfOrigin: profile.provinceOfOrigin,
+        citizenship: profile.citizenship,
+        
+        // Scholarship/Status Info (flat fields from User.model.js)
+        hasExistingScholarship: profile.hasExistingScholarship,
+        hasThesisGrant: profile.hasThesisGrant,
+        hasApprovedThesisOutline: profile.hasApprovedThesisOutline,
+        hasDisciplinaryAction: profile.hasDisciplinaryAction,
+        hasFailingGrade: profile.hasFailingGrade
       };
 
       // Process documents from uploaded files
@@ -369,6 +409,46 @@ router.get('/:id',
           success: false,
           message: 'Application not found'
         });
+      }
+
+      // Build applicantSnapshot from populated applicant data if snapshot is empty/missing
+      // This ensures existing applications display profile info correctly
+      const storedSnapshot = application.applicantSnapshot || {};
+      const hasValidSnapshot = storedSnapshot.gwa || storedSnapshot.course || storedSnapshot.classification;
+      
+      if (!hasValidSnapshot && application.applicant?.studentProfile) {
+        const profile = application.applicant.studentProfile;
+        application.applicantSnapshot = {
+          // Identity
+          studentNumber: storedSnapshot.studentNumber || profile.studentNumber,
+          firstName: profile.firstName || application.applicant.firstName,
+          lastName: profile.lastName || application.applicant.lastName,
+          
+          // Academic Info
+          gwa: profile.gwa,
+          classification: profile.classification,
+          college: profile.college,
+          course: profile.course,
+          major: profile.major,
+          unitsEnrolled: profile.unitsEnrolled,
+          unitsPassed: profile.unitsPassed,
+          
+          // Financial Info
+          annualFamilyIncome: profile.annualFamilyIncome,
+          stBracket: profile.stBracket,
+          householdSize: profile.householdSize,
+          
+          // Personal Info
+          provinceOfOrigin: profile.provinceOfOrigin,
+          citizenship: profile.citizenship,
+          
+          // Status flags
+          hasExistingScholarship: profile.hasExistingScholarship,
+          hasThesisGrant: profile.hasThesisGrant,
+          hasApprovedThesisOutline: profile.hasApprovedThesisOutline,
+          hasDisciplinaryAction: profile.hasDisciplinaryAction,
+          hasFailingGrade: profile.hasFailingGrade
+        };
       }
 
       res.json({

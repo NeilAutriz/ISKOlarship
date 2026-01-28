@@ -534,66 +534,90 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
 
           {/* Full width sections */}
           <div className="space-y-4 mt-4">
-            {/* Applicant Profile Snapshot */}
+            {/* Applicant Profile Snapshot - Styled like Admin Applicants View */}
             {application.applicantSnapshot && Object.keys(application.applicantSnapshot).length > 0 && (
-              <div className="bg-white rounded-lg p-4 border border-slate-200">
-                <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                  <User className="w-4 h-4 text-indigo-600" />
-                  Profile Snapshot (At Time of Application)
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {application.applicantSnapshot.gwa !== undefined && application.applicantSnapshot.gwa !== null && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">GWA</p>
-                      <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.gwa}</p>
-                    </div>
-                  )}
-                  {application.applicantSnapshot.classification && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">Year Level</p>
-                      <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.classification}</p>
-                    </div>
-                  )}
+              <div className="bg-white rounded-lg border border-slate-200">
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                  <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <User className="w-4 h-4 text-primary-600" />
+                    Profile Snapshot
+                    <span className="text-xs font-normal text-slate-500">(At Time of Application)</span>
+                  </h3>
+                </div>
+                
+                {/* Primary Info Grid - Course, Year Level, GWA, Family Income (like admin view) */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border-b border-slate-100">
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Course</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {application.applicantSnapshot.course || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Year Level</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {application.applicantSnapshot.classification || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">GWA</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {application.applicantSnapshot.gwa !== undefined && application.applicantSnapshot.gwa !== null 
+                        ? Number(application.applicantSnapshot.gwa).toFixed(2) 
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Family Income</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {application.applicantSnapshot.annualFamilyIncome !== undefined && application.applicantSnapshot.annualFamilyIncome !== null
+                        ? `₱${Number(application.applicantSnapshot.annualFamilyIncome).toLocaleString()}`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Secondary Info Grid - Additional Details */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4">
                   {application.applicantSnapshot.college && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">College</p>
-                      <p className="text-sm font-bold text-slate-900 truncate">{application.applicantSnapshot.college}</p>
-                    </div>
-                  )}
-                  {application.applicantSnapshot.course && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">Course</p>
-                      <p className="text-sm font-bold text-slate-900 truncate">{application.applicantSnapshot.course}</p>
-                    </div>
-                  )}
-                  {application.applicantSnapshot.annualFamilyIncome !== undefined && application.applicantSnapshot.annualFamilyIncome !== null && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">Family Income</p>
-                      <p className="text-sm font-bold text-slate-900">₱{application.applicantSnapshot.annualFamilyIncome.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {application.applicantSnapshot.unitsEnrolled !== undefined && application.applicantSnapshot.unitsEnrolled !== null && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">Units Enrolled</p>
-                      <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.unitsEnrolled}</p>
-                    </div>
-                  )}
-                  {application.applicantSnapshot.studentNumber && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">Student Number</p>
-                      <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.studentNumber}</p>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">College</p>
+                      <p className="text-sm font-medium text-slate-700 truncate" title={application.applicantSnapshot.college}>
+                        {application.applicantSnapshot.college}
+                      </p>
                     </div>
                   )}
                   {application.applicantSnapshot.stBracket && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">ST Bracket</p>
-                      <p className="text-sm font-bold text-slate-900">{application.applicantSnapshot.stBracket}</p>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">ST Bracket</p>
+                      <p className="text-sm font-medium text-slate-700">
+                        {application.applicantSnapshot.stBracket}
+                      </p>
+                    </div>
+                  )}
+                  {application.applicantSnapshot.unitsEnrolled !== undefined && application.applicantSnapshot.unitsEnrolled !== null && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Units Enrolled</p>
+                      <p className="text-sm font-medium text-slate-700">
+                        {application.applicantSnapshot.unitsEnrolled}
+                      </p>
                     </div>
                   )}
                   {application.applicantSnapshot.provinceOfOrigin && (
-                    <div className="bg-slate-50 rounded-lg p-2">
-                      <p className="text-xs text-slate-500 mb-0.5">Province</p>
-                      <p className="text-sm font-bold text-slate-900 truncate">{application.applicantSnapshot.provinceOfOrigin}</p>
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Province</p>
+                      <p className="text-sm font-medium text-slate-700 truncate" title={application.applicantSnapshot.provinceOfOrigin}>
+                        {application.applicantSnapshot.provinceOfOrigin}
+                      </p>
+                    </div>
+                  )}
+                  {application.applicantSnapshot.studentNumber && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Student Number</p>
+                      <p className="text-sm font-medium text-slate-700">
+                        {application.applicantSnapshot.studentNumber}
+                      </p>
                     </div>
                   )}
                 </div>
