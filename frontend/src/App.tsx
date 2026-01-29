@@ -334,6 +334,9 @@ const App: React.FC = () => {
             },
             provinceOfOrigin: profileData.provinceOfOrigin,
             college: profileData.college,
+            collegeCode: profileData.collegeCode || undefined,
+            academicUnit: profileData.academicUnit || undefined,
+            academicUnitCode: profileData.academicUnitCode || undefined,
             course: profileData.course,
             classification: profileData.yearLevel,
             gwa: parseFloat(profileData.gwa) || 0,
@@ -349,6 +352,14 @@ const App: React.FC = () => {
             profileCompleted: true
           }
         };
+        
+        // DEBUG: Log college/academicUnit data
+        console.log('🏫 College/Academic Unit data being sent:');
+        console.log('  - college:', profileData.college);
+        console.log('  - collegeCode:', profileData.collegeCode);
+        console.log('  - academicUnit:', profileData.academicUnit);
+        console.log('  - academicUnitCode:', profileData.academicUnitCode);
+        console.log('📤 Full studentProfile:', JSON.stringify(profileUpdate.studentProfile, null, 2));
         
         console.log('📝 Updating profile with basic information...');
         
@@ -556,8 +567,11 @@ const App: React.FC = () => {
             firstName,
             middleName,
             lastName,
-            department: profileData.department,
-            college: profileData.college || null,
+            department: profileData.department || undefined,
+            college: profileData.college || undefined,
+            collegeCode: profileData.collegeCode || undefined,
+            academicUnit: profileData.academicUnit || undefined,
+            academicUnitCode: profileData.academicUnitCode || undefined,
             position: profileData.position,
             officeLocation: profileData.officeLocation,
             accessLevel: profileData.accessLevel,
@@ -567,6 +581,13 @@ const App: React.FC = () => {
           }
         };
         
+        // DEBUG: Log college/academicUnit data for admin
+        console.log('🏛️ Admin College/Academic Unit data being sent:');
+        console.log('  - college:', profileData.college);
+        console.log('  - collegeCode:', profileData.collegeCode);
+        console.log('  - academicUnit:', profileData.academicUnit);
+        console.log('  - academicUnitCode:', profileData.academicUnitCode);
+        console.log('  - accessLevel:', profileData.accessLevel);
         console.log('Admin profile update payload:', JSON.stringify(profileUpdate, null, 2));
         
         // Update profile with complete data

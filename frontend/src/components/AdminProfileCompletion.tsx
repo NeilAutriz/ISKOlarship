@@ -26,6 +26,12 @@ import {
   Loader2
 } from 'lucide-react';
 import { UPLBCollege, AdminAccessLevel } from '../types';
+import { 
+  UPLBCollegeCode, 
+  UPLBDepartments, 
+  getDepartmentOptions,
+  getCollegeCodeFromLegacy 
+} from '../utils/uplbStructure';
 
 interface EmployeeIdDocument {
   file: File | null;
@@ -47,6 +53,9 @@ export interface AdminProfileData {
   // Step 2: Administrative Details
   department: string;
   college: string;
+  collegeCode: string;        // Code like 'CAS', 'CAFS' for linking
+  academicUnit: string;       // Academic unit name (department/institute)
+  academicUnitCode: string;   // Code like 'ICS', 'IMSP' for linking
   position: string;
   accessLevel: string;
   
@@ -84,6 +93,9 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
     },
     department: '',
     college: '',
+    collegeCode: '',
+    academicUnit: '',
+    academicUnitCode: '',
     position: '',
     accessLevel: '',
     responsibilities: '',
@@ -95,7 +107,37 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   const [uploading, setUploading] = useState(false);
 
   const updateField = (field: keyof AdminProfileData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // When college changes, update collegeCode and clear academicUnit
+      if (field === 'college') {
+        updated.academicUnit = '';
+        updated.academicUnitCode = '';
+        if (typeof value === 'string' && value) {
+          const collegeCode = getCollegeCodeFromLegacy(value);
+          console.log('🏛️ Admin college selected:', value);
+          console.log('🔍 College code lookup result:', collegeCode);
+          if (collegeCode) {
+            updated.collegeCode = collegeCode;
+          } else {
+            updated.collegeCode = '';
+          }
+        } else {
+          updated.collegeCode = '';
+        }
+      }
+      
+      // When access level changes to university, clear college and academicUnit
+      if (field === 'accessLevel' && value === AdminAccessLevel.UNIVERSITY) {
+        updated.college = '';
+        updated.collegeCode = '';
+        updated.academicUnit = '';
+        updated.academicUnitCode = '';
+      }
+      
+      return updated;
+    });
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -113,9 +155,22 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
         if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact number is required';
         break;
       case 2:
-        if (!formData.department.trim()) newErrors.department = 'Department is required';
-        if (!formData.position.trim()) newErrors.position = 'Position/title is required';
         if (!formData.accessLevel) newErrors.accessLevel = 'Access level is required';
+        if (!formData.position.trim()) newErrors.position = 'Position/title is required';
+        
+        // Department/Unit is required ONLY for university-wide access
+        if (formData.accessLevel === AdminAccessLevel.UNIVERSITY && !formData.department.trim()) {
+          newErrors.department = 'Department/Unit is required for university-wide access';
+        }
+        
+        // College is required for college and academic unit level admins
+        if ((formData.accessLevel === AdminAccessLevel.COLLEGE || formData.accessLevel === AdminAccessLevel.ACADEMIC_UNIT) && !formData.college) {
+          newErrors.college = 'College is required for your access level';
+        }
+        // Academic unit is required for academic unit level admins
+        if (formData.accessLevel === AdminAccessLevel.ACADEMIC_UNIT && !formData.academicUnitCode) {
+          newErrors.academicUnit = 'Academic unit is required for your access level';
+        }
         break;
       case 3:
         if (!formData.responsibilities.trim()) newErrors.responsibilities = 'Please describe your responsibilities';
@@ -289,7 +344,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   const accessLevels = [
     { value: AdminAccessLevel.UNIVERSITY, label: 'University-wide Access', description: 'Manage all scholarships across UPLB' },
     { value: AdminAccessLevel.COLLEGE, label: 'College-level Access', description: 'Oversee scholarships within your college' },
-    { value: AdminAccessLevel.DEPARTMENT, label: 'Department-level Access', description: 'Handle department-specific scholarships' },
+    { value: AdminAccessLevel.ACADEMIC_UNIT, label: 'Academic Unit Access', description: 'Handle department/institute-specific scholarships' },
   ];
 
   const stepInfo = [
@@ -504,90 +559,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
       </div>
 
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-primary-600" />
-            Department/Unit
-          </label>
-          <div className="relative">
-            <select
-              value={formData.department}
-              onChange={(e) => updateField('department', e.target.value)}
-              className={`w-full pl-4 pr-10 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer font-medium ${
-                errors.department 
-                  ? 'border-red-300 bg-red-50 text-red-900' 
-                  : formData.department 
-                    ? 'border-primary-300 bg-primary-50 text-slate-900' 
-                    : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-primary-300 hover:bg-white'
-              }`}
-            >
-              <option value="">Select your department/unit</option>
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-            <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none transition-colors ${
-              formData.department ? 'text-primary-600' : 'text-slate-400'
-            }`} />
-          </div>
-          {errors.department && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.department}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-primary-600" />
-            College Affiliation <span className="text-slate-400 font-normal">(Optional)</span>
-          </label>
-          <div className="relative">
-            <select
-              value={formData.college}
-              onChange={(e) => updateField('college', e.target.value)}
-              className={`w-full pl-4 pr-10 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer font-medium ${
-                formData.college 
-                  ? 'border-primary-300 bg-primary-50 text-slate-900' 
-                  : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-primary-300 hover:bg-white'
-              }`}
-            >
-              {colleges.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-            <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none transition-colors ${
-              formData.college ? 'text-primary-600' : 'text-slate-400'
-            }`} />
-          </div>
-          <p className="text-slate-500 text-xs mt-1.5">Leave as "University-wide" if not college-specific</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-primary-600" />
-            Position/Title
-          </label>
-          <div className="relative">
-            <select
-              value={formData.position}
-              onChange={(e) => updateField('position', e.target.value)}
-              className={`w-full pl-4 pr-10 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer font-medium ${
-                errors.position 
-                  ? 'border-red-300 bg-red-50 text-red-900' 
-                  : formData.position 
-                    ? 'border-primary-300 bg-primary-50 text-slate-900' 
-                    : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-primary-300 hover:bg-white'
-              }`}
-            >
-              <option value="">Select your position</option>
-              {positions.map((pos) => (
-                <option key={pos} value={pos}>{pos}</option>
-              ))}
-            </select>
-            <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none transition-colors ${
-              formData.position ? 'text-primary-600' : 'text-slate-400'
-            }`} />
-          </div>
-          {errors.position && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.position}</p>}
-        </div>
-
+        {/* Access Level Selection - FIRST */}
         <div>
           <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
             <Shield className="w-4 h-4 text-primary-600" />
@@ -624,6 +596,167 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
             ))}
           </div>
           {errors.accessLevel && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.accessLevel}</p>}
+        </div>
+
+        {/* Department/Unit - Shows ONLY for University-wide Access */}
+        {formData.accessLevel === AdminAccessLevel.UNIVERSITY && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary-600" />
+              Department/Unit
+            </label>
+            <div className="relative">
+              <select
+                value={formData.department}
+                onChange={(e) => updateField('department', e.target.value)}
+                className={`w-full pl-4 pr-10 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer font-medium ${
+                  errors.department 
+                    ? 'border-red-300 bg-red-50 text-red-900' 
+                    : formData.department 
+                      ? 'border-primary-300 bg-primary-50 text-slate-900' 
+                      : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-primary-300 hover:bg-white'
+                }`}
+              >
+                <option value="">Select your department/unit</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+              <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none transition-colors ${
+                formData.department ? 'text-primary-600' : 'text-slate-400'
+              }`} />
+            </div>
+            {errors.department && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.department}</p>}
+            <p className="text-slate-500 text-xs mt-1.5">
+              Select the administrative office/unit you belong to
+            </p>
+          </div>
+        )}
+
+        {/* College Affiliation - Shows ONLY for College or Academic Unit Access */}
+        {(formData.accessLevel === AdminAccessLevel.COLLEGE || formData.accessLevel === AdminAccessLevel.ACADEMIC_UNIT) && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary-600" />
+              College Affiliation <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={formData.college}
+                onChange={(e) => updateField('college', e.target.value)}
+                className={`w-full pl-4 pr-10 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer font-medium ${
+                  errors.college
+                    ? 'border-red-300 bg-red-50 text-red-900'
+                    : formData.college 
+                      ? 'border-primary-300 bg-primary-50 text-slate-900' 
+                      : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-primary-300 hover:bg-white'
+                }`}
+              >
+                <option value="">Select your college</option>
+                {colleges.filter(c => c.value !== '').map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none transition-colors ${
+                formData.college ? 'text-primary-600' : 'text-slate-400'
+              }`} />
+            </div>
+            {errors.college && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.college}</p>}
+            <p className="text-slate-500 text-xs mt-1.5">
+              Required: This determines which scholarships you can manage
+            </p>
+          </div>
+        )}
+
+        {/* Academic Unit Selection - Shows only for college/academic_unit level admins with a college selected */}
+        {formData.collegeCode && (formData.accessLevel === AdminAccessLevel.COLLEGE || formData.accessLevel === AdminAccessLevel.ACADEMIC_UNIT) && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary-600" />
+              Academic Unit (Department/Institute)
+              {formData.accessLevel === AdminAccessLevel.ACADEMIC_UNIT 
+                ? <span className="text-red-500">*</span>
+                : <span className="text-slate-400 font-normal">(Optional for College-level)</span>
+              }
+            </label>
+            <div className="relative">
+              <select
+                value={formData.academicUnitCode}
+                onChange={(e) => {
+                  const unitCode = e.target.value;
+                  console.log('🎯 Admin Academic Unit selected:', unitCode);
+                  setFormData(prev => {
+                    const depts = getDepartmentOptions(prev.collegeCode as UPLBCollegeCode);
+                    const selectedUnit = depts.find(d => d.value === unitCode);
+                    const unitName = selectedUnit ? selectedUnit.label.split(' - ')[1] || selectedUnit.label : '';
+                    console.log('📝 Setting academicUnitCode:', unitCode);
+                    console.log('📝 Setting academicUnit:', unitName);
+                    return {
+                      ...prev,
+                      academicUnitCode: unitCode,
+                      academicUnit: unitName
+                    };
+                  });
+                  // Clear error
+                  if (errors.academicUnit) {
+                    setErrors(prev => ({ ...prev, academicUnit: '' }));
+                  }
+                }}
+                className={`w-full pl-4 pr-10 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer font-medium ${
+                  errors.academicUnit
+                    ? 'border-red-300 bg-red-50 text-red-900'
+                    : formData.academicUnitCode 
+                      ? 'border-primary-300 bg-primary-50 text-slate-900' 
+                      : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-primary-300 hover:bg-white'
+                }`}
+              >
+                <option value="">Select your academic unit</option>
+                {getDepartmentOptions(formData.collegeCode as UPLBCollegeCode).map((dept) => (
+                  <option key={dept.value} value={dept.value}>{dept.label}</option>
+                ))}
+              </select>
+              <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none transition-colors ${
+                formData.academicUnitCode ? 'text-primary-600' : 'text-slate-400'
+              }`} />
+            </div>
+            {errors.academicUnit && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.academicUnit}</p>}
+            <p className="text-slate-500 text-xs mt-1.5">
+              {formData.accessLevel === AdminAccessLevel.ACADEMIC_UNIT
+                ? 'Required: This determines which scholarships you can manage'
+                : 'Optional: Leave blank for college-wide access'
+              }
+            </p>
+          </div>
+        )}
+
+        {/* Position/Title */}
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+            <Briefcase className="w-4 h-4 text-primary-600" />
+            Position/Title
+          </label>
+          <div className="relative">
+            <select
+              value={formData.position}
+              onChange={(e) => updateField('position', e.target.value)}
+              className={`w-full pl-4 pr-10 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer font-medium ${
+                errors.position 
+                  ? 'border-red-300 bg-red-50 text-red-900' 
+                  : formData.position 
+                    ? 'border-primary-300 bg-primary-50 text-slate-900' 
+                    : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-primary-300 hover:bg-white'
+              }`}
+            >
+              <option value="">Select your position</option>
+              {positions.map((pos) => (
+                <option key={pos} value={pos}>{pos}</option>
+              ))}
+            </select>
+            <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none transition-colors ${
+              formData.position ? 'text-primary-600' : 'text-slate-400'
+            }`} />
+          </div>
+          {errors.position && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.position}</p>}
         </div>
       </div>
     </div>

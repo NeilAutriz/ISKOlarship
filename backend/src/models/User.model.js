@@ -29,7 +29,18 @@ const Classification = {
 // Alias for backward compatibility
 const YearLevel = Classification;
 
-// UPLB Colleges
+// Import UPLB organizational structure
+const { 
+  UPLBColleges, 
+  UPLBDepartments, 
+  UniversityUnits,
+  getCollegeCodes,
+  getDepartmentCodes,
+  isDepartmentInCollege 
+} = require('./UPLBStructure');
+
+// UPLB Colleges - Legacy enum for backward compatibility
+// Use UPLBColleges from UPLBStructure.js for new code
 const UPLBCollege = {
   CAS: 'College of Arts and Sciences',
   CAFS: 'College of Agriculture and Food Science',
@@ -42,6 +53,9 @@ const UPLBCollege = {
   CPAF: 'College of Public Affairs and Development',
   GS: 'Graduate School'
 };
+
+// UPLB College Codes (short form for admin profiles)
+const UPLBCollegeCodes = getCollegeCodes();
 
 // ST Bracket (Socialized Tuition)
 const STBracket = {
@@ -58,7 +72,7 @@ const STBracket = {
 const AdminAccessLevel = {
   UNIVERSITY: 'university',
   COLLEGE: 'college',
-  DEPARTMENT: 'department'
+  ACADEMIC_UNIT: 'academic_unit'  // Department or Institute
 };
 
 // Citizenship options
@@ -205,6 +219,27 @@ const userSchema = new mongoose.Schema({
     college: {
       type: String,
       enum: Object.values(UPLBCollege)
+    },
+    
+    // College Code (e.g., 'CAS', 'CEAT') - for consistent lookups
+    collegeCode: {
+      type: String,
+      enum: [...UPLBCollegeCodes, null],
+      default: null
+    },
+    
+    // Academic Unit Code (Department/Institute) - e.g., 'ICS', 'IMSP', 'IBS'
+    // Links student to specific academic unit for scholarship matching
+    academicUnitCode: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    
+    // Academic Unit Name (computed from code) - Department or Institute
+    academicUnit: {
+      type: String,
+      trim: true
     },
     
     // course (from ERD)
@@ -356,19 +391,62 @@ const userSchema = new mongoose.Schema({
     middleName: String,
     lastName: String,
     
-    // department (from ERD)
-    department: {
+    // =========================================================================
+    // Organizational Assignment (UPLB Hierarchy)
+    // University → College → Department/Institute
+    // =========================================================================
+    
+    // access_level determines scope of admin's authority
+    accessLevel: {
       type: String,
-      trim: true
+      enum: Object.values(AdminAccessLevel),
+      default: AdminAccessLevel.ACADEMIC_UNIT
+      // Note: Not marked as required to allow partial adminProfile updates
+      // The default value ensures it's always set when adminProfile is created
     },
     
-    // College affiliation
+    // College Code (e.g., 'CAS', 'CEAT', 'CEM')
+    // Required for college and academic unit level admins
+    // Null for university-level admins
+    collegeCode: {
+      type: String,
+      enum: [...UPLBCollegeCodes, null],
+      default: null
+    },
+    
+    // Academic Unit Code (Department/Institute) (e.g., 'ICS', 'DCHE', 'DAE', 'IMSP')
+    // Required for academic unit level admins
+    // Null for university and college level admins
+    academicUnitCode: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    
+    // University Unit Code (for university-level admins)
+    // e.g., 'OSA', 'OVCAA', 'OUR'
+    // Only used when accessLevel is 'university'
+    universityUnitCode: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    
+    // Legacy field - kept for backward compatibility
+    // Will be computed from collegeCode
     college: {
       type: String,
       enum: [...Object.values(UPLBCollege), null]
     },
     
-    // Position/Title
+    // Legacy field - kept for backward compatibility
+    // Will be computed from academicUnitCode
+    academicUnit: {
+      type: String,
+      trim: true
+    },
+    
+    // Position/Title (e.g., 'Dean', 'Department Chair', 'Scholarship Coordinator')
     position: {
       type: String,
       trim: true
@@ -393,13 +471,6 @@ const userSchema = new mongoose.Schema({
       city: String,
       zipCode: String,
       fullAddress: String
-    },
-    
-    // access_level (from ERD)
-    accessLevel: {
-      type: String,
-      enum: Object.values(AdminAccessLevel),
-      default: AdminAccessLevel.DEPARTMENT
     },
     
     // Permissions array for granular control
@@ -472,6 +543,8 @@ const userSchema = new mongoose.Schema({
 // =============================================================================
 
 userSchema.index({ 'studentProfile.college': 1 });
+userSchema.index({ 'studentProfile.collegeCode': 1 });
+userSchema.index({ 'studentProfile.academicUnitCode': 1 });
 userSchema.index({ 'studentProfile.classification': 1 });
 userSchema.index({ 'studentProfile.provinceOfOrigin': 1 });
 userSchema.index({ 'studentProfile.gwa': 1 });
@@ -482,6 +555,107 @@ userSchema.index({ isActive: 1 });
 // =============================================================================
 // Pre-save Middleware
 // =============================================================================
+
+// Ensure adminProfile has required accessLevel if it exists
+userSchema.pre('validate', function(next) {
+  // If adminProfile exists but accessLevel is missing, set default
+  if (this.adminProfile && !this.adminProfile.accessLevel) {
+    this.adminProfile.accessLevel = AdminAccessLevel.ACADEMIC_UNIT;
+  }
+  next();
+});
+
+// Auto-populate student college/department names from codes
+userSchema.pre('save', function(next) {
+  if (this.role === UserRole.STUDENT && this.studentProfile) {
+    const profile = this.studentProfile;
+    
+    // DEBUG: Log incoming college/academic unit data
+    console.log('🔄 Pre-save hook - College/Academic Unit data:');
+    console.log('  - college:', profile.college);
+    console.log('  - collegeCode:', profile.collegeCode);
+    console.log('  - academicUnit:', profile.academicUnit);
+    console.log('  - academicUnitCode:', profile.academicUnitCode);
+    
+    // Auto-populate college name from collegeCode
+    if (profile.collegeCode && UPLBColleges[profile.collegeCode]) {
+      profile.college = UPLBColleges[profile.collegeCode].name;
+      console.log('✅ Auto-populated college name:', profile.college);
+    }
+    
+    // Auto-populate academic unit name from academicUnitCode
+    if (profile.academicUnitCode && profile.collegeCode) {
+      const depts = UPLBDepartments[profile.collegeCode];
+      if (depts) {
+        const unit = depts.find(d => d.code === profile.academicUnitCode);
+        if (unit) {
+          profile.academicUnit = unit.name;
+          console.log('✅ Auto-populated academic unit name:', profile.academicUnit);
+        }
+      }
+    }
+    
+    // Validate academic unit belongs to college
+    if (profile.academicUnitCode && profile.collegeCode) {
+      if (!isDepartmentInCollege(profile.academicUnitCode, profile.collegeCode)) {
+        console.warn(`⚠️ Academic unit ${profile.academicUnitCode} does not belong to college ${profile.collegeCode}`);
+        // Clear invalid academic unit
+        profile.academicUnitCode = null;
+        profile.academicUnit = null;
+      }
+    }
+  }
+  
+  // =========================================================================
+  // Auto-populate ADMIN college/department names from codes
+  // =========================================================================
+  if (this.role === UserRole.ADMIN && this.adminProfile) {
+    const profile = this.adminProfile;
+    
+    // DEBUG: Log incoming admin college/academic unit data
+    console.log('🔄 Admin Pre-save hook - College/Academic Unit data:');
+    console.log('  - collegeCode:', profile.collegeCode);
+    console.log('  - academicUnitCode:', profile.academicUnitCode);
+    
+    // Auto-populate college name from collegeCode
+    if (profile.collegeCode && UPLBColleges[profile.collegeCode]) {
+      profile.college = UPLBColleges[profile.collegeCode].name;
+      console.log('✅ Admin: Auto-populated college name:', profile.college);
+    } else {
+      profile.college = null;
+    }
+    
+    // Auto-populate academic unit name from academicUnitCode
+    if (profile.academicUnitCode && profile.collegeCode) {
+      const depts = UPLBDepartments[profile.collegeCode];
+      if (depts) {
+        const unit = depts.find(d => d.code === profile.academicUnitCode);
+        if (unit) {
+          profile.academicUnit = unit.name;
+          console.log('✅ Admin: Auto-populated academic unit name:', profile.academicUnit);
+        } else {
+          profile.academicUnit = null;
+        }
+      } else {
+        profile.academicUnit = null;
+      }
+    } else {
+      profile.academicUnit = null;
+    }
+    
+    // Validate academic unit belongs to college
+    if (profile.academicUnitCode && profile.collegeCode) {
+      if (!isDepartmentInCollege(profile.academicUnitCode, profile.collegeCode)) {
+        console.warn(`⚠️ Admin: Academic unit ${profile.academicUnitCode} does not belong to college ${profile.collegeCode}`);
+        // Clear invalid academic unit
+        profile.academicUnitCode = null;
+        profile.academicUnit = null;
+      }
+    }
+  }
+  
+  next();
+});
 
 userSchema.pre('save', async function(next) {
   // Hash password if modified
@@ -607,6 +781,20 @@ userSchema.statics.findByCollege = function(college) {
   });
 };
 
+userSchema.statics.findByCollegeCode = function(collegeCode) {
+  return this.find({ 
+    role: UserRole.STUDENT,
+    'studentProfile.collegeCode': collegeCode 
+  });
+};
+
+userSchema.statics.findByAcademicUnitCode = function(academicUnitCode) {
+  return this.find({ 
+    role: UserRole.STUDENT,
+    'studentProfile.academicUnitCode': academicUnitCode 
+  });
+};
+
 userSchema.statics.findByProvince = function(province) {
   return this.find({
     role: UserRole.STUDENT,
@@ -645,8 +833,16 @@ module.exports = {
   YearLevel,
   Classification,
   UPLBCollege,
+  UPLBCollegeCodes,
   STBracket,
   AdminAccessLevel,
   Citizenship,
-  PhilippineProvinces
+  PhilippineProvinces,
+  // Re-export UPLB Structure utilities
+  UPLBColleges,
+  UPLBDepartments,
+  UniversityUnits,
+  getCollegeCodes,
+  getDepartmentCodes,
+  isDepartmentInCollege
 };

@@ -131,7 +131,7 @@ router.post('/register', registerValidation, async (req, res, next) => {
         firstName,
         middleName: middleName || '',
         lastName,
-        accessLevel: 'department', // Default to department level
+        accessLevel: 'academic_unit', // Default to academic unit level
         permissions: [
           'manage_scholarships',
           'review_applications',

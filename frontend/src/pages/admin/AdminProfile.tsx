@@ -3,7 +3,7 @@
 // Manage administrator profile and settings
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   User,
   Shield,
@@ -26,9 +26,21 @@ import {
   FileText,
   Loader2,
   X,
-  Briefcase
+  Briefcase,
+  Landmark,
+  Info
 } from 'lucide-react';
 import { userApi } from '../../services/apiClient';
+import { 
+  UPLBColleges, 
+  UniversityUnits, 
+  UPLBDepartments,
+  getCollegeOptions, 
+  getDepartmentOptions, 
+  getUniversityUnitOptions,
+  getAdminScopeDisplay,
+  type UPLBCollegeCode
+} from '../../utils/uplbStructure';
 
 // API Response structure from backend for admin
 interface AdminProfileData {
@@ -43,9 +55,20 @@ interface AdminProfileData {
     accessLevel: string;
     permissions: string[];
     college?: string;
+    // New UPLB organizational codes
+    collegeCode?: string;
+    academicUnitCode?: string;
+    universityUnitCode?: string;
     position?: string;
     officeLocation?: string;
     responsibilities?: string;
+    address?: {
+      street?: string;
+      barangay?: string;
+      city?: string;
+      zipCode?: string;
+      fullAddress?: string;
+    };
     documents?: Array<{
       name?: string;
       documentType: string;
@@ -66,7 +89,7 @@ const formatAccessLevel = (level: string): string => {
   const levelMap: Record<string, string> = {
     'university': 'University Administrator',
     'college': 'College Administrator',
-    'department': 'Department Administrator'
+    'academic_unit': 'Academic Unit Administrator'
   };
   return levelMap[level?.toLowerCase()] || level || 'Unknown';
 };
@@ -283,6 +306,11 @@ const AdminProfile: React.FC = () => {
                   lastName: ap?.lastName || '',
                   department: ap?.department || '',
                   college: ap?.college || '',
+                  // New UPLB organizational fields
+                  accessLevel: ap?.accessLevel || 'university',
+                  collegeCode: ap?.collegeCode || '',
+                  academicUnitCode: ap?.academicUnitCode || '',
+                  universityUnitCode: ap?.universityUnitCode || '',
                   position: ap?.position || '',
                   officeLocation: ap?.officeLocation || '',
                   responsibilities: ap?.responsibilities || '',
@@ -375,11 +403,34 @@ const AdminProfile: React.FC = () => {
                     { label: 'Middle Name', value: ap?.middleName || 'N/A', icon: User },
                     { label: 'Last Name', value: ap?.lastName || 'N/A', icon: User },
                     { label: 'Email Address', value: admin.email, icon: Mail },
-                    { label: 'Department', value: ap?.department || 'N/A', icon: Building2 },
-                    { label: 'College', value: ap?.college || 'University-wide', icon: Building2 },
+                    { label: 'Access Level', value: formatAccessLevel(ap?.accessLevel || ''), icon: Shield },
+                    { 
+                      label: 'Organizational Scope', 
+                      value: getAdminScopeDisplay(
+                        (ap?.accessLevel || 'university') as 'university' | 'college' | 'academic_unit',
+                        ap?.collegeCode || null,
+                        ap?.academicUnitCode || null
+                      ), 
+                      icon: Landmark 
+                    },
+                    { 
+                      label: 'College', 
+                      value: ap?.collegeCode 
+                        ? `${ap.collegeCode} - ${UPLBColleges[ap.collegeCode as UPLBCollegeCode]?.name || ap.college}` 
+                        : 'University-wide', 
+                      icon: Building2 
+                    },
+                    { 
+                      label: 'Academic Unit', 
+                      value: ap?.academicUnitCode 
+                        ? `${ap.academicUnitCode} - ${UPLBDepartments[ap.collegeCode as UPLBCollegeCode]?.find(d => d.code === ap.academicUnitCode)?.name || ap.academicUnit}` 
+                        : (ap?.universityUnitCode 
+                          ? `${ap.universityUnitCode} - ${UniversityUnits.find(u => u.code === ap.universityUnitCode)?.name}` 
+                          : 'N/A'), 
+                      icon: Building2 
+                    },
                     { label: 'Position', value: ap?.position || 'N/A', icon: Briefcase },
                     { label: 'Office Location', value: ap?.officeLocation || 'N/A', icon: MapPin },
-                    { label: 'Access Level', value: formatAccessLevel(ap?.accessLevel || ''), icon: Shield },
                     { label: 'Member Since', value: formatDate(admin.createdAt), icon: Calendar },
                   ].map((field, index) => (
                     <div key={index} className="flex items-start gap-3">
@@ -629,63 +680,153 @@ const AdminProfile: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Work Information */}
+                {/* Work Information - UPLB Organizational Structure */}
                 <div>
                   <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-primary-600" />
-                    Work Information
+                    Organizational Assignment
+                  </h4>
+                  
+                  {/* Access Level Description */}
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-blue-800">
+                        <strong>Access Level</strong> determines your administrative scope:
+                        <ul className="mt-1 ml-4 list-disc text-blue-700">
+                          <li><strong>University</strong> - Manage scholarships across UPLB</li>
+                          <li><strong>College</strong> - Manage scholarships for a specific college</li>
+                          <li><strong>Academic Unit</strong> - Manage scholarships for a specific department/institute</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Access Level Selection */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Access Level *</label>
+                      <select
+                        value={editFormData.accessLevel}
+                        onChange={(e) => {
+                          const newLevel = e.target.value;
+                          setEditFormData({
+                            ...editFormData, 
+                            accessLevel: newLevel,
+                            // Reset dependent fields when access level changes
+                            collegeCode: '',
+                            academicUnitCode: '',
+                            universityUnitCode: newLevel === 'university' ? editFormData.universityUnitCode : ''
+                          });
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                      >
+                        <option value="university">🏛️ University Level - UPLB-wide access</option>
+                        <option value="college">🎓 College Level - Specific college access</option>
+                        <option value="academic_unit">📚 Academic Unit Level - Specific department/institute access</option>
+                      </select>
+                    </div>
+
+                    {/* University Unit - Only for University level */}
+                    {editFormData.accessLevel === 'university' && (
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          University Office/Unit <span className="text-slate-400">(optional)</span>
+                        </label>
+                        <select
+                          value={editFormData.universityUnitCode}
+                          onChange={(e) => setEditFormData({...editFormData, universityUnitCode: e.target.value})}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                        >
+                          <option value="">-- No specific unit --</option>
+                          {getUniversityUnitOptions().map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                        <p className="text-slate-400 text-xs mt-1">Select if you're assigned to a specific administrative office</p>
+                      </div>
+                    )}
+
+                    {/* College Selection - For College and Academic Unit levels */}
+                    {(editFormData.accessLevel === 'college' || editFormData.accessLevel === 'academic_unit') && (
+                      <div className={editFormData.accessLevel === 'college' ? 'md:col-span-2' : ''}>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          College * 
+                        </label>
+                        <select
+                          value={editFormData.collegeCode}
+                          onChange={(e) => {
+                            setEditFormData({
+                              ...editFormData, 
+                              collegeCode: e.target.value,
+                              // Reset academic unit when college changes
+                              academicUnitCode: ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                          required
+                        >
+                          <option value="">-- Select College --</option>
+                          {getCollegeOptions().map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                        {editFormData.accessLevel === 'college' && (
+                          <p className="text-slate-400 text-xs mt-1">You'll have administrative access to all scholarships in this college</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Academic Unit Selection - Only for Academic Unit level */}
+                    {editFormData.accessLevel === 'academic_unit' && (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Department/Institute *
+                        </label>
+                        <select
+                          value={editFormData.academicUnitCode}
+                          onChange={(e) => setEditFormData({...editFormData, academicUnitCode: e.target.value})}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          required
+                          disabled={!editFormData.collegeCode}
+                        >
+                          <option value="">
+                            {editFormData.collegeCode ? '-- Select Department --' : '-- Select College First --'}
+                          </option>
+                          {editFormData.collegeCode && getDepartmentOptions(editFormData.collegeCode as UPLBCollegeCode).map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                        <p className="text-slate-400 text-xs mt-1">You'll have administrative access to scholarships in this academic unit</p>
+                      </div>
+                    )}
+
+                    {/* Current Assignment Display */}
+                    {editFormData.accessLevel && (
+                      <div className="md:col-span-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Shield className="w-4 h-4 text-primary-600" />
+                          <span className="font-medium text-slate-700">Current Scope:</span>
+                          <span className="text-slate-900">
+                            {getAdminScopeDisplay(
+                              editFormData.accessLevel as 'university' | 'college' | 'academic_unit',
+                              editFormData.collegeCode || null,
+                              editFormData.academicUnitCode || null
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Position & Location */}
+                <div>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Landmark className="w-4 h-4 text-primary-600" />
+                    Position Details
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Department *</label>
-                      <select
-                        value={editFormData.department}
-                        onChange={(e) => setEditFormData({...editFormData, department: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      >
-                        <option value="">Select Department</option>
-                        <option value="Office of the Vice Chancellor for Academic Affairs (OVCAA)">Office of the Vice Chancellor for Academic Affairs (OVCAA)</option>
-                        <option value="Office of the Vice Chancellor for Research and Extension (OVCRE)">Office of the Vice Chancellor for Research and Extension (OVCRE)</option>
-                        <option value="Office of the Vice Chancellor for Community Affairs (OVCCA)">Office of the Vice Chancellor for Community Affairs (OVCCA)</option>
-                        <option value="Office of the Vice Chancellor for Planning and Development (OVCPD)">Office of the Vice Chancellor for Planning and Development (OVCPD)</option>
-                        <option value="Office of the Vice Chancellor for Administration (OVCA)">Office of the Vice Chancellor for Administration (OVCA)</option>
-                        <option value="Office of Student Affairs">Office of Student Affairs</option>
-                        <option value="Office of Scholarships and Financial Assistance">Office of Scholarships and Financial Assistance</option>
-                        <option value="University Registrar">University Registrar</option>
-                        <option value="Office of the University Library">Office of the University Library</option>
-                        <option value="Human Resource Development Office">Human Resource Development Office</option>
-                        <option value="College of Agriculture and Food Science">College of Agriculture and Food Science</option>
-                        <option value="College of Arts and Sciences">College of Arts and Sciences</option>
-                        <option value="College of Development Communication">College of Development Communication</option>
-                        <option value="College of Economics and Management">College of Economics and Management</option>
-                        <option value="College of Engineering and Agro-Industrial Technology">College of Engineering and Agro-Industrial Technology</option>
-                        <option value="College of Forestry and Natural Resources">College of Forestry and Natural Resources</option>
-                        <option value="College of Human Ecology">College of Human Ecology</option>
-                        <option value="College of Public Affairs and Development">College of Public Affairs and Development</option>
-                        <option value="College of Veterinary Medicine">College of Veterinary Medicine</option>
-                        <option value="Graduate School">Graduate School</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">College</label>
-                      <select
-                        value={editFormData.college}
-                        onChange={(e) => setEditFormData({...editFormData, college: e.target.value})}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      >
-                        <option value="">University-wide</option>
-                        <option value="CAS">CAS - College of Arts and Sciences</option>
-                        <option value="CAFS">CAFS - College of Agriculture and Food Science</option>
-                        <option value="CEM">CEM - College of Economics and Management</option>
-                        <option value="CEAT">CEAT - College of Engineering and Agro-industrial Technology</option>
-                        <option value="CFNR">CFNR - College of Forestry and Natural Resources</option>
-                        <option value="CHE">CHE - College of Human Ecology</option>
-                        <option value="CVM">CVM - College of Veterinary Medicine</option>
-                        <option value="CDC">CDC - College of Development Communication</option>
-                        <option value="CPAf">CPAf - College of Public Affairs and Development</option>
-                        <option value="GS">GS - Graduate School</option>
-                      </select>
-                    </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Position *</label>
                       <select
@@ -802,8 +943,20 @@ const AdminProfile: React.FC = () => {
                         firstName: editFormData.firstName,
                         middleName: editFormData.middleName,
                         lastName: editFormData.lastName,
-                        department: editFormData.department,
-                        college: editFormData.college || undefined,
+                        // New UPLB organizational fields
+                        accessLevel: editFormData.accessLevel,
+                        collegeCode: editFormData.collegeCode || undefined,
+                        academicUnitCode: editFormData.academicUnitCode || undefined,
+                        universityUnitCode: editFormData.universityUnitCode || undefined,
+                        // Legacy fields for backwards compatibility - auto-populated from codes
+                        academicUnit: editFormData.academicUnitCode 
+                          ? UPLBDepartments[editFormData.collegeCode as UPLBCollegeCode]?.find(d => d.code === editFormData.academicUnitCode)?.name 
+                          : (editFormData.universityUnitCode 
+                            ? UniversityUnits.find(u => u.code === editFormData.universityUnitCode)?.name 
+                            : ''),
+                        college: editFormData.collegeCode 
+                          ? UPLBColleges[editFormData.collegeCode as UPLBCollegeCode]?.name 
+                          : undefined,
                         position: editFormData.position,
                         officeLocation: editFormData.officeLocation,
                         responsibilities: editFormData.responsibilities,

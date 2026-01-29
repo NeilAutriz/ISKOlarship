@@ -1,6 +1,6 @@
 // ============================================================================
 // ISKOlarship - Admin Scholarships Page
-// Manage and create scholarship programs
+// Manage and create scholarship programs with admin scope filtering
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
@@ -23,7 +23,9 @@ import {
   AlertTriangle,
   ChevronDown,
   Loader2,
-  Award
+  Award,
+  Shield,
+  Info
 } from 'lucide-react';
 import { scholarshipApi } from '../../services/apiClient';
 
@@ -38,25 +40,62 @@ interface Scholarship {
   status: 'active' | 'closed' | 'draft';
   type: 'full' | 'partial' | 'grant';
   scholarshipType?: string; // Added for color scheme (university, government, private, etc.)
+  scholarshipLevel?: string; // Admin scope level
+  managingCollege?: string;
+  managingAcademicUnit?: string;
+  canManage?: boolean;
+  canView?: boolean;
+}
+
+interface AdminScope {
+  level: string;
+  levelDisplay: string;
+  college: string | null;
+  academicUnit: string | null;
+  description: string;
 }
 
 const AdminScholarships: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'closed' | 'draft'>('all');
+  const [levelFilter, setLevelFilter] = useState<'all' | 'university' | 'college' | 'academic_unit' | 'external'>('all');
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminScope, setAdminScope] = useState<AdminScope | null>(null);
 
-  // Fetch scholarships from API
+  // Fetch scholarships and admin scope from API
   useEffect(() => {
     let isMounted = true;
     
-    const fetchScholarships = async () => {
+    const fetchData = async () => {
       try {
         if (isMounted) setLoading(true);
-        const response = await scholarshipApi.getAll({ limit: 100 });
+        
+        // Fetch admin scope first
+        const scopeResponse = await scholarshipApi.getAdminScope();
+        if (isMounted && scopeResponse.success && scopeResponse.data) {
+          setAdminScope({
+            level: scopeResponse.data.level,
+            levelDisplay: scopeResponse.data.levelDisplay,
+            college: scopeResponse.data.college,
+            academicUnit: scopeResponse.data.academicUnit,
+            description: scopeResponse.data.description
+          });
+          
+          // CRITICAL: Check if admin profile is properly configured
+          if (!scopeResponse.data.level) {
+            console.error('❌ Admin profile not configured - access level is missing');
+            setScholarships([]);
+            return;
+          }
+        }
+        
+        // Fetch scholarships using admin endpoint (scope-filtered)
+        const response = await scholarshipApi.getAdminList({ limit: 100, includeExpired: true });
         if (isMounted && response.success && response.data?.scholarships) {
+          console.log(`📋 Loaded ${response.data.scholarships.length} scholarships for admin scope`);
           setScholarships(response.data.scholarships.map((s: any) => {
             const amount = s.awardAmount ?? s.totalGrant ?? 0;
             return {
@@ -69,20 +108,43 @@ const AdminScholarships: React.FC = () => {
               deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A',
               status: s.status === 'open' || s.isActive ? 'active' : s.status === 'closed' ? 'closed' : 'draft',
               type: s.type?.includes('grant') || s.type === 'thesis_grant' ? 'grant' : s.coverageType === 'full' ? 'full' : 'partial',
-              scholarshipType: s.type // Store original type for color scheme
+              scholarshipType: s.type, // Store original type for color scheme
+              scholarshipLevel: s.scholarshipLevel,
+              managingCollege: s.managingCollege,
+              managingAcademicUnit: s.managingAcademicUnit,
+              canManage: s.canManage,
+              canView: s.canView
             };
           }));
+          
+          // Check if server returned a message about profile configuration
+          if ((response.data as any).message) {
+            console.warn('⚠️ Server message:', (response.data as any).message);
+          }
+        } else if (isMounted) {
+          // Admin endpoint returned but with no scholarships - this is valid (admin has no scholarships in scope)
+          console.log('📋 No scholarships found in admin scope');
+          setScholarships([]);
         }
       } catch (error) {
         if (isMounted) {
-          console.error('Failed to fetch scholarships:', error);
+          console.error('❌ Failed to fetch scholarships:', error);
+          // CRITICAL FIX: Do NOT fall back to public endpoint
+          // This would bypass admin scope filtering and show ALL scholarships
+          // Instead, show empty state with error indication
+          setScholarships([]);
+          
+          // Log detailed error for debugging
+          if (error instanceof Error) {
+            console.error('Error details:', error.message);
+          }
         }
       } finally {
         if (isMounted) setLoading(false);
       }
     };
 
-    fetchScholarships();
+    fetchData();
     
     return () => {
       isMounted = false;
@@ -92,7 +154,8 @@ const AdminScholarships: React.FC = () => {
   const filteredScholarships = scholarships.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.sponsor.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesLevel = levelFilter === 'all' || s.scholarshipLevel === levelFilter;
+    return matchesSearch && matchesStatus && matchesLevel;
   });
 
   const stats = {
@@ -216,9 +279,16 @@ const AdminScholarships: React.FC = () => {
                 <span className="px-3 py-1 bg-white/20 backdrop-blur-sm text-green-300 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-white/10">
                   <GraduationCap className="w-3.5 h-3.5" />Scholarship Management
                 </span>
+                {adminScope && (
+                  <span className="px-3 py-1 bg-amber-500/20 backdrop-blur-sm text-amber-200 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-amber-400/20">
+                    <Shield className="w-3.5 h-3.5" />{adminScope.levelDisplay}
+                  </span>
+                )}
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Manage Scholarships</h1>
-              <p className="text-primary-100">Create, edit, and manage scholarship programs</p>
+              <p className="text-primary-100">
+                {adminScope?.description || 'Create, edit, and manage scholarship programs'}
+              </p>
             </div>
             <button 
               onClick={() => navigate('/admin/scholarships/add')}
@@ -230,8 +300,26 @@ const AdminScholarships: React.FC = () => {
         </div>
       </div>
 
+      {/* Admin Scope Info Banner */}
+      {adminScope && adminScope.level !== 'university' && (
+        <div className="container-app -mt-2 mb-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-amber-800 font-medium">Scope-Filtered View</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {adminScope.level === 'college' 
+                  ? `You manage college-level scholarships for ${adminScope.college || 'your college'} only. Academic unit-level scholarships are managed by their respective departments/institutes.`
+                  : `You manage scholarships for ${adminScope.academicUnit || 'your academic unit'} (${adminScope.college || 'your college'}) only.`
+                }
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards */}
-      <div className="container-app -mt-6 relative z-20 mb-8">
+      <div className={`container-app ${adminScope && adminScope.level !== 'university' ? '-mt-0' : '-mt-6'} relative z-20 mb-8`}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Scholarships Card */}
           <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
@@ -297,25 +385,55 @@ const AdminScholarships: React.FC = () => {
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               />
             </div>
-            <div className="flex items-center gap-3">
-              {[
-                { id: 'all', label: 'All' },
-                { id: 'active', label: 'Active' },
-                { id: 'closed', label: 'Closed' },
-                { id: 'draft', label: 'Drafts' },
-              ].map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setStatusFilter(filter.id as any)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                    statusFilter === filter.id 
-                      ? 'bg-primary-600 text-white' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Status Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 font-medium">Status:</span>
+                {[
+                  { id: 'all', label: 'All' },
+                  { id: 'active', label: 'Active' },
+                  { id: 'closed', label: 'Closed' },
+                  { id: 'draft', label: 'Drafts' },
+                ].map((filter) => (
+                  <button
+                    key={filter.id}
+                    onClick={() => setStatusFilter(filter.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      statusFilter === filter.id 
+                        ? 'bg-primary-600 text-white' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Level Filter (only show if user has access to multiple levels) */}
+              {adminScope?.level === 'university' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium">Level:</span>
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'university', label: 'University' },
+                    { id: 'college', label: 'College' },
+                    { id: 'academic_unit', label: 'Academic Unit' },
+                    { id: 'external', label: 'External' },
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setLevelFilter(filter.id as any)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        levelFilter === filter.id 
+                          ? 'bg-amber-500 text-white' 
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -356,6 +474,21 @@ const AdminScholarships: React.FC = () => {
                           <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold ${typeConfig.bg} ${typeConfig.text} border border-current/20`}>
                             {typeConfig.label}
                           </span>
+                          {/* Admin Scope Level Badge */}
+                          {scholarship.scholarshipLevel && (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-current/20 ${
+                              scholarship.scholarshipLevel === 'university' ? 'bg-blue-100 text-blue-700' :
+                              scholarship.scholarshipLevel === 'college' ? 'bg-teal-100 text-teal-700' :
+                              scholarship.scholarshipLevel === 'academic_unit' ? 'bg-indigo-100 text-indigo-700' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              <Shield className="w-3 h-3" />
+                              {scholarship.scholarshipLevel === 'university' ? '🏛️ Univ' :
+                               scholarship.scholarshipLevel === 'college' ? `🎓 ${scholarship.managingCollege || 'College'}` :
+                               scholarship.scholarshipLevel === 'academic_unit' ? `📚 ${scholarship.managingAcademicUnit || 'Dept'}` :
+                               '🌐 External'}
+                            </span>
+                          )}
                         </div>
                         
                         {/* Title */}
@@ -383,16 +516,26 @@ const AdminScholarships: React.FC = () => {
                             <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
                               <Eye className="w-4 h-4" />View Details
                             </button>
-                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
-                              <Edit3 className="w-4 h-4" />Edit Scholarship
-                            </button>
-                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
-                              <Users className="w-4 h-4" />View Applicants
-                            </button>
-                            <hr className="my-2 border-slate-100" />
-                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all">
-                              <Trash2 className="w-4 h-4" />Delete
-                            </button>
+                            {scholarship.canManage !== false && (
+                              <>
+                                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
+                                  <Edit3 className="w-4 h-4" />Edit Scholarship
+                                </button>
+                                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
+                                  <Users className="w-4 h-4" />View Applicants
+                                </button>
+                                <hr className="my-2 border-slate-100" />
+                                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all">
+                                  <Trash2 className="w-4 h-4" />Delete
+                                </button>
+                              </>
+                            )}
+                            {scholarship.canManage === false && (
+                              <div className="px-4 py-2 text-xs text-amber-600 bg-amber-50 m-2 rounded-lg flex items-center gap-2">
+                                <Shield className="w-3 h-3" />
+                                View only (managed by {scholarship.scholarshipLevel} admin)
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

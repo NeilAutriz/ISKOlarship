@@ -822,6 +822,18 @@ The CHE Alumni Association is dedicated to supporting current students and foste
 const { scholarships: comprehensiveScholarships } = require('./scholarships-comprehensive.seed');
 
 // =============================================================================
+// Import Scoped Scholarships (for admin level testing)
+// =============================================================================
+
+const { scopedScholarshipsData } = require('./scholarships-scoped.seed');
+
+// =============================================================================
+// Import Realistic Scholarships (Well-known companies with proper scoping)
+// =============================================================================
+
+const { realisticScholarshipsData } = require('./scholarships-realistic.seed');
+
+// =============================================================================
 // Seed Function
 // =============================================================================
 
@@ -830,11 +842,13 @@ const { scholarships: comprehensiveScholarships } = require('./scholarships-comp
  * @param {Model} Scholarship - Mongoose Scholarship model
  * @param {ObjectId} adminUserId - Admin user ID for createdBy
  * @param {Object} options - Seeding options
- * @param {boolean} options.useComprehensive - Use 50 comprehensive scholarships (default: true)
+ * @param {boolean} options.useRealistic - Use realistic scholarships (Jollibee, Globe, etc.) - default: true
+ * @param {boolean} options.useComprehensive - Use 50 comprehensive scholarships (default: false)
  * @param {boolean} options.includeLegacy - Include legacy scholarships too (default: false)
+ * @param {boolean} options.includeScoped - Include old admin-scoped scholarships (default: false)
  */
 const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
-  const { useComprehensive = true, includeLegacy = false } = options;
+  const { useRealistic = true, useComprehensive = false, includeLegacy = false, includeScoped = false } = options;
   
   try {
     await Scholarship.deleteMany({});
@@ -842,14 +856,26 @@ const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
 
     let dataToInsert = [];
     
-    if (useComprehensive) {
-      console.log('Using comprehensive scholarships (50 realistic UPLB scholarships)');
-      dataToInsert = [...comprehensiveScholarships];
+    // PRIMARY: Use realistic scholarships from well-known companies
+    if (useRealistic) {
+      console.log('Using realistic scholarships (Jollibee, Globe, PLDT, Ayala, SM, etc.)');
+      dataToInsert = [...realisticScholarshipsData];
     }
     
-    if (includeLegacy || !useComprehensive) {
+    if (useComprehensive) {
+      console.log('Including comprehensive scholarships');
+      dataToInsert = [...dataToInsert, ...comprehensiveScholarships];
+    }
+    
+    if (includeLegacy) {
       console.log('Including legacy scholarships');
       dataToInsert = [...dataToInsert, ...scholarshipsData];
+    }
+
+    // Add old scoped scholarships (usually not needed with realistic data)
+    if (includeScoped) {
+      console.log('Including old admin-scoped scholarships');
+      dataToInsert = [...dataToInsert, ...scopedScholarshipsData];
     }
 
     const scholarshipsWithAdmin = dataToInsert.map(scholarship => ({
@@ -859,6 +885,14 @@ const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
 
     const insertedScholarships = await Scholarship.insertMany(scholarshipsWithAdmin);
     console.log(`Inserted ${insertedScholarships.length} scholarships`);
+
+    // Log scholarship distribution by level
+    const levelCounts = insertedScholarships.reduce((acc, s) => {
+      const level = s.scholarshipLevel || 'university';
+      acc[level] = (acc[level] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('Scholarship distribution by level:', levelCounts);
 
     return insertedScholarships;
   } catch (error) {
@@ -870,5 +904,7 @@ const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
 module.exports = {
   scholarshipsData,
   comprehensiveScholarships,
+  scopedScholarshipsData,
+  realisticScholarshipsData,
   seedScholarships
 };

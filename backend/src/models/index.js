@@ -20,6 +20,7 @@ const {
 const { 
   Scholarship, 
   ScholarshipType, 
+  ScholarshipLevel,
   ScholarshipStatus 
 } = require('./Scholarship.model');
 
@@ -51,6 +52,7 @@ module.exports = {
   
   // Scholarship Enums
   ScholarshipType,
+  ScholarshipLevel,
   ScholarshipStatus,
   
   // Application Enums

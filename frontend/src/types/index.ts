@@ -14,9 +14,9 @@ export enum UserRole {
 }
 
 export enum AdminAccessLevel {
-  UNIVERSITY = 'university',  // Manages all scholarships institution-wide
-  COLLEGE = 'college',        // Oversees programs within their college
-  DEPARTMENT = 'department'   // Handles program-specific offerings
+  UNIVERSITY = 'university',      // Manages all scholarships institution-wide
+  COLLEGE = 'college',            // Oversees programs within their college
+  ACADEMIC_UNIT = 'academic_unit' // Handles department/institute-specific offerings
 }
 
 export enum ApplicationStatus {
@@ -42,6 +42,14 @@ export enum ScholarshipType {
   GOVERNMENT = 'government',
   PRIVATE = 'private',
   THESIS_GRANT = 'thesis_grant'
+}
+
+// New: Scholarship Level for admin scope management
+export enum ScholarshipLevel {
+  UNIVERSITY = 'university',     // Managed by university admins, visible to all
+  COLLEGE = 'college',           // Managed by college admins
+  ACADEMIC_UNIT = 'academic_unit', // Managed by department/institute admins
+  EXTERNAL = 'external'          // External scholarships (DOST, CHED, private foundations)
 }
 
 export enum STBracket {
@@ -212,6 +220,27 @@ export interface AdminProfile extends BaseUser {
   permissions: string[];
 }
 
+// Admin Scope Summary - returned by scope endpoints
+export interface AdminScopeSummary {
+  level: AdminAccessLevel;
+  levelDisplay: string;
+  college: string | null;
+  department: string | null;
+  canManage: {
+    university: boolean;
+    college: boolean;
+    department: boolean;
+    external: boolean;
+  };
+  canView: {
+    university: boolean;
+    college: boolean;
+    department: boolean;
+    external: boolean;
+  };
+  description: string;
+}
+
 export type User = StudentProfile | AdminProfile;
 
 // Type guard to check if user is a student
@@ -272,6 +301,15 @@ export interface Scholarship {
   description: string;
   sponsor: string;
   type: ScholarshipType;
+  
+  // Admin Scope Management
+  scholarshipLevel?: ScholarshipLevel;
+  managingCollege?: string;
+  managingAcademicUnit?: string;
+  
+  // Permission flags (populated by admin routes)
+  canManage?: boolean;
+  canView?: boolean;
   
   // Financial Details (API returns totalGrant, frontend uses awardAmount)
   awardAmount?: number;

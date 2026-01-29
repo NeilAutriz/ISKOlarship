@@ -158,6 +158,13 @@ router.put('/profile',
         console.log('Processing studentProfile update...');
         const studentData = req.body.studentProfile;
         
+        // DEBUG: Log college/academicUnit data received
+        console.log('🏫 College/Academic Unit data received:');
+        console.log('  - college:', studentData.college);
+        console.log('  - collegeCode:', studentData.collegeCode);
+        console.log('  - academicUnit:', studentData.academicUnit);
+        console.log('  - academicUnitCode:', studentData.academicUnitCode);
+        
         // Check for duplicate student number if being updated
         if (studentData.studentNumber) {
           const existingUser = await User.findOne({ 
@@ -191,6 +198,9 @@ router.put('/profile',
           'homeAddress',
           'provinceOfOrigin',
           'college',
+          'collegeCode',
+          'academicUnit',
+          'academicUnitCode',
           'course',
           'major',
           'classification',
@@ -217,8 +227,16 @@ router.put('/profile',
         for (const field of studentProfileFields) {
           if (studentData[field] !== undefined) {
             req.user.studentProfile[field] = studentData[field];
+            // DEBUG: Log specific fields we care about
+            if (['collegeCode', 'academicUnitCode', 'academicUnit'].includes(field)) {
+              console.log(`📝 Setting ${field} = "${studentData[field]}"`);
+            }
           }
         }
+        
+        // CRITICAL: Mark studentProfile as modified to ensure Mongoose saves all changes
+        req.user.markModified('studentProfile');
+        console.log('✅ Marked studentProfile as modified');
         
         // Handle homeAddress as nested object
         if (studentData.homeAddress) {
@@ -285,6 +303,11 @@ router.put('/profile',
         }
         
         console.log('=== FINAL STUDENT PROFILE BEFORE SAVE ===');
+        console.log('🏫 College/Academic Unit fields:');
+        console.log('  - college:', req.user.studentProfile.college);
+        console.log('  - collegeCode:', req.user.studentProfile.collegeCode);
+        console.log('  - academicUnit:', req.user.studentProfile.academicUnit);
+        console.log('  - academicUnitCode:', req.user.studentProfile.academicUnitCode);
         console.log('Has documents?', !!req.user.studentProfile.documents);
         console.log('Documents count:', req.user.studentProfile.documents?.length || 0);
         if (req.user.studentProfile.documents && req.user.studentProfile.documents.length > 0) {
@@ -307,10 +330,40 @@ router.put('/profile',
         console.log('Processing adminProfile update...');
         const adminData = req.body.adminProfile;
         
+        // CRITICAL: Validate accessLevel and required scope fields for clean separation
+        const accessLevel = adminData.accessLevel || req.user.adminProfile?.accessLevel;
+        
+        if (!accessLevel) {
+          return res.status(400).json({
+            success: false,
+            message: 'Access level is required for admin profiles. Please select University, College, or Academic Unit level.'
+          });
+        }
+        
+        // Validate required scope fields based on access level
+        const collegeCode = adminData.collegeCode || req.user.adminProfile?.collegeCode;
+        const academicUnitCode = adminData.academicUnitCode || req.user.adminProfile?.academicUnitCode;
+        
+        if (accessLevel === 'college' && !collegeCode) {
+          return res.status(400).json({
+            success: false,
+            message: 'College code is required for college-level admins.'
+          });
+        }
+        
+        if (accessLevel === 'academic_unit' && (!collegeCode || !academicUnitCode)) {
+          return res.status(400).json({
+            success: false,
+            message: 'College code and academic unit code are required for academic unit-level admins.'
+          });
+        }
+        
         // Initialize adminProfile if it doesn't exist
         if (!req.user.adminProfile) {
-          console.log('Initializing empty adminProfile');
-          req.user.adminProfile = {};
+          console.log('Initializing adminProfile with provided accessLevel:', accessLevel);
+          req.user.adminProfile = {
+            accessLevel: accessLevel
+          };
         }
 
         // List of allowed adminProfile fields
@@ -318,8 +371,11 @@ router.put('/profile',
           'firstName',
           'middleName',
           'lastName',
-          'department',
-          'college',
+          'college',      // Legacy field - auto-computed from collegeCode
+          'collegeCode',
+          'academicUnit', // Legacy field - auto-computed from academicUnitCode
+          'academicUnitCode',
+          'universityUnitCode',
           'position',
           'officeLocation',
           'responsibilities',
@@ -331,8 +387,16 @@ router.put('/profile',
         for (const field of adminProfileFields) {
           if (adminData[field] !== undefined) {
             req.user.adminProfile[field] = adminData[field];
+            // DEBUG: Log specific fields we care about
+            if (['collegeCode', 'academicUnitCode', 'academicUnit', 'accessLevel'].includes(field)) {
+              console.log(`📝 Admin setting ${field} = "${adminData[field]}"`);
+            }
           }
         }
+        
+        // CRITICAL: Mark adminProfile as modified to ensure Mongoose saves all changes
+        req.user.markModified('adminProfile');
+        console.log('✅ Marked adminProfile as modified');
         
         // Handle address as nested object
         if (adminData.address) {
@@ -402,9 +466,12 @@ router.put('/profile',
       await req.user.save();
       console.log('✅ User saved successfully');
       
-      // CRITICAL DEBUG: Verify documents were actually saved by fetching fresh from DB
+      // CRITICAL DEBUG: Verify fields were actually saved by fetching fresh from DB
       const savedUser = await User.findById(req.user._id);
-      console.log('🔎 FRESH DB FETCH - Documents in database:', savedUser.studentProfile?.documents?.length || 0);
+      console.log('🔎 FRESH DB FETCH - Verifying data in database:');
+      console.log('  - collegeCode in DB:', savedUser.studentProfile?.collegeCode);
+      console.log('  - academicUnitCode in DB:', savedUser.studentProfile?.academicUnitCode);
+      console.log('  - Documents in database:', savedUser.studentProfile?.documents?.length || 0);
       if (savedUser.studentProfile?.documents?.length > 0) {
         console.log('✅ SUCCESS! Documents ARE in database:');
         savedUser.studentProfile.documents.forEach((doc, idx) => {
@@ -1039,4 +1106,132 @@ router.delete('/documents/:documentId',
   }
 );
 
+// =============================================================================
+// UPLB Organizational Structure Routes (for Admin Profile Forms)
+// =============================================================================
+
+const { 
+  UPLBColleges, 
+  UPLBDepartments, 
+  UniversityUnits,
+  getOrganizationalStructure,
+  getDepartmentsByCollege,
+  getCollegeByCode
+} = require('../models/UPLBStructure');
+
+/**
+ * @route   GET /api/users/uplb-structure
+ * @desc    Get complete UPLB organizational structure for admin forms
+ * @access  Private (Admin only)
+ */
+router.get('/uplb-structure', authMiddleware, async (req, res) => {
+  try {
+    const structure = getOrganizationalStructure();
+    
+    res.json({
+      success: true,
+      data: {
+        colleges: structure.colleges.map(c => ({
+          code: c.code,
+          name: c.name,
+          departmentCount: c.departments.length
+        })),
+        universityUnits: structure.universityUnits
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching UPLB structure:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch organizational structure'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/users/uplb-structure/colleges
+ * @desc    Get list of all UPLB colleges
+ * @access  Private
+ */
+router.get('/uplb-structure/colleges', authMiddleware, async (req, res) => {
+  try {
+    const colleges = Object.entries(UPLBColleges).map(([code, info]) => ({
+      code,
+      name: info.name,
+      fullName: info.fullName
+    }));
+    
+    res.json({
+      success: true,
+      data: colleges
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch colleges'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/users/uplb-structure/colleges/:collegeCode/departments
+ * @desc    Get departments for a specific college
+ * @access  Private
+ */
+router.get('/uplb-structure/colleges/:collegeCode/departments', authMiddleware, async (req, res) => {
+  try {
+    const { collegeCode } = req.params;
+    
+    // Validate college code
+    const college = getCollegeByCode(collegeCode);
+    if (!college) {
+      return res.status(404).json({
+        success: false,
+        message: `College with code '${collegeCode}' not found`
+      });
+    }
+    
+    const departments = getDepartmentsByCollege(collegeCode);
+    
+    res.json({
+      success: true,
+      data: {
+        college: {
+          code: college.code,
+          name: college.name
+        },
+        departments: departments.map(d => ({
+          code: d.code,
+          name: d.name
+        }))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch departments'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/users/uplb-structure/university-units
+ * @desc    Get list of university-level administrative units
+ * @access  Private
+ */
+router.get('/uplb-structure/university-units', authMiddleware, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: UniversityUnits
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch university units'
+    });
+  }
+});
+
 module.exports = router;
+

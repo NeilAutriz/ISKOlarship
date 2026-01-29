@@ -1,6 +1,6 @@
 // =============================================================================
 // ISKOlarship - Application Routes
-// Student application management and tracking
+// Student application management and tracking with admin scope filtering
 // =============================================================================
 
 const express = require('express');
@@ -9,6 +9,12 @@ const { body, query, param, validationResult } = require('express-validator');
 const { Application, ApplicationStatus, Scholarship, User } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel, requireOwnerOrAdmin } = require('../middleware/auth.middleware');
 const { uploadApplicationDocuments } = require('../middleware/upload.middleware');
+const { 
+  attachAdminScope, 
+  getScholarshipScopeFilter, 
+  canManageApplication,
+  getAdminScopeSummary 
+} = require('../middleware/adminScope.middleware');
 const path = require('path');
 const fs = require('fs');
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
@@ -646,13 +652,31 @@ router.post('/:id/withdraw',
 // =============================================================================
 
 /**
+ * @route   GET /api/applications/admin/scope
+ * @desc    Get admin's scope summary for applications UI
+ * @access  Admin
+ */
+router.get('/admin/scope',
+  authMiddleware,
+  requireRole('admin'),
+  (req, res) => {
+    const scopeSummary = getAdminScopeSummary(req.user);
+    res.json({
+      success: true,
+      data: scopeSummary
+    });
+  }
+);
+
+/**
  * @route   GET /api/applications
- * @desc    Get all applications (admin)
+ * @desc    Get all applications (admin, scope-filtered)
  * @access  Admin
  */
 router.get('/',
   authMiddleware,
   requireRole('admin'),
+  attachAdminScope,
   async (req, res, next) => {
     try {
       const {
@@ -664,9 +688,30 @@ router.get('/',
         sortOrder = 'desc'
       } = req.query;
 
-      const query = {};
+      // First, get the scholarships this admin can see
+      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
+      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
+        .select('_id')
+        .lean();
+      
+      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
+
+      // Build application query filtered by accessible scholarships
+      const query = {
+        scholarship: { $in: accessibleScholarshipIds }
+      };
+      
       if (status) query.status = status;
-      if (scholarshipId) query.scholarship = scholarshipId;
+      if (scholarshipId) {
+        // Verify the requested scholarship is within admin's scope
+        if (!accessibleScholarshipIds.some(id => id.toString() === scholarshipId)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to applications for this scholarship'
+          });
+        }
+        query.scholarship = scholarshipId;
+      }
 
       const skip = (page - 1) * limit;
       const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
@@ -674,7 +719,7 @@ router.get('/',
       const [applications, total] = await Promise.all([
         Application.find(query)
           .populate('applicant', 'firstName lastName email studentProfile')
-          .populate('scholarship', 'name type applicationDeadline')
+          .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege managingAcademicUnit')
           .sort(sortOptions)
           .skip(skip)
           .limit(parseInt(limit))
@@ -682,16 +727,23 @@ router.get('/',
         Application.countDocuments(query)
       ]);
 
+      // Add permission info to each application
+      const enrichedApplications = applications.map(app => ({
+        ...app,
+        canManage: canManageApplication(req.user, app)
+      }));
+
       res.json({
         success: true,
         data: {
-          applications,
+          applications: enrichedApplications,
           pagination: {
             page: parseInt(page),
             limit: parseInt(limit),
             total,
             totalPages: Math.ceil(total / limit)
-          }
+          },
+          adminScope: req.adminScope
         }
       });
     } catch (error) {
@@ -702,12 +754,13 @@ router.get('/',
 
 /**
  * @route   PUT /api/applications/:id/status
- * @desc    Update application status (admin)
+ * @desc    Update application status (admin, scope-checked)
  * @access  Admin
  */
 router.put('/:id/status',
   authMiddleware,
   requireRole('admin'),
+  attachAdminScope,
   [param('id').isMongoId()],
   statusUpdateValidation,
   async (req, res, next) => {
@@ -727,6 +780,19 @@ router.put('/:id/status',
         return res.status(404).json({
           success: false,
           message: 'Application not found'
+        });
+      }
+
+      // Check if admin can manage this application
+      if (!canManageApplication(req.user, application)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to update this application',
+          details: {
+            yourLevel: req.adminScope?.level,
+            scholarshipLevel: application.scholarship?.scholarshipLevel,
+            scholarshipCollege: application.scholarship?.managingCollege
+          }
         });
       }
 
@@ -764,21 +830,46 @@ router.put('/:id/status',
 
 /**
  * @route   GET /api/applications/review-queue
- * @desc    Get pending review queue
+ * @desc    Get pending review queue (scope-filtered)
  * @access  Admin
  */
 router.get('/review-queue',
   authMiddleware,
   requireRole('admin'),
+  attachAdminScope,
   async (req, res, next) => {
     try {
       const { limit = 50 } = req.query;
 
-      const applications = await Application.getPendingReviewQueue(parseInt(limit));
+      // Get accessible scholarships for this admin
+      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
+      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
+        .select('_id')
+        .lean();
+      
+      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
+
+      // Get pending applications only for scholarships within admin's scope
+      const applications = await Application.find({
+        status: { $in: ['submitted', 'under_review'] },
+        scholarship: { $in: accessibleScholarshipIds }
+      })
+        .populate('applicant', 'firstName lastName email studentProfile')
+        .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege')
+        .sort({ submittedAt: 1 })
+        .limit(parseInt(limit))
+        .lean();
+
+      // Add permission info
+      const enrichedApplications = applications.map(app => ({
+        ...app,
+        canManage: canManageApplication(req.user, app)
+      }));
 
       res.json({
         success: true,
-        data: applications
+        data: enrichedApplications,
+        adminScope: req.adminScope
       });
     } catch (error) {
       next(error);
@@ -788,18 +879,38 @@ router.get('/review-queue',
 
 /**
  * @route   GET /api/applications/stats
- * @desc    Get application statistics
+ * @desc    Get application statistics (scope-filtered)
  * @access  Admin
  */
 router.get('/stats/overview',
   authMiddleware,
   requireRole('admin'),
+  attachAdminScope,
   async (req, res, next) => {
     try {
       const { scholarshipId, academicYear, semester } = req.query;
 
-      const matchStage = {};
-      if (scholarshipId) matchStage.scholarship = scholarshipId;
+      // Get accessible scholarships for this admin
+      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
+      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
+        .select('_id')
+        .lean();
+      
+      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
+
+      const matchStage = {
+        scholarship: { $in: accessibleScholarshipIds }
+      };
+      if (scholarshipId) {
+        // Verify scholarship is accessible
+        if (!accessibleScholarshipIds.some(id => id.toString() === scholarshipId)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to stats for this scholarship'
+          });
+        }
+        matchStage.scholarship = scholarshipId;
+      }
       if (academicYear) matchStage.academicYear = academicYear;
       if (semester) matchStage.semester = semester;
 

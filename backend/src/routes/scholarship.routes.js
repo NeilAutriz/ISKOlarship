@@ -1,13 +1,20 @@
 // =============================================================================
 // ISKOlarship - Scholarship Routes
-// CRUD operations for scholarships with filtering
+// CRUD operations for scholarships with filtering and admin scope
 // =============================================================================
 
 const express = require('express');
 const router = express.Router();
 const { body, query, param, validationResult } = require('express-validator');
-const { Scholarship, ScholarshipType, ScholarshipStatus } = require('../models');
+const { Scholarship, ScholarshipType, ScholarshipLevel, ScholarshipStatus } = require('../models');
 const { authMiddleware, optionalAuth, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
+const { 
+  attachAdminScope, 
+  canManageScholarship, 
+  canViewScholarship,
+  getScholarshipScopeFilter,
+  getAdminScopeSummary 
+} = require('../middleware/adminScope.middleware');
 
 // =============================================================================
 // Validation Rules
@@ -31,6 +38,18 @@ const scholarshipValidation = [
   body('type')
     .isIn(Object.values(ScholarshipType))
     .withMessage('Invalid scholarship type'),
+  body('scholarshipLevel')
+    .optional()
+    .isIn(Object.values(ScholarshipLevel))
+    .withMessage('Invalid scholarship level'),
+  body('managingCollege')
+    .optional()
+    .isString()
+    .withMessage('Managing college must be a string'),
+  body('managingAcademicUnit')
+    .optional()
+    .isString()
+    .withMessage('Managing academic unit must be a string'),
   body('applicationDeadline')
     .isISO8601()
     .withMessage('Valid deadline date is required'),
@@ -259,6 +278,160 @@ router.get('/stats', async (req, res, next) => {
   }
 });
 
+// =============================================================================
+// Admin Routes - MUST BE BEFORE /:id route to avoid route matching issues
+// Express matches routes in order, so /admin must come before /:id
+// =============================================================================
+
+/**
+ * @route   GET /api/scholarships/admin/scope
+ * @desc    Get admin's scope summary for UI display
+ * @access  Admin
+ */
+router.get('/admin/scope',
+  authMiddleware,
+  requireRole('admin'),
+  (req, res) => {
+    const scopeSummary = getAdminScopeSummary(req.user);
+    res.json({
+      success: true,
+      data: scopeSummary
+    });
+  }
+);
+
+/**
+ * @route   GET /api/scholarships/admin
+ * @desc    Get all scholarships (admin view with scope filtering)
+ * @access  Admin
+ */
+router.get('/admin',
+  authMiddleware,
+  requireRole('admin'),
+  attachAdminScope,
+  async (req, res, next) => {
+    try {
+      console.log('🎓 ========== ADMIN SCHOLARSHIPS REQUEST ==========');
+      console.log('🎓 User:', req.user?.email);
+      console.log('🎓 Admin Profile:', JSON.stringify(req.user?.adminProfile, null, 2));
+      
+      const {
+        status,
+        scholarshipLevel,
+        search,
+        page = 1,
+        limit = 20,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        includeExpired = 'false'
+      } = req.query;
+
+      // Start with scope filter based on admin level
+      const scopeFilter = getScholarshipScopeFilter(req.user);
+      
+      // CRITICAL: Check if scopeFilter would deny all access
+      if (scopeFilter._id && scopeFilter._id.$exists === false) {
+        console.log('🚫 Access denied by scope filter - returning empty result');
+        console.log('🚫 Admin profile may not be fully configured');
+        return res.json({
+          success: true,
+          data: {
+            scholarships: [],
+            pagination: {
+              page: parseInt(page),
+              limit: parseInt(limit),
+              total: 0,
+              totalPages: 0
+            },
+            adminScope: req.adminScope,
+            message: 'Your admin profile may not be fully configured. Please contact system administrator to verify your collegeCode and academicUnitCode assignments.'
+          }
+        });
+      }
+      
+      console.log('🎓 Scope filter generated:', JSON.stringify(scopeFilter));
+      
+      // Build additional filters
+      const query = { ...scopeFilter };
+
+      // Add status filter (admin can see inactive/archived)
+      if (status && Object.values(ScholarshipStatus).includes(status)) {
+        query.status = status;
+      }
+
+      // Filter by scholarship level (within admin's scope)
+      if (scholarshipLevel && Object.values(ScholarshipLevel).includes(scholarshipLevel)) {
+        query.scholarshipLevel = scholarshipLevel;
+      }
+
+      // Include expired scholarships based on query param
+      if (includeExpired !== 'true') {
+        query.applicationDeadline = { $gte: new Date() };
+      }
+
+      // Text search
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { sponsor: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      console.log('🎓 Final query:', JSON.stringify(query));
+
+      // Execute query with pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+      const [scholarships, total] = await Promise.all([
+        Scholarship.find(query)
+          .populate('createdBy', 'firstName lastName')
+          .sort(sortOptions)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean(),
+        Scholarship.countDocuments(query)
+      ]);
+
+      console.log('🎓 Results: Found', total, 'scholarships for', req.user?.email);
+
+      // Add computed fields and permission info
+      const enrichedScholarships = scholarships.map(s => ({
+        ...s,
+        isExpired: new Date() > new Date(s.applicationDeadline),
+        daysUntilDeadline: Math.ceil(
+          (new Date(s.applicationDeadline) - new Date()) / (1000 * 60 * 60 * 24)
+        ),
+        remainingSlots: s.slots ? Math.max(0, s.slots - s.filledSlots) : null,
+        canManage: canManageScholarship(req.user, s),
+        canView: canViewScholarship(req.user, s)
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          scholarships: enrichedScholarships,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          },
+          adminScope: req.adminScope
+        }
+      });
+    } catch (error) {
+      console.error('🚫 Admin scholarships error:', error);
+      next(error);
+    }
+  }
+);
+
+// =============================================================================
+// Public Routes - Parameterized routes MUST come after static routes
+// =============================================================================
+
 /**
  * @route   GET /api/scholarships/:id
  * @desc    Get scholarship by ID
@@ -310,7 +483,7 @@ router.get('/:id', [
 });
 
 // =============================================================================
-// Admin Routes
+// Admin Write Routes (POST, PUT, DELETE)
 // =============================================================================
 
 /**
@@ -321,6 +494,7 @@ router.get('/:id', [
 router.post('/', 
   authMiddleware, 
   requireRole('admin'),
+  attachAdminScope,
   scholarshipValidation,
   async (req, res, next) => {
     try {
@@ -332,12 +506,77 @@ router.post('/',
         });
       }
 
+      const adminLevel = req.user.adminProfile?.accessLevel;
+      // Use code-based fields for scholarship management
+      const adminCollegeCode = req.user.adminProfile?.collegeCode;
+      const adminAcademicUnitCode = req.user.adminProfile?.academicUnitCode;
+
+      // STRICT: Require admin level to be set
+      if (!adminLevel) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your admin profile is not properly configured',
+          hint: 'Please ensure your access level is set in your admin profile'
+        });
+      }
+
+      // Determine scholarship level and management based on request and admin scope
+      let scholarshipLevel = req.body.scholarshipLevel || 'university';
+      // Use new code-based fields from request - names will be auto-populated by pre-save hook
+      let managingCollegeCode = req.body.managingCollegeCode || null;
+      let managingAcademicUnitCode = req.body.managingAcademicUnitCode || null;
+
+      // Validate admin can create scholarships at the requested level
+      // CLEAN SEPARATION: Each level can ONLY create at their own level
+      switch (adminLevel) {
+        case 'university':
+          // University admin can create any level scholarship
+          break;
+
+        case 'college':
+          // CLEAN SEPARATION: College admin can ONLY create college-level scholarships
+          if (scholarshipLevel !== 'college') {
+            return res.status(403).json({
+              success: false,
+              message: 'College admins can only create college-level scholarships',
+              hint: 'Set scholarshipLevel to "college". Academic unit scholarships should be created by academic unit admins.'
+            });
+          }
+          // Force managing college to admin's college
+          managingCollegeCode = adminCollegeCode;
+          break;
+
+        case 'academic_unit':
+          // Academic unit admin can only create academic_unit level for their unit
+          if (scholarshipLevel !== 'academic_unit') {
+            return res.status(403).json({
+              success: false,
+              message: 'Academic unit admins can only create academic unit-level scholarships',
+              hint: 'Set scholarshipLevel to "academic_unit"'
+            });
+          }
+          // Force managing college and academic unit to admin's values
+          managingCollegeCode = adminCollegeCode;
+          managingAcademicUnitCode = adminAcademicUnitCode;
+          break;
+      }
+
       const scholarship = new Scholarship({
         ...req.body,
+        scholarshipLevel,
+        managingCollegeCode,
+        managingAcademicUnitCode,
+        // Explicitly remove any client-sent name fields - let pre-save hook populate them
+        managingCollege: undefined,
+        managingAcademicUnit: undefined,
         createdBy: req.user._id
       });
 
+      console.log('📝 Creating scholarship with managingAcademicUnitCode:', managingAcademicUnitCode);
+      
       await scholarship.save();
+      
+      console.log('✅ Saved scholarship - managingAcademicUnit:', scholarship.managingAcademicUnit);
 
       res.status(201).json({
         success: true,
@@ -353,11 +592,12 @@ router.post('/',
 /**
  * @route   PUT /api/scholarships/:id
  * @desc    Update scholarship
- * @access  Admin
+ * @access  Admin (with scope check)
  */
 router.put('/:id',
   authMiddleware,
   requireRole('admin'),
+  attachAdminScope,
   [param('id').isMongoId()],
   async (req, res, next) => {
     try {
@@ -369,6 +609,50 @@ router.put('/:id',
         });
       }
 
+      // First, fetch the scholarship to check permissions
+      const existingScholarship = await Scholarship.findById(req.params.id).lean();
+
+      if (!existingScholarship) {
+        return res.status(404).json({
+          success: false,
+          message: 'Scholarship not found'
+        });
+      }
+
+      // Check if admin can manage this scholarship
+      if (!canManageScholarship(req.user, existingScholarship)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to modify this scholarship',
+          details: {
+            yourLevel: req.adminScope?.level,
+            yourCollege: req.adminScope?.college,
+            scholarshipLevel: existingScholarship.scholarshipLevel,
+            scholarshipCollege: existingScholarship.managingCollege
+          }
+        });
+      }
+
+      // Prevent changing management fields to values outside admin's scope
+      const adminLevel = req.user.adminProfile?.accessLevel;
+      
+      // STRICT: Require admin level to be set
+      if (!adminLevel) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your admin profile is not properly configured'
+        });
+      }
+      
+      if (adminLevel !== 'university') {
+        // Non-university admins cannot change certain management fields
+        delete req.body.scholarshipLevel;
+        delete req.body.managingCollege;
+        delete req.body.managingCollegeCode;
+        delete req.body.managingAcademicUnit;
+        delete req.body.managingAcademicUnitCode;
+      }
+
       const scholarship = await Scholarship.findByIdAndUpdate(
         req.params.id,
         {
@@ -377,13 +661,6 @@ router.put('/:id',
         },
         { new: true, runValidators: true }
       );
-
-      if (!scholarship) {
-        return res.status(404).json({
-          success: false,
-          message: 'Scholarship not found'
-        });
-      }
 
       res.json({
         success: true,
@@ -399,15 +676,37 @@ router.put('/:id',
 /**
  * @route   DELETE /api/scholarships/:id
  * @desc    Delete scholarship (soft delete)
- * @access  Admin
+ * @access  Admin (with scope check)
  */
 router.delete('/:id',
   authMiddleware,
   requireRole('admin'),
-  requireAdminLevel('manager'),
+  attachAdminScope,
   [param('id').isMongoId()],
   async (req, res, next) => {
     try {
+      // First, fetch the scholarship to check permissions
+      const existingScholarship = await Scholarship.findById(req.params.id).lean();
+
+      if (!existingScholarship) {
+        return res.status(404).json({
+          success: false,
+          message: 'Scholarship not found'
+        });
+      }
+
+      // Check if admin can manage this scholarship
+      if (!canManageScholarship(req.user, existingScholarship)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to delete this scholarship',
+          details: {
+            yourLevel: req.adminScope?.level,
+            scholarshipLevel: existingScholarship.scholarshipLevel
+          }
+        });
+      }
+
       const scholarship = await Scholarship.findByIdAndUpdate(
         req.params.id,
         { 

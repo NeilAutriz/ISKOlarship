@@ -33,6 +33,12 @@ import {
 } from 'lucide-react';
 import { YearLevel, UPLBCollege } from '../types';
 import { uploadDocuments, validateFile, formatFileSize } from '../services/documentUpload';
+import { 
+  UPLBCollegeCode, 
+  UPLBDepartments, 
+  getDepartmentOptions,
+  getCollegeCodeFromLegacy 
+} from '../utils/uplbStructure';
 
 export interface ProfileData {
   // Step 1: Personal Information
@@ -51,6 +57,9 @@ export interface ProfileData {
   
   // Step 2: Academic Details
   college: string;
+  collegeCode: string;
+  academicUnit: string;
+  academicUnitCode: string;
   course: string;
   yearLevel: string;
   gwa: string;
@@ -114,6 +123,9 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     dateOfBirth: '',
     gender: '',
     college: '',
+    collegeCode: '',
+    academicUnit: '',
+    academicUnitCode: '',
     course: '',
     yearLevel: '',
     gwa: '',
@@ -158,9 +170,26 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   const updateField = (field: keyof ProfileData, value: string | boolean) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
-      // Clear course when college changes
+      // Clear course and academicUnit when college changes
       if (field === 'college') {
         updated.course = '';
+        updated.academicUnit = '';
+        updated.academicUnitCode = '';
+        // Set college code from the legacy college name
+        if (typeof value === 'string' && value) {
+          const collegeCode = getCollegeCodeFromLegacy(value);
+          console.log('🎓 College selected:', value);
+          console.log('🔍 College code lookup result:', collegeCode);
+          if (collegeCode) {
+            updated.collegeCode = collegeCode;
+            console.log('✅ Set collegeCode to:', collegeCode);
+          } else {
+            console.warn('⚠️ Could not find college code for:', value);
+            updated.collegeCode = '';
+          }
+        } else {
+          updated.collegeCode = '';
+        }
       }
       return updated;
     });
@@ -304,6 +333,13 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         setSubmitting(true);
         setSubmitError('');
         try {
+          // DEBUG: Log academic info before submission
+          console.log('📤 ProfileCompletion - Academic info at submission:');
+          console.log('  - college:', formData.college);
+          console.log('  - collegeCode:', formData.collegeCode);
+          console.log('  - academicUnit:', formData.academicUnit);
+          console.log('  - academicUnitCode:', formData.academicUnitCode);
+          
           // DEBUG: Log documents state before submission
           console.log('📤 ProfileCompletion - Submitting with documents:', formData.documents.map(d => ({
             name: d.name,
@@ -774,6 +810,45 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
           </div>
           {errors.college && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.college}</p>}
         </div>
+
+        {/* Academic Unit (Department/Institute) Selection */}
+        {formData.collegeCode && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Academic Unit (Department / Institute) <span className="text-slate-400 font-normal">(Recommended)</span>
+            </label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <select
+                value={formData.academicUnitCode}
+                onChange={(e) => {
+                  const unitCode = e.target.value;
+                  setFormData(prev => {
+                    const depts = getDepartmentOptions(prev.collegeCode as UPLBCollegeCode);
+                    const selectedUnit = depts.find(d => d.value === unitCode);
+                    return {
+                      ...prev,
+                      academicUnitCode: unitCode,
+                      academicUnit: selectedUnit ? selectedUnit.label.split(' - ')[1] || '' : ''
+                    };
+                  });
+                }}
+                className="w-full pl-12 pr-10 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all appearance-none bg-white cursor-pointer border-slate-200 hover:border-slate-300"
+              >
+                <option value="">Select your academic unit</option>
+                {getDepartmentOptions(formData.collegeCode as UPLBCollegeCode).map((dept) => (
+                  <option key={dept.value} value={dept.value}>{dept.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+            </div>
+            <p className="text-slate-400 text-xs mt-1">
+              Select the department or institute where you are enrolled (e.g., ICS, IMSP, IBS for CAS)
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Course/Program</label>

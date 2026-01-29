@@ -323,6 +323,37 @@ export const userApi = {
     });
     return response.data;
   },
+
+  // UPLB Organizational Structure endpoints
+  getUPLBStructure: async () => {
+    const response = await api.get<ApiResponse<{
+      colleges: Array<{ code: string; name: string; departmentCount: number }>;
+      universityUnits: Array<{ code: string; name: string; type: string }>;
+    }>>('/users/uplb-structure');
+    return response.data;
+  },
+
+  getColleges: async () => {
+    const response = await api.get<ApiResponse<
+      Array<{ code: string; name: string; fullName: string }>
+    >>('/users/uplb-structure/colleges');
+    return response.data;
+  },
+
+  getDepartmentsByCollege: async (collegeCode: string) => {
+    const response = await api.get<ApiResponse<{
+      college: { code: string; name: string };
+      departments: Array<{ code: string; name: string }>;
+    }>>(`/users/uplb-structure/colleges/${collegeCode}/departments`);
+    return response.data;
+  },
+
+  getUniversityUnits: async () => {
+    const response = await api.get<ApiResponse<
+      Array<{ code: string; name: string; type: string }>
+    >>('/users/uplb-structure/university-units');
+    return response.data;
+  },
 };
 
 // ============================================================================
@@ -420,6 +451,67 @@ export const scholarshipApi = {
 
   delete: async (id: string) => {
     const response = await api.delete<ApiResponse<null>>(`/scholarships/${id}`);
+    return response.data;
+  },
+
+  // Admin scope-filtered endpoints
+  getAdminScope: async () => {
+    const response = await api.get<ApiResponse<{
+      level: string;
+      levelDisplay: string;
+      collegeCode: string | null;
+      academicUnitCode: string | null;
+      college: string | null;
+      academicUnit: string | null;
+      canManage: {
+        university: boolean;
+        college: boolean;
+        academic_unit: boolean;
+        external: boolean;
+      };
+      canView: {
+        university: boolean;
+        college: boolean;
+        academic_unit: boolean;
+        external: boolean;
+      };
+      description: string;
+    }>>('/scholarships/admin/scope');
+    return response.data;
+  },
+
+  getAdminList: async (filters: ScholarshipFilters & {
+    status?: string;
+    scholarshipLevel?: string;
+    includeExpired?: boolean;
+  } = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, String(value));
+      }
+    });
+    
+    const response = await api.get<ApiResponse<{
+      scholarships: Scholarship[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+      adminScope: {
+        level: string;
+        college: string | null;
+        department: string | null;
+      };
+    }>>(`/scholarships/admin?${params.toString()}`);
+    
+    // Normalize scholarships to frontend format
+    if (response.data.success && response.data.data?.scholarships) {
+      response.data.data.scholarships = normalizeScholarships(response.data.data.scholarships);
+    }
+    
     return response.data;
   },
 };

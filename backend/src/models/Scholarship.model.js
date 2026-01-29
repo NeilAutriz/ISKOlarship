@@ -6,6 +6,16 @@
 
 const mongoose = require('mongoose');
 const { UPLBCollege, Classification, STBracket, Citizenship } = require('./User.model');
+const { 
+  getCollegeCodes, 
+  getDepartmentCodes, 
+  getCollegeByCode,
+  getDepartmentByCode,
+  isDepartmentInCollege 
+} = require('./UPLBStructure');
+
+// Get valid college codes for enum
+const ValidCollegeCodes = getCollegeCodes();
 
 // =============================================================================
 // Scholarship Types (from research paper)
@@ -17,6 +27,14 @@ const ScholarshipType = {
   GOVERNMENT: 'Government Scholarship',
   PRIVATE: 'Private Scholarship',
   THESIS_GRANT: 'Thesis/Research Grant'
+};
+
+// Scholarship Levels (for admin scope management)
+const ScholarshipLevel = {
+  UNIVERSITY: 'university',
+  COLLEGE: 'college',
+  ACADEMIC_UNIT: 'academic_unit',  // Department or Institute
+  EXTERNAL: 'external'
 };
 
 // scholarship_status (from ERD)
@@ -223,6 +241,56 @@ const scholarshipSchema = new mongoose.Schema({
   },
   
   // =========================================================================
+  // Scholarship Level & Management Scope (for admin visibility)
+  // =========================================================================
+  
+  // Scholarship level determines which admins can see/manage it
+  scholarshipLevel: {
+    type: String,
+    enum: Object.values(ScholarshipLevel),
+    default: ScholarshipLevel.UNIVERSITY,
+    index: true
+  },
+
+  // =========================================================================
+  // Management Scope - Uses UPLB Structure Codes
+  // =========================================================================
+
+  // College code that manages this scholarship (for college/department level)
+  // Uses codes like 'CAS', 'CEAT', 'CEM' etc.
+  managingCollegeCode: {
+    type: String,
+    enum: [...ValidCollegeCodes, null],
+    default: null,
+    index: true
+  },
+
+  // Academic Unit code (Department/Institute) that manages this scholarship
+  // Uses codes like 'ICS', 'DCHE', 'DAE', 'IMSP' etc.
+  managingAcademicUnitCode: {
+    type: String,
+    default: null,
+    trim: true,
+    index: true
+  },
+
+  // Legacy fields - kept for backward compatibility
+  // Will be auto-populated from codes
+  managingCollege: {
+    type: String,
+    enum: [...Object.values(UPLBCollege), null],
+    default: null,
+    index: true
+  },
+
+  managingAcademicUnit: {
+    type: String,
+    default: null,
+    trim: true,
+    index: true
+  },
+  
+  // =========================================================================
   // Financial Details (from ERD)
   // =========================================================================
   
@@ -371,6 +439,64 @@ scholarshipSchema.index({ 'eligibilityCriteria.eligibleColleges': 1 });
 scholarshipSchema.index({ 'eligibilityCriteria.eligibleClassifications': 1 });
 scholarshipSchema.index({ 'eligibilityCriteria.eligibleProvinces': 1 });
 scholarshipSchema.index({ isActive: 1, status: 1 });
+// Index for admin scope filtering
+scholarshipSchema.index({ scholarshipLevel: 1, managingCollegeCode: 1, managingAcademicUnitCode: 1 });
+
+// =============================================================================
+// Pre-save Middleware - Auto-populate legacy fields and validate scope
+// =============================================================================
+
+scholarshipSchema.pre('save', function(next) {
+  console.log('🔄 Scholarship pre-save hook running...');
+  console.log('  - managingCollegeCode:', this.managingCollegeCode);
+  console.log('  - managingAcademicUnitCode:', this.managingAcademicUnitCode);
+  
+  // Auto-populate legacy managingCollege from managingCollegeCode
+  if (this.managingCollegeCode) {
+    const collegeInfo = getCollegeByCode(this.managingCollegeCode);
+    if (collegeInfo) {
+      this.managingCollege = collegeInfo.name;
+      console.log('  ✅ Set managingCollege to:', this.managingCollege);
+    }
+  } else {
+    this.managingCollege = null;
+  }
+
+  // Validate academic unit belongs to college and auto-populate name
+  if (this.managingAcademicUnitCode && this.managingCollegeCode) {
+    if (!isDepartmentInCollege(this.managingAcademicUnitCode, this.managingCollegeCode)) {
+      return next(new Error(`Academic unit ${this.managingAcademicUnitCode} does not belong to college ${this.managingCollegeCode}`));
+    }
+    // Look up the full name from UPLBStructure
+    const deptInfo = getDepartmentByCode(this.managingAcademicUnitCode);
+    console.log('  📚 getDepartmentByCode result:', deptInfo);
+    this.managingAcademicUnit = deptInfo ? deptInfo.name : this.managingAcademicUnitCode;
+    console.log('  ✅ Set managingAcademicUnit to:', this.managingAcademicUnit);
+  } else {
+    this.managingAcademicUnit = null;
+  }
+
+  // Validate scope consistency
+  if (this.scholarshipLevel === 'academic_unit' && !this.managingAcademicUnitCode) {
+    return next(new Error('Academic unit level scholarship must have a managingAcademicUnitCode'));
+  }
+  if (this.scholarshipLevel === 'college' && !this.managingCollegeCode) {
+    return next(new Error('College-level scholarship must have a managingCollegeCode'));
+  }
+  if (this.scholarshipLevel === 'academic_unit' && !this.managingCollegeCode) {
+    return next(new Error('Academic unit level scholarship must have a managingCollegeCode'));
+  }
+  
+  // Clear codes for university/external level
+  if (this.scholarshipLevel === 'university' || this.scholarshipLevel === 'external') {
+    this.managingCollegeCode = null;
+    this.managingAcademicUnitCode = null;
+    this.managingCollege = null;
+    this.managingAcademicUnit = null;
+  }
+
+  next();
+});
 
 // =============================================================================
 // Virtual Properties
@@ -498,5 +624,6 @@ const Scholarship = mongoose.model('Scholarship', scholarshipSchema);
 module.exports = {
   Scholarship,
   ScholarshipType,
+  ScholarshipLevel,
   ScholarshipStatus
 };

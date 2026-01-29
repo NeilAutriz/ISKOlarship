@@ -17,6 +17,7 @@ const { Application } = require('../models/Application.model');
 const { seedUsers } = require('./users.seed');
 const { seedScholarships } = require('./scholarships.seed');
 const { seedApplications, generateTrainingData } = require('./applications.seed');
+const { seedComprehensiveApplications, generateTrainingData: generateComprehensiveTrainingData } = require('./applications-comprehensive.seed');
 
 // Import Logistic Regression Service for training
 const logisticRegression = require('../services/logisticRegression.service');
@@ -49,30 +50,47 @@ const runAllSeeds = async () => {
     console.log(`   ✅ Created ${allUsers.length} users\n`);
 
     // =========================================================================
-    // Step 2: Seed Scholarships
+    // Step 2: Seed Scholarships (Realistic with proper scoping)
     // =========================================================================
     console.log('════════════════════════════════════════════════════════════════');
-    console.log('Step 2: Seeding Scholarships (15 Actual UPLB Scholarships)');
+    console.log('Step 2: Seeding Scholarships (Realistic with Scoping)');
     console.log('════════════════════════════════════════════════════════════════');
     
-    const scholarships = await seedScholarships(Scholarship, adminUser._id);
+    const scholarships = await seedScholarships(Scholarship, adminUser._id, {
+      useRealistic: true,      // Jollibee, Globe, PLDT, SM, Ayala, etc.
+      useComprehensive: false, // Skip old comprehensive data
+      includeLegacy: false,    // Skip old legacy scholarships
+      includeScoped: false     // Skip old scoped scholarships (realistic already has scoping)
+    });
     console.log(`   ✅ Created ${scholarships.length} scholarships\n`);
 
-    // List created scholarships
-    console.log('   📚 Scholarships Created:');
-    scholarships.forEach((s, i) => {
-      console.log(`      ${i + 1}. ${s.name.substring(0, 60)}...`);
+    // List created scholarships by level
+    const scholarshipsByLevel = scholarships.reduce((acc, s) => {
+      const level = s.scholarshipLevel || 'university';
+      if (!acc[level]) acc[level] = [];
+      acc[level].push(s.name);
+      return acc;
+    }, {});
+    
+    console.log('   📚 Scholarships by Level:');
+    Object.entries(scholarshipsByLevel).forEach(([level, names]) => {
+      console.log(`      ${level.toUpperCase()}: ${names.length} scholarships`);
     });
     console.log('');
 
     // =========================================================================
-    // Step 3: Seed Applications (Historical + Current)
+    // Step 3: Seed Comprehensive Applications (Proper format)
     // =========================================================================
     console.log('════════════════════════════════════════════════════════════════');
-    console.log('Step 3: Seeding Applications (Historical Data for ML)');
+    console.log('Step 3: Seeding Comprehensive Applications');
     console.log('════════════════════════════════════════════════════════════════');
     
-    const applications = await seedApplications(Application, studentUsers, scholarships);
+    const applications = await seedComprehensiveApplications(
+      Application, 
+      studentUsers, 
+      scholarships,
+      allUsers.filter(u => u.role === 'admin')
+    );
     console.log(`   ✅ Created ${applications.length} applications\n`);
 
     // =========================================================================
@@ -82,7 +100,7 @@ const runAllSeeds = async () => {
     console.log('Step 4: Training Data Summary for Logistic Regression');
     console.log('════════════════════════════════════════════════════════════════');
     
-    const trainingData = generateTrainingData(applications);
+    const trainingData = generateComprehensiveTrainingData(applications);
     const approvedCount = trainingData.filter(d => d.label === 1).length;
     const rejectedCount = trainingData.filter(d => d.label === 0).length;
     
@@ -120,14 +138,16 @@ const runAllSeeds = async () => {
     console.log('║              🎉 DATABASE SEEDING COMPLETE! 🎉                  ║');
     console.log('╠════════════════════════════════════════════════════════════════╣');
     console.log(`║  Users:         ${allUsers.length.toString().padStart(4)} (${studentUsers.length} students, ${allUsers.length - studentUsers.length} admins)           ║`);
-    console.log(`║  Scholarships:  ${scholarships.length.toString().padStart(4)} (Actual UPLB scholarships)               ║`);
-    console.log(`║  Applications:  ${applications.length.toString().padStart(4)} (Historical + Current)                   ║`);
+    console.log(`║  Scholarships:  ${scholarships.length.toString().padStart(4)} (Realistic with proper scoping)          ║`);
+    console.log(`║  Applications:  ${applications.length.toString().padStart(4)} (Comprehensive format)                   ║`);
     console.log(`║  Training Data: ${trainingData.length.toString().padStart(4)} samples for ML                          ║`);
     console.log('╚════════════════════════════════════════════════════════════════╝\n');
 
     console.log('📋 Test Credentials:');
-    console.log('   Admin:   admin@iskolarship.uplb.edu.ph / password123');
-    console.log('   Student: student1@up.edu.ph / password123');
+    console.log('   Admin (University): admin@iskolarship.uplb.edu.ph / password123');
+    console.log('   Admin (College):    cas.admin@iskolarship.uplb.edu.ph / password123');
+    console.log('   Admin (Academic):   ics.admin@iskolarship.uplb.edu.ph / password123');
+    console.log('   Student:            student1@up.edu.ph / password123');
     console.log('');
 
   } catch (error) {
@@ -160,5 +180,7 @@ module.exports = {
   seedUsers,
   seedScholarships,
   seedApplications,
-  generateTrainingData
+  seedComprehensiveApplications,
+  generateTrainingData,
+  generateComprehensiveTrainingData
 };

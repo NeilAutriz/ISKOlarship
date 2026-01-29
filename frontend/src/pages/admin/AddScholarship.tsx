@@ -23,8 +23,15 @@ import {
   Eye,
   Trash2
 } from 'lucide-react';
-import { scholarshipApi } from '../../services/apiClient';
+import { scholarshipApi, userApi } from '../../services/apiClient';
 import { UPLBCollege, UPLBCourses, AgricultureMajor } from '../../types';
+import { 
+  UPLBCollegeCode, 
+  getCollegeOptions, 
+  getDepartmentOptions,
+  UPLBColleges,
+  UPLBDepartments
+} from '../../utils/uplbStructure';
 
 // ============================================================================
 // Constants & Data Sources
@@ -131,6 +138,10 @@ interface ScholarshipFormData {
   academicYear: string;
   semester: string;
   slots: number;
+  // Admin Scope fields
+  scholarshipLevel: 'university' | 'college' | 'academic_unit' | 'external';
+  managingCollegeCode: string;
+  managingAcademicUnitCode: string;
   eligibilityCriteria: {
     minGWA: number;
     maxGWA: number;
@@ -171,6 +182,10 @@ const initialFormData: ScholarshipFormData = {
   academicYear: generateAcademicYears()[0],
   semester: 'First',
   slots: 1,
+  // Admin Scope - default to university level
+  scholarshipLevel: 'university',
+  managingCollegeCode: '',
+  managingAcademicUnitCode: '',
   eligibilityCriteria: {
     minGWA: 0,
     maxGWA: 5.0,
@@ -211,6 +226,13 @@ const AddScholarship: React.FC = () => {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   
+  // Admin scope state
+  const [adminScope, setAdminScope] = useState<{
+    level: string;
+    collegeCode: string | null;
+    academicUnitCode: string | null;
+  } | null>(null);
+  
   // Available courses based on selected colleges
   const [availableCourses, setAvailableCourses] = useState<string[]>([]);
   
@@ -220,6 +242,44 @@ const AddScholarship: React.FC = () => {
 
   const totalSteps = 5;
   const academicYears = generateAcademicYears();
+
+  // ============================================================================
+  // Fetch admin scope on mount to auto-set default values
+  // ============================================================================
+  useEffect(() => {
+    const fetchAdminScope = async () => {
+      try {
+        const response = await scholarshipApi.getAdminScope();
+        if (response.success && response.data) {
+          setAdminScope({
+            level: response.data.level,
+            collegeCode: response.data.collegeCode || null,
+            academicUnitCode: response.data.academicUnitCode || null
+          });
+          
+          // Auto-set scholarship level and codes based on admin's scope
+          if (response.data.level === 'academic_unit') {
+            setFormData(prev => ({
+              ...prev,
+              scholarshipLevel: 'academic_unit',
+              managingCollegeCode: response.data.collegeCode || '',
+              managingAcademicUnitCode: response.data.academicUnitCode || ''
+            }));
+          } else if (response.data.level === 'college') {
+            setFormData(prev => ({
+              ...prev,
+              scholarshipLevel: 'college',
+              managingCollegeCode: response.data.collegeCode || ''
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch admin scope:', err);
+      }
+    };
+    
+    fetchAdminScope();
+  }, []);
 
   // ============================================================================
   // Update available courses when colleges change
@@ -489,6 +549,17 @@ const AddScholarship: React.FC = () => {
       if (!allErrors.name && !allErrors.sponsor && !allErrors.description) setCurrentStep(1);
     }
     
+    // Scope validation
+    if ((formData.scholarshipLevel === 'college' || formData.scholarshipLevel === 'academic_unit') && !formData.managingCollegeCode) {
+      allErrors.managingCollegeCode = 'Managing college is required for college/academic unit level scholarships';
+      if (Object.keys(allErrors).length === 1) setCurrentStep(1);
+    }
+    
+    if (formData.scholarshipLevel === 'academic_unit' && !formData.managingAcademicUnitCode) {
+      allErrors.managingAcademicUnitCode = 'Managing academic unit is required for academic unit level scholarships';
+      if (Object.keys(allErrors).length === 1) setCurrentStep(1);
+    }
+    
     // Step 2 validation
     if (!formData.applicationDeadline) {
       allErrors.applicationDeadline = 'Application deadline is required';
@@ -540,6 +611,11 @@ const AddScholarship: React.FC = () => {
         type: formData.type,
         totalGrant: formData.totalGrant,
         awardDescription: formData.awardDescription?.trim() || '',
+        
+        // Admin Scope - determines which admins can manage this scholarship
+        scholarshipLevel: formData.scholarshipLevel,
+        managingCollegeCode: formData.managingCollegeCode || null,
+        managingAcademicUnitCode: formData.managingAcademicUnitCode || null,
         
         // Timeline - Convert date strings to ISO format
         applicationDeadline: formData.applicationDeadline ? new Date(formData.applicationDeadline).toISOString() : undefined,
@@ -871,6 +947,140 @@ const AddScholarship: React.FC = () => {
                       <option value="active">Active (Open for applications)</option>
                       <option value="closed">Closed (No longer accepting)</option>
                     </select>
+                  </div>
+
+                  {/* Scholarship Scope/Level Section */}
+                  <div className="bg-blue-50 rounded-xl p-5 border border-blue-200">
+                    <h3 className="text-base font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-blue-600" />
+                      Administrative Scope
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-4">
+                      Define which administrative unit manages this scholarship. This determines which admins can view and manage applications.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          Scholarship Level <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={formData.scholarshipLevel}
+                          onChange={(e) => {
+                            const newLevel = e.target.value as ScholarshipFormData['scholarshipLevel'];
+                            setFormData(prev => ({
+                              ...prev,
+                              scholarshipLevel: newLevel,
+                              // Reset codes when changing level
+                              managingCollegeCode: newLevel === 'university' || newLevel === 'external' ? '' : prev.managingCollegeCode,
+                              managingAcademicUnitCode: newLevel !== 'academic_unit' ? '' : prev.managingAcademicUnitCode
+                            }));
+                          }}
+                          disabled={adminScope?.level === 'academic_unit' || adminScope?.level === 'college'}
+                          className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                        >
+                          {/* CLEAN SEPARATION: Only show options based on admin level */}
+                          {adminScope?.level === 'university' && (
+                            <>
+                              <option value="university">🏛️ University-wide - Visible to all admins</option>
+                              <option value="external">🌐 External - University manages, open to all</option>
+                              <option value="college">🎓 College-level - Managed by specific college</option>
+                              <option value="academic_unit">📚 Academic Unit-level - Managed by specific department/institute</option>
+                            </>
+                          )}
+                          {/* College admin can ONLY create college-level scholarships */}
+                          {adminScope?.level === 'college' && (
+                            <option value="college">🎓 College-level - Managed by your college</option>
+                          )}
+                          {/* Academic unit admin can ONLY create academic_unit-level scholarships */}
+                          {adminScope?.level === 'academic_unit' && (
+                            <option value="academic_unit">📚 Academic Unit-level - Managed by your department/institute</option>
+                          )}
+                        </select>
+                        {adminScope?.level !== 'university' && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            ⚠️ Your admin level restricts the scholarship levels you can create.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* College Selection - for college and academic_unit level */}
+                      {(formData.scholarshipLevel === 'college' || formData.scholarshipLevel === 'academic_unit') && (
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Managing College <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={formData.managingCollegeCode}
+                            onChange={(e) => {
+                              setFormData(prev => ({
+                                ...prev,
+                                managingCollegeCode: e.target.value,
+                                managingAcademicUnitCode: '' // Reset academic unit when college changes
+                              }));
+                            }}
+                            disabled={adminScope?.level === 'college' || adminScope?.level === 'academic_unit'}
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            required
+                          >
+                            <option value="">-- Select College --</option>
+                            {getCollegeOptions().map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          {adminScope?.level !== 'university' && formData.managingCollegeCode && (
+                            <p className="text-xs text-slate-500 mt-1">
+                              Auto-set to your college assignment.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Academic Unit Selection - only for academic_unit level */}
+                      {formData.scholarshipLevel === 'academic_unit' && (
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Managing Department/Institute <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={formData.managingAcademicUnitCode}
+                            onChange={(e) => setFormData(prev => ({ ...prev, managingAcademicUnitCode: e.target.value }))}
+                            disabled={!formData.managingCollegeCode || adminScope?.level === 'academic_unit'}
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            required
+                          >
+                            <option value="">
+                              {formData.managingCollegeCode ? '-- Select Department/Institute --' : '-- Select College First --'}
+                            </option>
+                            {formData.managingCollegeCode && getDepartmentOptions(formData.managingCollegeCode as UPLBCollegeCode).map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          {adminScope?.level === 'academic_unit' && formData.managingAcademicUnitCode && (
+                            <p className="text-xs text-slate-500 mt-1">
+                              Auto-set to your academic unit assignment.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Scope Summary */}
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium text-slate-700">Current Scope:</span>
+                          <span className="text-blue-700 font-semibold">
+                            {formData.scholarshipLevel === 'university' && '🏛️ University-wide (all admins can see)'}
+                            {formData.scholarshipLevel === 'external' && '🌐 External (university manages)'}
+                            {formData.scholarshipLevel === 'college' && formData.managingCollegeCode && 
+                              `🎓 ${formData.managingCollegeCode} - ${UPLBColleges[formData.managingCollegeCode as UPLBCollegeCode]?.name || 'College'}`}
+                            {formData.scholarshipLevel === 'college' && !formData.managingCollegeCode && '🎓 College (select college above)'}
+                            {formData.scholarshipLevel === 'academic_unit' && formData.managingAcademicUnitCode && 
+                              `📚 ${formData.managingAcademicUnitCode} (${formData.managingCollegeCode})`}
+                            {formData.scholarshipLevel === 'academic_unit' && !formData.managingAcademicUnitCode && '📚 Academic Unit (select above)'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -416,13 +416,8 @@ const generateStudentData = () => {
       contactNumber: '+639171234567',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-,
       hasThesisGrant: false,
       isGraduating: true,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -459,10 +454,6 @@ const generateStudentData = () => {
       contactNumber: '+639181234568',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -499,10 +490,6 @@ const generateStudentData = () => {
       contactNumber: '+639191234569',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -540,10 +527,6 @@ const generateStudentData = () => {
       contactNumber: '+639201234570',
       stBracket: STBracket.PD60,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -580,13 +563,8 @@ const generateStudentData = () => {
       contactNumber: '+639211234571',
       stBracket: STBracket.FULL_DISCOUNT_WITH_STIPEND,
       citizenship: Citizenship.FILIPINO,
-,
       hasThesisGrant: false,
       isGraduating: true,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -623,10 +601,6 @@ const generateStudentData = () => {
       contactNumber: '+639221234572',
       stBracket: STBracket.PD40,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -663,10 +637,6 @@ const generateStudentData = () => {
       contactNumber: '+639231234573',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -703,10 +673,6 @@ const generateStudentData = () => {
       contactNumber: '+639241234574',
       stBracket: STBracket.FULL_DISCOUNT,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -744,10 +710,6 @@ const generateStudentData = () => {
       contactNumber: '+639251234575',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: false
     }
@@ -784,10 +746,6 @@ const generateStudentData = () => {
       contactNumber: '+639261234576',
       stBracket: STBracket.PD80,
       citizenship: Citizenship.FILIPINO,
-,
-,
-,
-,
       hasDisciplinaryAction: false,
       hasExistingScholarship: true
     }
@@ -797,18 +755,37 @@ const generateStudentData = () => {
 };
 
 // =============================================================================
+// Import Scoped Admin Users (for admin level testing)
+// =============================================================================
+
+const { scopedAdminUsers } = require('./admins-scoped.seed');
+
+// =============================================================================
 // Seed Function
 // =============================================================================
 
-const seedUsers = async (User) => {
+const seedUsers = async (User, options = {}) => {
+  const { includeScopedAdmins = true } = options;
+  
   try {
     await User.deleteMany({});
     console.log('Cleared existing users');
 
     const hashedPassword = await bcrypt.hash('password123', 10);
 
-    // Create admin users
-    const adminsWithPassword = adminUsers.map(admin => ({
+    // Create admin users - include both legacy and scoped admins (avoid duplicates)
+    let allAdminUsers = [...adminUsers];
+    
+    if (includeScopedAdmins) {
+      console.log('Including scoped admin users for admin level testing');
+      // Filter out scoped admins that have same email as legacy admins
+      const existingEmails = new Set(adminUsers.map(a => a.email));
+      const uniqueScopedAdmins = scopedAdminUsers.filter(a => !existingEmails.has(a.email));
+      allAdminUsers = [...allAdminUsers, ...uniqueScopedAdmins];
+      console.log(`  - Legacy admins: ${adminUsers.length}, New scoped admins: ${uniqueScopedAdmins.length}`);
+    }
+    
+    const adminsWithPassword = allAdminUsers.map(admin => ({
       ...admin,
       password: hashedPassword
     }));
@@ -824,6 +801,14 @@ const seedUsers = async (User) => {
     const insertedUsers = await User.insertMany(allUsers);
 
     console.log(`Inserted ${insertedUsers.length} users (${adminsWithPassword.length} admins, ${studentsWithPassword.length} students)`);
+    
+    // Log admin distribution by level
+    const adminsByLevel = adminsWithPassword.reduce((acc, a) => {
+      const level = a.adminProfile?.accessLevel || 'unknown';
+      acc[level] = (acc[level] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('Admin distribution by level:', adminsByLevel);
 
     // Find and return admin user for scholarship seeding
     const adminUser = insertedUsers.find(u => u.role === 'admin');
@@ -842,6 +827,7 @@ const seedUsers = async (User) => {
 
 module.exports = {
   adminUsers,
+  scopedAdminUsers,
   generateStudentData,
   seedUsers
 };
