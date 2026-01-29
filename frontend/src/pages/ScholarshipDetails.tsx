@@ -99,7 +99,13 @@ const ScholarshipDetails: React.FC = () => {
           // Fetch similar scholarships of the same type
           try {
             const allScholarships = await fetchScholarships({ type: data.type });
-            const similar = allScholarships.filter(s => (s.id || s._id) !== id && (s.id || s._id) !== (data.id || data._id)).slice(0, 3);
+            const similar = allScholarships
+              .filter(s => {
+                const sId = s.id || s._id;
+                const dataId = data.id || data._id;
+                return sId !== id && sId !== dataId;
+              })
+              .slice(0, 3);
             if (isMounted && similar.length > 0) {
               setSimilarScholarships(similar);
             }
@@ -190,9 +196,10 @@ const ScholarshipDetails: React.FC = () => {
 
   // Helper to get eligibility status from matchResult for a specific criterion
   const getEligibilityStatus = (criterionPattern: string): boolean | null => {
-    if (!matchResult || !matchResult.eligibilityDetails || !Array.isArray(matchResult.eligibilityDetails)) return null;
+    if (!criterionPattern || !matchResult || !matchResult.eligibilityDetails || !Array.isArray(matchResult.eligibilityDetails)) return null;
+    const pattern = criterionPattern.toLowerCase();
     const detail = matchResult.eligibilityDetails.find(d => 
-      d && d.criterion && d.criterion.toLowerCase().includes(criterionPattern.toLowerCase())
+      d && d.criterion && typeof d.criterion === 'string' && d.criterion.toLowerCase().includes(pattern)
     );
     return detail ? detail.passed : null;
   };

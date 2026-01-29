@@ -80,6 +80,29 @@ const normalizeScholarshipType = (apiType: string): string => {
 };
 
 /**
+ * Convert frontend type value back to API type value for requests
+ */
+const denormalizeScholarshipType = (frontendType: string): string => {
+  if (!frontendType) return '';
+  
+  const reverseTypeMap: Record<string, string> = {
+    'thesis_grant': 'Thesis/Research Grant',
+    'private': 'Private Scholarship',
+    'government': 'Government Scholarship',
+    'university': 'University Scholarship',
+    'college': 'College Scholarship',
+  };
+  
+  // If it's already an API value, return as-is
+  const apiValues = Object.values(reverseTypeMap);
+  if (apiValues.includes(frontendType)) {
+    return frontendType;
+  }
+  
+  return reverseTypeMap[frontendType] || frontendType;
+};
+
+/**
  * Normalize a scholarship from API format to frontend format
  * API returns: totalGrant, _id, eligibleClassifications, maxGWA
  * Frontend expects: awardAmount, id, requiredYearLevels, minGWA
@@ -378,7 +401,12 @@ export const scholarshipApi = {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-        params.append(key, String(value));
+        // Convert frontend type value to API type value
+        if (key === 'type') {
+          params.append(key, denormalizeScholarshipType(String(value)));
+        } else {
+          params.append(key, String(value));
+        }
       }
     });
     
@@ -606,24 +634,33 @@ export const applicationApi = {
         total: number;
         totalPages: number;
       };
-    }>>(`/applications?${params.toString()}`);
+    }>>(`/applications/admin?${params.toString()}`);
     return response.data;
   },
 
-  updateStatus: async (id: string, status: string, notes?: string, reason?: string) => {
-    const response = await api.put<ApiResponse<Application>>(`/applications/${id}/status`, {
-      status,
-      notes,
-      reason,
-    });
+  // Admin scope endpoint
+  getAdminScope: async () => {
+    const response = await api.get<ApiResponse<{
+      level: string;
+      levelDisplay: string;
+      collegeCode: string | null;
+      academicUnitCode: string | null;
+      college: string | null;
+      academicUnit: string | null;
+      canManage: { university: boolean; college: boolean; academic_unit: boolean; external: boolean };
+      canView: { university: boolean; college: boolean; academic_unit: boolean; external: boolean };
+      description: string;
+    }>>('/applications/admin/scope');
     return response.data;
   },
 
+  // Admin review queue
   getReviewQueue: async (limit = 50) => {
-    const response = await api.get<ApiResponse<Application[]>>(`/applications/review-queue?limit=${limit}`);
+    const response = await api.get<ApiResponse<Application[]>>(`/applications/admin/review-queue?limit=${limit}`);
     return response.data;
   },
 
+  // Admin stats
   getStatsOverview: async (filters?: { scholarshipId?: string; academicYear?: string; semester?: string }) => {
     const params = new URLSearchParams();
     if (filters) {
@@ -636,7 +673,16 @@ export const applicationApi = {
       byStatus: Record<string, number>;
       timeline: Array<{ _id: { year: number; month: number }; count: number }>;
       predictionAccuracy: { total: number; correct: number; percentage: string } | null;
-    }>>(`/applications/stats/overview?${params.toString()}`);
+    }>>(`/applications/admin/stats?${params.toString()}`);
+    return response.data;
+  },
+
+  updateStatus: async (id: string, status: string, notes?: string, reason?: string) => {
+    const response = await api.put<ApiResponse<Application>>(`/applications/${id}/status`, {
+      status,
+      notes,
+      reason,
+    });
     return response.data;
   },
 };

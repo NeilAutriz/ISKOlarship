@@ -300,26 +300,8 @@ const AdminScholarships: React.FC = () => {
         </div>
       </div>
 
-      {/* Admin Scope Info Banner */}
-      {adminScope && adminScope.level !== 'university' && (
-        <div className="container-app -mt-2 mb-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm text-amber-800 font-medium">Scope-Filtered View</p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                {adminScope.level === 'college' 
-                  ? `You manage college-level scholarships for ${adminScope.college || 'your college'} only. Academic unit-level scholarships are managed by their respective departments/institutes.`
-                  : `You manage scholarships for ${adminScope.academicUnit || 'your academic unit'} (${adminScope.college || 'your college'}) only.`
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Stats Cards */}
-      <div className={`container-app ${adminScope && adminScope.level !== 'university' ? '-mt-0' : '-mt-6'} relative z-20 mb-8`}>
+      <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Scholarships Card */}
           <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
@@ -503,42 +485,25 @@ const AdminScholarships: React.FC = () => {
                         </div>
                       </div>
                       
-                      {/* Actions Dropdown */}
-                      <div className="relative flex-shrink-0">
-                        <button 
-                          onClick={() => setShowDropdown(showDropdown === scholarship.id ? null : scholarship.id)}
-                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-white/60 rounded-lg transition-all"
-                        >
-                          <MoreVertical className="w-5 h-5" />
-                        </button>
-                        {showDropdown === scholarship.id && (
-                          <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl border border-slate-200 shadow-lg py-2 z-10">
-                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
-                              <Eye className="w-4 h-4" />View Details
-                            </button>
-                            {scholarship.canManage !== false && (
-                              <>
-                                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
-                                  <Edit3 className="w-4 h-4" />Edit Scholarship
-                                </button>
-                                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all">
-                                  <Users className="w-4 h-4" />View Applicants
-                                </button>
-                                <hr className="my-2 border-slate-100" />
-                                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all">
-                                  <Trash2 className="w-4 h-4" />Delete
-                                </button>
-                              </>
-                            )}
-                            {scholarship.canManage === false && (
-                              <div className="px-4 py-2 text-xs text-amber-600 bg-amber-50 m-2 rounded-lg flex items-center gap-2">
-                                <Shield className="w-3 h-3" />
-                                View only (managed by {scholarship.scholarshipLevel} admin)
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      {/* Quick Actions - Delete only (other actions moved to footer) */}
+                      {scholarship.canManage !== false && (
+                        <div className="relative flex-shrink-0">
+                          <button 
+                            onClick={() => setShowDropdown(showDropdown === scholarship.id ? null : scholarship.id)}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            title="More options"
+                          >
+                            <MoreVertical className="w-5 h-5" />
+                          </button>
+                          {showDropdown === scholarship.id && (
+                            <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl border border-slate-200 shadow-lg py-2 z-10">
+                              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all">
+                                <Trash2 className="w-4 h-4" />Delete Scholarship
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -554,32 +519,100 @@ const AdminScholarships: React.FC = () => {
                         <div className="text-2xl font-extrabold text-slate-900">{scholarship.amount}</div>
                       </div>
                       <div className="text-right px-4 py-2 bg-white/80 rounded-lg border border-slate-200">
-                        <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Slots</div>
-                        <div className="text-xl font-extrabold text-primary-700">
-                          {scholarship.applicants}<span className="text-slate-400 font-semibold">/{scholarship.slots}</span>
-                        </div>
+                        <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Deadline</div>
+                        <div className="text-lg font-extrabold text-slate-700">{scholarship.deadline}</div>
                       </div>
                     </div>
 
                     {/* Additional Info */}
                     <div className="flex items-center gap-3 text-sm bg-white px-4 py-3 rounded-lg border border-slate-200">
                       <Calendar className="w-5 h-5 text-slate-500" />
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Deadline:</span>
-                      <span className="font-bold text-slate-900">{scholarship.deadline}</span>
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Status:</span>
+                      <span className={`font-bold ${scholarship.status === 'active' ? 'text-green-600' : scholarship.status === 'closed' ? 'text-slate-500' : 'text-amber-600'}`}>
+                        {scholarship.status === 'active' ? 'Open for Applications' : scholarship.status === 'closed' ? 'Applications Closed' : 'Draft - Not Published'}
+                      </span>
                     </div>
                   </div>
                   
-                  {/* Progress Bar */}
+                  {/* Slots Display - Replaces Application Progress */}
                   <div className="px-6 py-4 bg-white border-t-2 border-slate-200">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm text-slate-700 font-bold">Application Progress</span>
-                      <span className="text-base font-extrabold text-slate-900">{Math.round((scholarship.applicants / scholarship.slots) * 100)}%</span>
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-primary-600" />
+                        <span className="text-sm text-slate-700 font-bold">Scholarship Slots</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-extrabold text-primary-700">{scholarship.applicants}</span>
+                        <span className="text-slate-400 font-semibold">/</span>
+                        <span className="text-lg font-extrabold text-slate-600">{scholarship.slots}</span>
+                        <span className="text-xs text-slate-500 ml-1">filled</span>
+                      </div>
                     </div>
+                    {/* Slots Progress Bar */}
                     <div className="h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
                       <div 
-                        className={`h-full rounded-full transition-all shadow-sm ${scholarship.applicants >= scholarship.slots ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-green-500 to-emerald-600'}`}
-                        style={{ width: `${Math.min((scholarship.applicants / scholarship.slots) * 100, 100)}%` }}
+                        className={`h-full rounded-full transition-all shadow-sm ${
+                          scholarship.slots === 0 
+                            ? 'bg-slate-300' 
+                            : scholarship.applicants >= scholarship.slots 
+                              ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                              : scholarship.applicants >= scholarship.slots * 0.8
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                : 'bg-gradient-to-r from-primary-500 to-primary-600'
+                        }`}
+                        style={{ width: scholarship.slots > 0 ? `${Math.min((scholarship.applicants / scholarship.slots) * 100, 100)}%` : '0%' }}
                       />
+                    </div>
+                    <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
+                      <span>{scholarship.slots - scholarship.applicants > 0 ? `${scholarship.slots - scholarship.applicants} slots remaining` : 'No slots remaining'}</span>
+                      <span className={`font-semibold ${
+                        scholarship.slots === 0 
+                          ? 'text-slate-400'
+                          : scholarship.applicants >= scholarship.slots 
+                            ? 'text-red-600' 
+                            : scholarship.applicants >= scholarship.slots * 0.8
+                              ? 'text-amber-600'
+                              : 'text-primary-600'
+                      }`}>
+                        {scholarship.slots > 0 ? `${Math.round((scholarship.applicants / scholarship.slots) * 100)}% filled` : 'Unlimited'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons - Made More Prominent */}
+                  <div className="px-6 py-4 bg-slate-50 border-t border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => navigate(`/scholarships/${scholarship.id}`)}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-all shadow-sm hover:shadow-md"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View Details
+                      </button>
+                      {scholarship.canManage !== false && (
+                        <>
+                          <button
+                            onClick={() => navigate(`/admin/scholarships/${scholarship.id}/edit`)}
+                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 transition-all shadow-sm hover:shadow-md"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => navigate(`/admin/scholarships/${scholarship.id}/applicants`)}
+                            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-all shadow-sm hover:shadow-md"
+                          >
+                            <Users className="w-4 h-4" />
+                            View Applicants
+                          </button>
+                        </>
+                      )}
+                      {scholarship.canManage === false && (
+                        <div className="flex-1 text-center text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                          <Shield className="w-3 h-3 inline mr-1" />
+                          View only access
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

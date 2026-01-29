@@ -4,7 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   GraduationCap,
@@ -220,9 +220,13 @@ const initialFormData: ScholarshipFormData = {
 
 const AddScholarship: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = Boolean(id);
+  
   const [formData, setFormData] = useState<ScholarshipFormData>(initialFormData);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   
@@ -280,6 +284,115 @@ const AddScholarship: React.FC = () => {
     
     fetchAdminScope();
   }, []);
+
+  // ============================================================================
+  // Fetch scholarship data when in edit mode
+  // ============================================================================
+  useEffect(() => {
+    if (!isEditMode || !id) return;
+    
+    const fetchScholarshipData = async () => {
+      setInitialLoading(true);
+      try {
+        const response = await scholarshipApi.getById(id);
+        if (response.success && response.data) {
+          const scholarship = response.data as any; // Use any for flexible mapping
+          
+          // Format dates for input fields
+          const formatDateForInput = (dateValue: string | Date | undefined): string => {
+            if (!dateValue) return '';
+            const date = typeof dateValue === 'string' ? new Date(dateValue) : dateValue;
+            return date.toISOString().split('T')[0];
+          };
+          
+          // Map additional requirements to proper format
+          const mapAdditionalRequirements = (requirements: any): Array<{ description: string; isRequired: boolean }> => {
+            if (!requirements || !Array.isArray(requirements)) return [];
+            return requirements.map((req: any) => {
+              if (typeof req === 'string') {
+                return { description: req, isRequired: true };
+              }
+              return { 
+                description: req.description || '', 
+                isRequired: req.isRequired !== undefined ? req.isRequired : true 
+              };
+            });
+          };
+          
+          // Map required documents with proper defaults
+          const mapRequiredDocuments = (docs: any): Array<{ name: string; description: string; isRequired: boolean }> => {
+            if (!docs || !Array.isArray(docs)) return [];
+            return docs.map((doc: any) => ({
+              name: doc.name || '',
+              description: doc.description || '',
+              isRequired: doc.isRequired !== undefined ? doc.isRequired : true
+            }));
+          };
+          
+          setFormData({
+            name: scholarship.name || '',
+            description: scholarship.description || '',
+            sponsor: scholarship.sponsor || '',
+            type: scholarship.type || ScholarshipTypes[0],
+            totalGrant: scholarship.totalGrant || 0,
+            awardDescription: scholarship.awardDescription || '',
+            applicationDeadline: formatDateForInput(scholarship.applicationDeadline),
+            applicationStartDate: formatDateForInput(scholarship.applicationStartDate),
+            academicYear: scholarship.academicYear || generateAcademicYears()[0],
+            semester: scholarship.semester || 'First',
+            slots: scholarship.slots || 1,
+            scholarshipLevel: scholarship.scholarshipLevel || 'university',
+            managingCollegeCode: scholarship.managingCollegeCode || scholarship.managingCollege || '',
+            managingAcademicUnitCode: scholarship.managingAcademicUnitCode || scholarship.managingAcademicUnit || '',
+            eligibilityCriteria: {
+              minGWA: scholarship.eligibilityCriteria?.minGWA || 0,
+              maxGWA: scholarship.eligibilityCriteria?.maxGWA || 5.0,
+              eligibleClassifications: scholarship.eligibilityCriteria?.eligibleClassifications || [],
+              minUnitsEnrolled: scholarship.eligibilityCriteria?.minUnitsEnrolled || 0,
+              minUnitsPassed: scholarship.eligibilityCriteria?.minUnitsPassed || scholarship.eligibilityCriteria?.minimumUnitsPassed || 0,
+              eligibleColleges: scholarship.eligibilityCriteria?.eligibleColleges || [],
+              eligibleCourses: scholarship.eligibilityCriteria?.eligibleCourses || [],
+              eligibleMajors: scholarship.eligibilityCriteria?.eligibleMajors || [],
+              maxAnnualFamilyIncome: scholarship.eligibilityCriteria?.maxAnnualFamilyIncome || scholarship.eligibilityCriteria?.maxFamilyIncome || 0,
+              minAnnualFamilyIncome: scholarship.eligibilityCriteria?.minAnnualFamilyIncome || scholarship.eligibilityCriteria?.minFamilyIncome || 0,
+              eligibleSTBrackets: scholarship.eligibilityCriteria?.eligibleSTBrackets || [],
+              eligibleProvinces: scholarship.eligibilityCriteria?.eligibleProvinces || [],
+              eligibleCitizenship: scholarship.eligibilityCriteria?.eligibleCitizenship || 
+                (scholarship.eligibilityCriteria?.filipinoOnly ? ['Filipino'] : ['Filipino']),
+              requiresApprovedThesisOutline: scholarship.eligibilityCriteria?.requiresApprovedThesisOutline || 
+                scholarship.eligibilityCriteria?.requiresApprovedThesis || 
+                scholarship.eligibilityCriteria?.requireThesisApproval || false,
+              mustNotHaveOtherScholarship: scholarship.eligibilityCriteria?.mustNotHaveOtherScholarship || 
+                scholarship.eligibilityCriteria?.noOtherScholarship || false,
+              mustNotHaveThesisGrant: scholarship.eligibilityCriteria?.mustNotHaveThesisGrant || 
+                scholarship.eligibilityCriteria?.noExistingGrant || false,
+              mustNotHaveDisciplinaryAction: scholarship.eligibilityCriteria?.mustNotHaveDisciplinaryAction || 
+                scholarship.eligibilityCriteria?.noDisciplinaryRecord || false,
+              mustNotHaveFailingGrade: scholarship.eligibilityCriteria?.mustNotHaveFailingGrade || 
+                scholarship.eligibilityCriteria?.noFailingGrades || false,
+              mustNotHaveGradeOf4: scholarship.eligibilityCriteria?.mustNotHaveGradeOf4 || false,
+              mustNotHaveIncompleteGrade: scholarship.eligibilityCriteria?.mustNotHaveIncompleteGrade || false,
+              mustBeGraduating: scholarship.eligibilityCriteria?.mustBeGraduating || false,
+              additionalRequirements: mapAdditionalRequirements(scholarship.eligibilityCriteria?.additionalRequirements)
+            },
+            requiredDocuments: mapRequiredDocuments(scholarship.requiredDocuments),
+            status: scholarship.status || 'draft'
+          });
+        } else {
+          toast.error('Failed to load scholarship data');
+          navigate('/admin/scholarships');
+        }
+      } catch (err) {
+        console.error('Failed to fetch scholarship:', err);
+        toast.error('Failed to load scholarship data');
+        navigate('/admin/scholarships');
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    
+    fetchScholarshipData();
+  }, [isEditMode, id, navigate]);
 
   // ============================================================================
   // Update available courses when colleges change
@@ -672,14 +785,16 @@ const AddScholarship: React.FC = () => {
         requiredDocuments: formData.requiredDocuments
       };
 
-      console.log('📤 Sending scholarship data:', JSON.stringify(scholarshipData, null, 2));
+      console.log(`📤 ${isEditMode ? 'Updating' : 'Creating'} scholarship data:`, JSON.stringify(scholarshipData, null, 2));
 
-      const response = await scholarshipApi.create(scholarshipData);
+      const response = isEditMode 
+        ? await scholarshipApi.update(id!, scholarshipData)
+        : await scholarshipApi.create(scholarshipData);
       
       console.log('📥 Received response:', response);
       
       if (response.success) {
-        toast.success('🎓 Scholarship created successfully!', {
+        toast.success(`🎓 Scholarship ${isEditMode ? 'updated' : 'created'} successfully!`, {
           position: 'top-right',
           autoClose: 3000,
           hideProgressBar: false,
@@ -693,10 +808,10 @@ const AddScholarship: React.FC = () => {
           navigate('/admin/scholarships');
         }, 500);
       } else {
-        throw new Error(response.message || 'Failed to create scholarship');
+        throw new Error(response.message || `Failed to ${isEditMode ? 'update' : 'create'} scholarship`);
       }
     } catch (err: any) {
-      console.error('❌ Error creating scholarship:', err);
+      console.error(`❌ Error ${isEditMode ? 'updating' : 'creating'} scholarship:`, err);
       console.error('Error response:', err.response);
       console.error('Error data:', err.response?.data);
       
@@ -706,7 +821,7 @@ const AddScholarship: React.FC = () => {
       if (err.response?.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (err.response?.status === 403) {
-        errorMessage = 'You do not have permission to create scholarships.';
+        errorMessage = `You do not have permission to ${isEditMode ? 'update' : 'create'} this scholarship.`;
       } else if (err.response?.status === 400) {
         const errorMsg = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Invalid data provided';
         errorMessage = `Validation Error: ${errorMsg}`;
@@ -740,6 +855,18 @@ const AddScholarship: React.FC = () => {
   // Render
   // ============================================================================
 
+  // Show loading state when fetching scholarship data in edit mode
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 font-medium">Loading scholarship data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -754,7 +881,9 @@ const AddScholarship: React.FC = () => {
             </button>
             <GraduationCap className="w-8 h-8 text-primary-600" />
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">Create New Scholarship</h1>
+              <h1 className="text-2xl font-bold text-slate-800">
+                {isEditMode ? 'Edit Scholarship' : 'Create New Scholarship'}
+              </h1>
               <p className="text-sm text-slate-500">Step {currentStep} of {totalSteps}</p>
             </div>
           </div>
@@ -2032,12 +2161,12 @@ const AddScholarship: React.FC = () => {
                     {loading ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Creating...
+                        {isEditMode ? 'Updating...' : 'Creating...'}
                       </>
                     ) : (
                       <>
                         <CheckCircle className="w-5 h-5" />
-                        Create Scholarship
+                        {isEditMode ? 'Update Scholarship' : 'Create Scholarship'}
                       </>
                     )}
                   </button>

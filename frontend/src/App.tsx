@@ -40,6 +40,8 @@ import {
   AdminProfile as AdminProfilePage,
   AddScholarship
 } from './pages/admin';
+import ScholarshipApplicants from './pages/admin/ScholarshipApplicants';
+import ApplicationReview from './pages/admin/ApplicationReview';
 
 import './styles/globals.css';
 
@@ -864,6 +866,21 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           <Route path="/admin/scholarships/add" element={
             <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
               <AddScholarship />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/scholarships/:id/edit" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
+              <AddScholarship />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/scholarships/:id/applicants" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
+              <ScholarshipApplicants />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/applications/:id" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
+              <ApplicationReview />
             </ProtectedRoute>
           } />
           <Route path="/admin/profile" element={

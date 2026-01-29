@@ -1,6 +1,7 @@
 // =============================================================================
 // ISKOlarship - Application Routes
 // Student application management and tracking with admin scope filtering
+// IMPORTANT: Admin routes (/admin/*) MUST come before parameterized routes (/:id)
 // =============================================================================
 
 const express = require('express');
@@ -46,7 +47,7 @@ const statusUpdateValidation = [
 ];
 
 // =============================================================================
-// Student Routes
+// Student Routes - Specific paths BEFORE parameterized routes
 // =============================================================================
 
 /**
@@ -390,8 +391,336 @@ router.post('/',
   }
 );
 
+// =============================================================================
+// Admin Routes - MUST BE BEFORE /:id routes to avoid route matching issues
+// Express matches routes in order, so /admin/* must come before /:id
+// =============================================================================
+
+/**
+ * @route   GET /api/applications/admin/scope
+ * @desc    Get admin's scope summary for applications UI
+ * @access  Admin
+ */
+router.get('/admin/scope',
+  authMiddleware,
+  requireRole('admin'),
+  attachAdminScope,
+  (req, res) => {
+    console.log('📋 ========== ADMIN APPLICATION SCOPE REQUEST ==========');
+    console.log('📋 User:', req.user?.email);
+    console.log('📋 Admin Profile:', JSON.stringify(req.user?.adminProfile, null, 2));
+    
+    const scopeSummary = getAdminScopeSummary(req.user);
+    res.json({
+      success: true,
+      data: scopeSummary
+    });
+  }
+);
+
+/**
+ * @route   GET /api/applications/admin
+ * @desc    Get all applications (admin, scope-filtered by scholarship)
+ * @access  Admin
+ */
+router.get('/admin',
+  authMiddleware,
+  requireRole('admin'),
+  attachAdminScope,
+  async (req, res, next) => {
+    try {
+      console.log('📋 ========== ADMIN APPLICATIONS REQUEST ==========');
+      console.log('📋 User:', req.user?.email);
+      console.log('📋 Admin Profile:', JSON.stringify(req.user?.adminProfile, null, 2));
+
+      const {
+        status,
+        scholarshipId,
+        page = 1,
+        limit = 50,
+        sortBy = 'submittedAt',
+        sortOrder = 'desc'
+      } = req.query;
+
+      // First, get the scholarships this admin can see
+      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
+      
+      // CRITICAL: Check if scope filter denies all access
+      if (scholarshipScopeFilter._id && scholarshipScopeFilter._id.$exists === false) {
+        console.log('🚫 Admin scope denies all access - returning empty result');
+        return res.json({
+          success: true,
+          data: {
+            applications: [],
+            pagination: {
+              page: parseInt(page),
+              limit: parseInt(limit),
+              total: 0,
+              totalPages: 0
+            },
+            adminScope: req.adminScope,
+            message: 'Your admin profile may not be fully configured. Please contact system administrator.'
+          }
+        });
+      }
+      
+      console.log('📋 Scholarship scope filter:', JSON.stringify(scholarshipScopeFilter));
+      
+      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
+        .select('_id name scholarshipLevel')
+        .lean();
+      
+      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
+      console.log('📋 Accessible scholarships:', accessibleScholarshipIds.length);
+
+      // Build application query filtered by accessible scholarships
+      const query = {
+        scholarship: { $in: accessibleScholarshipIds }
+      };
+      
+      if (status) query.status = status;
+      if (scholarshipId) {
+        // Verify the requested scholarship is within admin's scope
+        if (!accessibleScholarshipIds.some(id => id.toString() === scholarshipId)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to applications for this scholarship'
+          });
+        }
+        query.scholarship = scholarshipId;
+      }
+
+      console.log('📋 Final query:', JSON.stringify(query));
+
+      const skip = (page - 1) * limit;
+      const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+      const [applications, total] = await Promise.all([
+        Application.find(query)
+          .populate('applicant', 'firstName lastName email studentProfile')
+          .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege managingAcademicUnit managingCollegeCode managingAcademicUnitCode')
+          .sort(sortOptions)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean(),
+        Application.countDocuments(query)
+      ]);
+
+      console.log('📋 Results: Found', total, 'applications for', req.user?.email);
+
+      // Add permission info to each application
+      const enrichedApplications = applications.map(app => ({
+        ...app,
+        canManage: canManageApplication(req.user, app)
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          applications: enrichedApplications,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            totalPages: Math.ceil(total / limit)
+          },
+          adminScope: req.adminScope
+        }
+      });
+    } catch (error) {
+      console.error('🚫 Admin applications error:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * @route   GET /api/applications/admin/review-queue
+ * @desc    Get pending review queue (scope-filtered)
+ * @access  Admin
+ */
+router.get('/admin/review-queue',
+  authMiddleware,
+  requireRole('admin'),
+  attachAdminScope,
+  async (req, res, next) => {
+    try {
+      const { limit = 50 } = req.query;
+
+      // Get accessible scholarships for this admin
+      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
+      
+      // Check for denied access
+      if (scholarshipScopeFilter._id && scholarshipScopeFilter._id.$exists === false) {
+        return res.json({
+          success: true,
+          data: [],
+          adminScope: req.adminScope
+        });
+      }
+      
+      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
+        .select('_id')
+        .lean();
+      
+      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
+
+      // Get pending applications only for scholarships within admin's scope
+      const applications = await Application.find({
+        status: { $in: ['submitted', 'under_review'] },
+        scholarship: { $in: accessibleScholarshipIds }
+      })
+        .populate('applicant', 'firstName lastName email studentProfile')
+        .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege managingAcademicUnit')
+        .sort({ submittedAt: 1 })
+        .limit(parseInt(limit))
+        .lean();
+
+      // Add permission info
+      const enrichedApplications = applications.map(app => ({
+        ...app,
+        canManage: canManageApplication(req.user, app)
+      }));
+
+      res.json({
+        success: true,
+        data: enrichedApplications,
+        adminScope: req.adminScope
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @route   GET /api/applications/admin/stats
+ * @desc    Get application statistics (scope-filtered)
+ * @access  Admin
+ */
+router.get('/admin/stats',
+  authMiddleware,
+  requireRole('admin'),
+  attachAdminScope,
+  async (req, res, next) => {
+    try {
+      const { scholarshipId, academicYear, semester } = req.query;
+
+      // Get accessible scholarships for this admin
+      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
+      
+      // Check for denied access
+      if (scholarshipScopeFilter._id && scholarshipScopeFilter._id.$exists === false) {
+        return res.json({
+          success: true,
+          data: {
+            byStatus: {},
+            timeline: [],
+            predictionAccuracy: null
+          }
+        });
+      }
+      
+      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
+        .select('_id')
+        .lean();
+      
+      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
+
+      const matchStage = {
+        scholarship: { $in: accessibleScholarshipIds }
+      };
+      
+      if (scholarshipId) {
+        // Verify scholarship is accessible
+        if (!accessibleScholarshipIds.some(id => id.toString() === scholarshipId)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You do not have access to stats for this scholarship'
+          });
+        }
+        matchStage.scholarship = new (require('mongoose').Types.ObjectId)(scholarshipId);
+      }
+      if (academicYear) matchStage.academicYear = academicYear;
+      if (semester) matchStage.semester = semester;
+
+      const stats = await Application.aggregate([
+        { $match: matchStage },
+        {
+          $facet: {
+            byStatus: [
+              { $group: { _id: '$status', count: { $sum: 1 } } }
+            ],
+            timeline: [
+              {
+                $group: {
+                  _id: {
+                    year: { $year: '$submittedAt' },
+                    month: { $month: '$submittedAt' }
+                  },
+                  count: { $sum: 1 }
+                }
+              },
+              { $sort: { '_id.year': -1, '_id.month': -1 } },
+              { $limit: 12 }
+            ],
+            predictionAccuracy: [
+              {
+                $match: {
+                  status: { $in: [ApplicationStatus.APPROVED, ApplicationStatus.REJECTED] },
+                  'prediction.predictedOutcome': { $exists: true }
+                }
+              },
+              {
+                $project: {
+                  correct: {
+                    $cond: [
+                      { $eq: ['$status', '$prediction.predictedOutcome'] },
+                      1,
+                      0
+                    ]
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: 1 },
+                  correct: { $sum: '$correct' }
+                }
+              }
+            ]
+          }
+        }
+      ]);
+
+      const result = stats[0];
+
+      res.json({
+        success: true,
+        data: {
+          byStatus: result.byStatus.reduce((acc, s) => ({ ...acc, [s._id]: s.count }), {}),
+          timeline: result.timeline,
+          predictionAccuracy: result.predictionAccuracy[0] ? {
+            total: result.predictionAccuracy[0].total,
+            correct: result.predictionAccuracy[0].correct,
+            percentage: (result.predictionAccuracy[0].correct / result.predictionAccuracy[0].total * 100).toFixed(2)
+          } : null
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// =============================================================================
+// Parameterized Routes - MUST come AFTER all static and admin routes
+// =============================================================================
+
 /**
  * @route   GET /api/applications/:id
+
  * @desc    Get application by ID
  * @access  Private (Owner or Admin)
  */
@@ -647,111 +976,6 @@ router.post('/:id/withdraw',
   }
 );
 
-// =============================================================================
-// Admin Routes
-// =============================================================================
-
-/**
- * @route   GET /api/applications/admin/scope
- * @desc    Get admin's scope summary for applications UI
- * @access  Admin
- */
-router.get('/admin/scope',
-  authMiddleware,
-  requireRole('admin'),
-  (req, res) => {
-    const scopeSummary = getAdminScopeSummary(req.user);
-    res.json({
-      success: true,
-      data: scopeSummary
-    });
-  }
-);
-
-/**
- * @route   GET /api/applications
- * @desc    Get all applications (admin, scope-filtered)
- * @access  Admin
- */
-router.get('/',
-  authMiddleware,
-  requireRole('admin'),
-  attachAdminScope,
-  async (req, res, next) => {
-    try {
-      const {
-        status,
-        scholarshipId,
-        page = 1,
-        limit = 50,
-        sortBy = 'submittedAt',
-        sortOrder = 'desc'
-      } = req.query;
-
-      // First, get the scholarships this admin can see
-      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
-      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
-        .select('_id')
-        .lean();
-      
-      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
-
-      // Build application query filtered by accessible scholarships
-      const query = {
-        scholarship: { $in: accessibleScholarshipIds }
-      };
-      
-      if (status) query.status = status;
-      if (scholarshipId) {
-        // Verify the requested scholarship is within admin's scope
-        if (!accessibleScholarshipIds.some(id => id.toString() === scholarshipId)) {
-          return res.status(403).json({
-            success: false,
-            message: 'You do not have access to applications for this scholarship'
-          });
-        }
-        query.scholarship = scholarshipId;
-      }
-
-      const skip = (page - 1) * limit;
-      const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
-
-      const [applications, total] = await Promise.all([
-        Application.find(query)
-          .populate('applicant', 'firstName lastName email studentProfile')
-          .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege managingAcademicUnit')
-          .sort(sortOptions)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .lean(),
-        Application.countDocuments(query)
-      ]);
-
-      // Add permission info to each application
-      const enrichedApplications = applications.map(app => ({
-        ...app,
-        canManage: canManageApplication(req.user, app)
-      }));
-
-      res.json({
-        success: true,
-        data: {
-          applications: enrichedApplications,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total,
-            totalPages: Math.ceil(total / limit)
-          },
-          adminScope: req.adminScope
-        }
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
 /**
  * @route   PUT /api/applications/:id/status
  * @desc    Update application status (admin, scope-checked)
@@ -821,162 +1045,6 @@ router.put('/:id/status',
         success: true,
         message: `Application ${status} successfully`,
         data: application
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-/**
- * @route   GET /api/applications/review-queue
- * @desc    Get pending review queue (scope-filtered)
- * @access  Admin
- */
-router.get('/review-queue',
-  authMiddleware,
-  requireRole('admin'),
-  attachAdminScope,
-  async (req, res, next) => {
-    try {
-      const { limit = 50 } = req.query;
-
-      // Get accessible scholarships for this admin
-      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
-      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
-        .select('_id')
-        .lean();
-      
-      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
-
-      // Get pending applications only for scholarships within admin's scope
-      const applications = await Application.find({
-        status: { $in: ['submitted', 'under_review'] },
-        scholarship: { $in: accessibleScholarshipIds }
-      })
-        .populate('applicant', 'firstName lastName email studentProfile')
-        .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege')
-        .sort({ submittedAt: 1 })
-        .limit(parseInt(limit))
-        .lean();
-
-      // Add permission info
-      const enrichedApplications = applications.map(app => ({
-        ...app,
-        canManage: canManageApplication(req.user, app)
-      }));
-
-      res.json({
-        success: true,
-        data: enrichedApplications,
-        adminScope: req.adminScope
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-/**
- * @route   GET /api/applications/stats
- * @desc    Get application statistics (scope-filtered)
- * @access  Admin
- */
-router.get('/stats/overview',
-  authMiddleware,
-  requireRole('admin'),
-  attachAdminScope,
-  async (req, res, next) => {
-    try {
-      const { scholarshipId, academicYear, semester } = req.query;
-
-      // Get accessible scholarships for this admin
-      const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
-      const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
-        .select('_id')
-        .lean();
-      
-      const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
-
-      const matchStage = {
-        scholarship: { $in: accessibleScholarshipIds }
-      };
-      if (scholarshipId) {
-        // Verify scholarship is accessible
-        if (!accessibleScholarshipIds.some(id => id.toString() === scholarshipId)) {
-          return res.status(403).json({
-            success: false,
-            message: 'You do not have access to stats for this scholarship'
-          });
-        }
-        matchStage.scholarship = scholarshipId;
-      }
-      if (academicYear) matchStage.academicYear = academicYear;
-      if (semester) matchStage.semester = semester;
-
-      const stats = await Application.aggregate([
-        { $match: matchStage },
-        {
-          $facet: {
-            byStatus: [
-              { $group: { _id: '$status', count: { $sum: 1 } } }
-            ],
-            timeline: [
-              {
-                $group: {
-                  _id: {
-                    year: { $year: '$submittedAt' },
-                    month: { $month: '$submittedAt' }
-                  },
-                  count: { $sum: 1 }
-                }
-              },
-              { $sort: { '_id.year': -1, '_id.month': -1 } },
-              { $limit: 12 }
-            ],
-            predictionAccuracy: [
-              {
-                $match: {
-                  status: { $in: [ApplicationStatus.APPROVED, ApplicationStatus.REJECTED] },
-                  'prediction.predictedOutcome': { $exists: true }
-                }
-              },
-              {
-                $project: {
-                  correct: {
-                    $cond: [
-                      { $eq: ['$status', '$prediction.predictedOutcome'] },
-                      1,
-                      0
-                    ]
-                  }
-                }
-              },
-              {
-                $group: {
-                  _id: null,
-                  total: { $sum: 1 },
-                  correct: { $sum: '$correct' }
-                }
-              }
-            ]
-          }
-        }
-      ]);
-
-      const result = stats[0];
-
-      res.json({
-        success: true,
-        data: {
-          byStatus: result.byStatus.reduce((acc, s) => ({ ...acc, [s._id]: s.count }), {}),
-          timeline: result.timeline,
-          predictionAccuracy: result.predictionAccuracy[0] ? {
-            total: result.predictionAccuracy[0].total,
-            correct: result.predictionAccuracy[0].correct,
-            percentage: (result.predictionAccuracy[0].correct / result.predictionAccuracy[0].total * 100).toFixed(2)
-          } : null
-        }
       });
     } catch (error) {
       next(error);

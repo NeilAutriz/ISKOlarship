@@ -96,7 +96,7 @@ const extractFeatures = (
   student: StudentProfile,
   scholarship: Scholarship
 ): FeatureVector => {
-  const criteria = scholarship.eligibilityCriteria;
+  const criteria = scholarship.eligibilityCriteria || {};
   
   // GWA normalization (invert so higher is better: 5-gwa gives 4 for 1.0, 0 for 5.0)
   // Use 2.5 as default if GWA is not available (neutral value)
@@ -119,20 +119,20 @@ const extractFeatures = (
   // College match
   const collegeMatch = !criteria.eligibleColleges || 
     criteria.eligibleColleges.length === 0 ||
-    criteria.eligibleColleges.includes(student.college) ? 1 : 0;
+    (student.college && criteria.eligibleColleges.includes(student.college)) ? 1 : 0;
   
   // Course match
   const courseMatch = !criteria.eligibleCourses || 
     criteria.eligibleCourses.length === 0 ||
-    criteria.eligibleCourses.some(c => 
-      student.course.toLowerCase().includes(c.toLowerCase())
-    ) ? 1 : 0;
+    (student.course && criteria.eligibleCourses.some(c => 
+      c && student.course && student.course.toLowerCase().includes(c.toLowerCase())
+    )) ? 1 : 0;
   
   // Major match
   const majorMatch = !criteria.eligibleMajors || 
     criteria.eligibleMajors.length === 0 ||
     (student.major && criteria.eligibleMajors.some(m => 
-      student.major?.toLowerCase().includes(m.toLowerCase())
+      m && student.major && student.major.toLowerCase().includes(m.toLowerCase())
     )) ? 1 : 0;
   
   // Meets income requirement
@@ -349,6 +349,26 @@ export const predictScholarshipSuccessLocal = (
   student: StudentProfile,
   scholarship: Scholarship
 ): PredictionResult => {
+  // Safety check for undefined inputs
+  if (!student || !scholarship) {
+    return {
+      probability: 0,
+      percentageScore: 0,
+      confidence: 'low',
+      factors: [],
+      recommendation: 'Unable to calculate prediction - missing student or scholarship data.',
+      trainedModel: false
+    };
+  }
+
+  // Ensure eligibilityCriteria exists
+  if (!scholarship.eligibilityCriteria) {
+    scholarship = {
+      ...scholarship,
+      eligibilityCriteria: {}
+    } as Scholarship;
+  }
+
   // Extract features
   const features = extractFeatures(student, scholarship);
   
