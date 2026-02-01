@@ -265,6 +265,7 @@ async function predictApprovalProbability(user, scholarship) {
     matchLevel: getMatchLevel(adjustedProbability),
     factors: sanitizedFactors,
     zScore: prediction.zScore, // Include z-score for transparency
+    intercept: prediction.intercept, // Include intercept/bias term for calculation breakdown
     features: prediction.features,
     modelVersion: MODEL_VERSION,
     trainedModel: prediction.trainedModel,

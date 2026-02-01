@@ -457,6 +457,23 @@ export const getPredictionForScholarship = async (scholarshipId: string) => {
   return getPrediction(scholarshipId);
 };
 
+/**
+ * Get prediction for a specific application (admin only)
+ * This fetches fresh prediction data for the applicant
+ */
+export const getPredictionForApplication = async (applicationId: string) => {
+  try {
+    const response = await predictionApi.getPredictionForApplication(applicationId);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    throw new Error('Failed to get prediction for application');
+  } catch (error) {
+    console.error('Failed to get prediction for application:', error);
+    throw error;
+  }
+};
+
 // ============================================================================
 // Auth API (re-exported for convenience)
 // ============================================================================

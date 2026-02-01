@@ -25,13 +25,15 @@ import {
   Lightbulb
 } from 'lucide-react';
 import { PredictionFactor, PredictionResult } from '../types';
-import { getPredictionForScholarship } from '../services/api';
+import { getPredictionForScholarship, getPredictionForApplication } from '../services/api';
 import { useAuth } from '../App';
 
 interface LocationState {
   prediction?: PredictionResult;
   scholarshipName?: string;
   scholarshipId?: string;
+  applicationId?: string; // For admin viewing applicant's prediction
+  fromAdmin?: boolean;
 }
 
 const PredictionExplanation: React.FC = () => {
@@ -42,13 +44,18 @@ const PredictionExplanation: React.FC = () => {
   
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
   const [scholarshipName, setScholarshipName] = useState<string>('');
+  const [applicantName, setApplicantName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const state = location.state as LocationState;
     
-    if (state?.prediction) {
+    // If admin is viewing an application's prediction, fetch fresh data
+    if (state?.applicationId && state?.fromAdmin) {
+      fetchPredictionForApplication(state.applicationId);
+      setScholarshipName(state.scholarshipName || 'Scholarship');
+    } else if (state?.prediction) {
       setPrediction(state.prediction);
       setScholarshipName(state.scholarshipName || 'Scholarship');
       setLoading(false);
@@ -73,6 +80,23 @@ const PredictionExplanation: React.FC = () => {
     }
   };
 
+  const fetchPredictionForApplication = async (applicationId: string) => {
+    try {
+      setLoading(true);
+      const result = await getPredictionForApplication(applicationId);
+      setPrediction(result);
+      if (result.applicantName) {
+        setApplicantName(result.applicantName);
+      }
+      if (result.scholarshipName) {
+        setScholarshipName(result.scholarshipName);
+      }
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to load prediction data for this application');
+      setLoading(false);
+    }
+  };
   // Determine if a factor is positive, negative, or neutral
   // Based on the actual contribution to the z-score (not just whether criteria was met)
   const getFactorImpact = (factor: PredictionFactor): 'positive' | 'negative' | 'neutral' => {
@@ -168,7 +192,10 @@ const PredictionExplanation: React.FC = () => {
             </button>
             <div>
               <h1 className="text-xl font-bold text-slate-900">Prediction Analysis</h1>
-              <p className="text-sm text-slate-500">{scholarshipName}</p>
+              <p className="text-sm text-slate-500">
+                {scholarshipName}
+                {applicantName && <span className="text-primary-600"> • {applicantName}</span>}
+              </p>
             </div>
           </div>
         </div>
@@ -183,8 +210,10 @@ const PredictionExplanation: React.FC = () => {
                 <Brain className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Your Success Prediction</h2>
-                <p className="text-white/80">Based on machine learning analysis of your profile</p>
+                <h2 className="text-2xl font-bold text-white">
+                  {applicantName ? `${applicantName}'s Prediction` : 'Your Success Prediction'}
+                </h2>
+                <p className="text-white/80">Based on machine learning analysis of {applicantName ? 'their' : 'your'} profile</p>
               </div>
             </div>
           </div>

@@ -31,9 +31,14 @@ import {
   Eye,
   X,
   ExternalLink,
-  Image
+  Image,
+  Sparkles,
+  Target,
+  BarChart2
 } from 'lucide-react';
 import { applicationApi } from '../../services/apiClient';
+import { getPredictionForApplication } from '../../services/api';
+import { PredictionResult } from '../../types';
 
 interface ApplicationDetails {
   id: string;
@@ -65,6 +70,21 @@ interface ApplicationDetails {
   submittedDate: string;
   status: string;
   matchScore: number;
+  // Prediction Data
+  prediction?: {
+    probability: number;
+    predictedOutcome?: 'approved' | 'rejected';
+    confidence?: 'low' | 'medium' | 'high';
+    featureContributions?: {
+      gwa?: number;
+      financialNeed?: number;
+      yearLevel?: number;
+      collegeMatch?: number;
+      courseMatch?: number;
+      locationMatch?: number;
+      completenessScore?: number;
+    };
+  };
   // Documents
   documents: Array<{
     _id?: string;
@@ -98,6 +118,10 @@ const ApplicationReview: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  
+  // Fresh ML prediction data
+  const [freshPrediction, setFreshPrediction] = useState<PredictionResult | null>(null);
+  const [loadingPrediction, setLoadingPrediction] = useState(false);
 
   // Fetch application details
   useEffect(() => {
@@ -163,6 +187,13 @@ const ApplicationReview: React.FC = () => {
               : 'N/A',
             status: app.status || 'pending',
             matchScore: app.eligibilityPercentage || app.eligibilityScore || 0,
+            // Prediction Data
+            prediction: app.prediction ? {
+              probability: app.prediction.probability || 0,
+              predictedOutcome: app.prediction.predictedOutcome,
+              confidence: app.prediction.confidence,
+              featureContributions: app.prediction.featureContributions
+            } : undefined,
             // Documents
             documents: (app.documents || []).map((doc: any) => ({
               _id: doc._id || doc.id,
@@ -195,6 +226,35 @@ const ApplicationReview: React.FC = () => {
 
     fetchApplication();
   }, [id]);
+
+  // Fetch fresh ML prediction when application is loaded
+  useEffect(() => {
+    const fetchFreshPrediction = async () => {
+      if (!id || !application) return;
+      
+      try {
+        setLoadingPrediction(true);
+        const prediction = await getPredictionForApplication(id);
+        setFreshPrediction(prediction);
+      } catch (err) {
+        console.warn('Failed to fetch fresh prediction:', err);
+        // Fall back to stored prediction if fresh fetch fails
+      } finally {
+        setLoadingPrediction(false);
+      }
+    };
+
+    fetchFreshPrediction();
+  }, [id, application?.id]);
+
+  // Use fresh prediction if available, otherwise fall back to stored prediction
+  const currentPrediction = freshPrediction || (application?.prediction ? {
+    probability: application.prediction.probability,
+    probabilityPercentage: Math.round((application.prediction.probability || 0) * 100),
+    predictedOutcome: application.prediction.predictedOutcome,
+    confidence: application.prediction.confidence,
+    featureContributions: application.prediction.featureContributions
+  } as PredictionResult : null);
 
   // Load document preview with authentication
   const loadDocumentPreview = async (document: { _id?: string; name: string; type: string; mimeType?: string; url: string }) => {
@@ -525,16 +585,27 @@ const ApplicationReview: React.FC = () => {
               </p>
             </div>
             
-            {/* Match Score */}
-            <div className={`rounded-2xl px-6 py-4 border ${getMatchScoreColor(application.matchScore)}`}>
-              <div className="flex items-center gap-3">
-                <TrendingUp className="w-6 h-6" />
-                <div>
-                  <div className="text-3xl font-bold">{application.matchScore}%</div>
-                  <div className="text-sm font-medium">Eligibility Match</div>
+            {/* ML Prediction Score */}
+            {currentPrediction && (currentPrediction.probabilityPercentage || currentPrediction.probability) && (
+              <div className={`rounded-2xl px-6 py-4 border ${
+                (currentPrediction.probabilityPercentage ?? currentPrediction.probability * 100) >= 70 
+                  ? 'bg-green-50 border-green-300 text-green-700' 
+                  : (currentPrediction.probabilityPercentage ?? currentPrediction.probability * 100) >= 40
+                  ? 'bg-amber-50 border-amber-300 text-amber-700'
+                  : 'bg-red-50 border-red-300 text-red-700'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-6 h-6" />
+                  <div>
+                    <div className="text-3xl font-bold">
+                      {currentPrediction.probabilityPercentage ?? Math.round(currentPrediction.probability * 100)}%
+                      {loadingPrediction && <Loader2 className="w-4 h-4 inline ml-2 animate-spin" />}
+                    </div>
+                    <div className="text-sm font-medium">ML Prediction</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -792,6 +863,197 @@ const ApplicationReview: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Success Prediction - ML Analysis */}
+            {currentPrediction && (currentPrediction.probabilityPercentage || currentPrediction.probability) && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                      <BarChart2 className="w-5 h-5 text-primary-600" />
+                      ML Prediction
+                      {loadingPrediction && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+                    </h2>
+                    <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      AI
+                    </span>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {/* Main Prediction Display */}
+                  {(() => {
+                    const pct = currentPrediction.probabilityPercentage ?? Math.round(currentPrediction.probability * 100);
+                    return (
+                      <>
+                        <div className={`p-4 rounded-xl border-2 mb-4 ${
+                          pct >= 70 
+                            ? 'bg-green-50 border-green-200' 
+                            : pct >= 40
+                            ? 'bg-amber-50 border-amber-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            {/* Circular Progress */}
+                            <div className="flex items-center gap-3">
+                              <div className="relative flex-shrink-0">
+                                <svg className="w-14 h-14 transform -rotate-90">
+                                  <circle
+                                    cx="28"
+                                    cy="28"
+                                    r="22"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="5"
+                                    className="text-white/60"
+                                  />
+                                  <circle
+                                    cx="28"
+                                    cy="28"
+                                    r="22"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="5"
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${(pct / 100) * 138.23} 138.23`}
+                                    className={`transition-all duration-700 ${
+                                      pct >= 70 ? 'text-green-500' :
+                                      pct >= 40 ? 'text-amber-500' : 'text-red-500'
+                                    }`}
+                                  />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <Sparkles className={`w-5 h-5 ${
+                                    pct >= 70 ? 'text-green-500' :
+                                    pct >= 40 ? 'text-amber-500' : 'text-red-500'
+                                  }`} />
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-slate-600">Success Probability</div>
+                                <div className={`text-xs ${
+                                  pct >= 70 ? 'text-green-600' :
+                                  pct >= 40 ? 'text-amber-600' : 'text-red-600'
+                                }`}>
+                                  {pct >= 70 ? 'High Chance' :
+                                   pct >= 40 ? 'Moderate Chance' : 'Low Chance'}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Percentage */}
+                            <div className={`text-3xl font-bold ${
+                              pct >= 70 ? 'text-green-600' :
+                              pct >= 40 ? 'text-amber-600' : 'text-red-600'
+                            }`}>
+                              {pct}%
+                            </div>
+                          </div>
+                          
+                          {/* Progress Bar */}
+                          <div className="mt-3 h-2 bg-white/80 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-700 ${
+                                pct >= 70 ? 'bg-green-500' :
+                                pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Predicted Outcome */}
+                        {currentPrediction.predictedOutcome && (
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-3">
+                            <span className="text-sm text-slate-600">Predicted Outcome</span>
+                            <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                              currentPrediction.predictedOutcome === 'approved'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {currentPrediction.predictedOutcome === 'approved' ? 'Likely Approved' : 'Likely Rejected'}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Confidence */}
+                        {currentPrediction.confidence && (
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                            <span className="text-sm text-slate-600">Confidence Level</span>
+                            <span className={`text-sm font-semibold px-3 py-1 rounded-full capitalize ${
+                              currentPrediction.confidence === 'high'
+                                ? 'bg-green-100 text-green-700'
+                                : currentPrediction.confidence === 'medium'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {currentPrediction.confidence}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  {/* Feature Contributions */}
+                  {currentPrediction.featureContributions && (
+                    <div className="mt-4 pt-4 border-t border-slate-200">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                        <Target className="w-4 h-4 text-slate-500" />
+                        Contributing Factors
+                      </h4>
+                      <div className="space-y-2">
+                        {Object.entries(currentPrediction.featureContributions)
+                          .filter(([_, value]) => value !== 0)
+                          .sort(([_, a], [__, b]) => Math.abs(b as number) - Math.abs(a as number))
+                          .slice(0, 5)
+                          .map(([key, value]) => {
+                            const labels: Record<string, string> = {
+                              gwa: 'Academic Performance',
+                              financialNeed: 'Financial Need',
+                              yearLevel: 'Year Level',
+                              collegeMatch: 'College Match',
+                              courseMatch: 'Course Match',
+                              locationMatch: 'Location Match',
+                              completenessScore: 'Profile Completeness'
+                            };
+                            const isPositive = (value as number) > 0;
+                            return (
+                              <div key={key} className="flex items-center justify-between text-sm">
+                                <span className="text-slate-600">{labels[key] || key}</span>
+                                <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                                  {isPositive ? '+' : ''}{((value as number) * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Disclaimer */}
+                  <p className="text-xs text-slate-500 mt-4 pt-3 border-t border-slate-100">
+                    This prediction is generated by ML based on historical patterns and should be used as a guide, not a definitive decision.
+                  </p>
+
+                  {/* View Detailed Calculation Button */}
+                  <button
+                    onClick={() => navigate(`/scholarships/${application.scholarshipId}/prediction`, {
+                      state: {
+                        applicationId: application.id,
+                        scholarshipName: application.scholarshipName,
+                        scholarshipId: application.scholarshipId,
+                        fromAdmin: true
+                      }
+                    })}
+                    className="w-full mt-4 py-3 px-4 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-xl text-primary-700 font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <BarChart2 className="w-4 h-4" />
+                    View Detailed Calculation Breakdown
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Review Notes */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">

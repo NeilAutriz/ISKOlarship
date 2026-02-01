@@ -106,6 +106,65 @@ router.post('/probability',
 );
 
 /**
+ * @route   POST /api/predictions/application/:applicationId
+ * @desc    Get prediction for a specific application (for admin review)
+ * @access  Admin
+ */
+router.post('/application/:applicationId',
+  authMiddleware,
+  requireRole('admin'),
+  async (req, res, next) => {
+    try {
+      const { applicationId } = req.params;
+
+      // Get the application with applicant and scholarship data
+      const application = await Application.findById(applicationId)
+        .populate('applicant', 'firstName lastName email studentProfile')
+        .populate('scholarship');
+
+      if (!application) {
+        return res.status(404).json({
+          success: false,
+          message: 'Application not found'
+        });
+      }
+
+      if (!application.applicant) {
+        return res.status(404).json({
+          success: false,
+          message: 'Applicant not found'
+        });
+      }
+
+      if (!application.scholarship) {
+        return res.status(404).json({
+          success: false,
+          message: 'Scholarship not found'
+        });
+      }
+
+      // Run prediction using the applicant's profile
+      const prediction = await predictionService.predictApprovalProbability(
+        application.applicant,
+        application.scholarship
+      );
+
+      res.json({
+        success: true,
+        data: {
+          ...prediction,
+          applicantName: `${application.applicant.firstName || ''} ${application.applicant.lastName || ''}`.trim(),
+          scholarshipName: application.scholarship.name,
+          scholarshipId: application.scholarship._id
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * @route   POST /api/predictions/recommend
  * @desc    Get scholarship recommendations for user
  * @access  Private (Student)

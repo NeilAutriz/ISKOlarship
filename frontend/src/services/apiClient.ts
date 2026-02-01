@@ -779,6 +779,16 @@ export const predictionApi = {
     }>>('/predictions/analytics/factors');
     return response.data;
   },
+
+  // Admin: Get prediction for a specific application
+  getPredictionForApplication: async (applicationId: string) => {
+    const response = await api.post<ApiResponse<PredictionResult & {
+      applicantName: string;
+      scholarshipName: string;
+      scholarshipId: string;
+    }>>(`/predictions/application/${applicationId}`);
+    return response.data;
+  },
 };
 
 // ============================================================================
