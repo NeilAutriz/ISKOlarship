@@ -77,34 +77,6 @@ export const uploadDocuments = async (
 };
 
 /**
- * Get document URL for display/download
- * Returns API endpoint URL that serves the document
- */
-export const getDocumentUrl = (documentId: string): string => {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  return `${apiUrl}/users/documents/${documentId}`;
-};
-
-/**
- * Delete a document
- */
-export const deleteDocument = async (documentId: string): Promise<{
-  success: boolean;
-  message?: string;
-}> => {
-  try {
-    const response = await apiClient.delete(`/users/documents/${documentId}`);
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Document delete error:', error);
-    return {
-      success: false,
-      message: error.response?.data?.message || 'Failed to delete document'
-    };
-  }
-};
-
-/**
  * Validate file before upload
  */
 export const validateFile = (file: File): {

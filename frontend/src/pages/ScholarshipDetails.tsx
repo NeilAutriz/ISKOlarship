@@ -24,7 +24,7 @@ import {
   Info,
   ExternalLink,
   FileText,
-  Bookmark,
+
   Share2,
   ChevronRight,
   Target,
@@ -652,10 +652,7 @@ const ScholarshipDetails: React.FC = () => {
                   </button>
                 )}
 
-                <button className="btn-secondary w-full flex items-center justify-center gap-2">
-                  <Bookmark className="w-5 h-5" />
-                  Save for Later
-                </button>
+
               </div>
             </div>
 

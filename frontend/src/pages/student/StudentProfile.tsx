@@ -49,6 +49,7 @@ interface StudentProfileData {
       fullAddress?: string;
     };
     provinceOfOrigin?: string;
+    citizenship?: string;
     college: string;
     course: string;
     major?: string;
@@ -265,7 +266,7 @@ const StudentProfile: React.FC = () => {
   }, [isPreviewOpen]);
 
   // Handle document download
-  const handleDownloadDocument = async (document: Document) => {
+  const handleDownloadDocument = async (doc: Document) => {
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) {
@@ -273,7 +274,7 @@ const StudentProfile: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5001/api/users/documents/${document._id}`, {
+      const response = await fetch(`http://localhost:5001/api/users/documents/${doc._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -285,12 +286,12 @@ const StudentProfile: React.FC = () => {
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = window.document.createElement('a');
       a.href = url;
-      a.download = document.fileName;
-      document.body.appendChild(a);
+      a.download = doc.fileName;
+      window.document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      window.document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error('Download error:', error);

@@ -109,14 +109,15 @@ const StudentApplications: React.FC = () => {
       setLoadingDetails(true);
       const response = await applicationApi.getById(applicationId);
       if (response.success && response.data) {
-        const app = response.data;
+        const app = response.data as any; // Use any to access dynamic API response
         console.log('📋 Full application data:', app);
         console.log('👤 Applicant Snapshot:', app.applicantSnapshot);
+        const scholarship = typeof app.scholarship === 'object' ? app.scholarship : null;
         setSelectedApplication({
-          id: app._id || app.id,
-          scholarshipId: app.scholarship?._id || app.scholarship?.id || app.scholarshipId,
-          scholarshipName: app.scholarship?.name || 'Unknown Scholarship',
-          sponsor: app.scholarship?.sponsor || 'Unknown Sponsor',
+          id: app._id || app.id || applicationId,
+          scholarshipId: scholarship?._id || scholarship?.id || app.scholarshipId || '',
+          scholarshipName: scholarship?.name || 'Unknown Scholarship',
+          sponsor: scholarship?.sponsor || 'Unknown Sponsor',
           status: app.status || 'draft',
           submittedDate: app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : null,
           lastUpdated: app.updatedAt ? new Date(app.updatedAt).toLocaleDateString() : new Date().toLocaleDateString(),

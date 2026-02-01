@@ -51,6 +51,7 @@ const documentSchema = new mongoose.Schema({
     ]
   },
   url: String,
+  filePath: String,
   fileName: String,
   fileSize: Number,
   mimeType: String,

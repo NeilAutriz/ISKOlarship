@@ -205,7 +205,7 @@ export const createApplication = async (
   data: { personalStatement?: string; additionalInfo?: string }
 ): Promise<{ success: boolean; application?: Application; error?: string }> => {
   try {
-    const response = await applicationApi.create(scholarshipId, data);
+    const response = await applicationApi.create({ scholarshipId, ...data });
     if (response.success && response.data) {
       return { success: true, application: response.data.application };
     }

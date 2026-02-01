@@ -75,6 +75,7 @@ interface FeatureVector {
 }
 
 const yearLevelToNumeric: Record<YearLevel, number> = {
+  [YearLevel.INCOMING_FRESHMAN]: 0,
   [YearLevel.FRESHMAN]: 1,
   [YearLevel.SOPHOMORE]: 2,
   [YearLevel.JUNIOR]: 3,
@@ -467,53 +468,3 @@ const getRecommendation = (percentageScore: number): string => {
     return 'Not recommended. You may not meet key eligibility requirements.';
   }
 };
-
-export const enrichMatchResultsWithPredictions = (
-  student: StudentProfile,
-  matchResults: MatchResult[]
-): MatchResult[] => {
-  return matchResults.map(result => {
-    const prediction = predictScholarshipSuccess(student, result.scholarship);
-    return {
-      ...result,
-      predictionScore: prediction.percentageScore,
-      predictionFactors: prediction.factors
-    };
-  });
-};
-
-// ============================================================================
-// MODEL EVALUATION (for development/testing)
-// Note: This now returns pre-computed model metrics instead of using mock data
-// ============================================================================
-
-export const evaluateModelAccuracy = (): {
-  accuracy: number;
-  precision: number;
-  recall: number;
-  f1Score: number;
-} => {
-  // Return pre-computed model metrics based on research
-  // These values are derived from the model training process
-  return {
-    accuracy: 0.91,
-    precision: 0.89,
-    recall: 0.93,
-    f1Score: 0.91
-  };
-};
-
-// Export for backward compatibility
-export class ScholarshipPredictor {
-  predict(student: StudentProfile, scholarship: Scholarship): PredictionResult {
-    return predictScholarshipSuccessLocal(student, scholarship);
-  }
-  
-  async predictAsync(student: StudentProfile, scholarship: Scholarship): Promise<PredictionResult> {
-    return predictScholarshipSuccessAsync(student, scholarship);
-  }
-  
-  getModelMetrics() {
-    return evaluateModelAccuracy();
-  }
-}

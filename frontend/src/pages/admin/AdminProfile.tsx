@@ -423,7 +423,7 @@ const AdminProfile: React.FC = () => {
                     { 
                       label: 'Academic Unit', 
                       value: ap?.academicUnitCode 
-                        ? `${ap.academicUnitCode} - ${UPLBDepartments[ap.collegeCode as UPLBCollegeCode]?.find(d => d.code === ap.academicUnitCode)?.name || ap.academicUnit}` 
+                        ? `${ap.academicUnitCode} - ${UPLBDepartments[ap.collegeCode as UPLBCollegeCode]?.find(d => d.code === ap.academicUnitCode)?.name || ap.academicUnitCode}` 
                         : (ap?.universityUnitCode 
                           ? `${ap.universityUnitCode} - ${UniversityUnits.find(u => u.code === ap.universityUnitCode)?.name}` 
                           : 'N/A'), 

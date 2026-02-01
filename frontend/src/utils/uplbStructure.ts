@@ -222,13 +222,6 @@ export const UniversityUnits: UniversityUnitInfo[] = [
 // =============================================================================
 
 /**
- * Get all college codes as an array
- */
-export function getCollegeCodes(): UPLBCollegeCode[] {
-  return Object.keys(UPLBColleges) as UPLBCollegeCode[];
-}
-
-/**
  * Get college options for dropdown (code and display name)
  */
 export function getCollegeOptions(): Array<{ value: string; label: string }> {
@@ -295,14 +288,6 @@ export function getDepartmentByCode(deptCode: string): (DepartmentInfo & { colle
 }
 
 /**
- * Validate if a department belongs to a college
- */
-export function isDepartmentInCollege(deptCode: string, collegeCode: UPLBCollegeCode): boolean {
-  const departments = UPLBDepartments[collegeCode] || [];
-  return departments.some(d => d.code === deptCode);
-}
-
-/**
  * Get university unit options for dropdown
  */
 export function getUniversityUnitOptions(): Array<{ value: string; label: string }> {
@@ -310,26 +295,6 @@ export function getUniversityUnitOptions(): Array<{ value: string; label: string
     value: unit.code,
     label: `${unit.code} - ${unit.name}`
   }));
-}
-
-/**
- * Get all departments as a flat list with college info
- */
-export function getAllDepartments(): Array<DepartmentInfo & { collegeName: string; collegeCode: string }> {
-  const allDepts: Array<DepartmentInfo & { collegeName: string; collegeCode: string }> = [];
-  
-  for (const collegeCode of Object.keys(UPLBDepartments) as UPLBCollegeCode[]) {
-    const college = UPLBColleges[collegeCode];
-    for (const dept of UPLBDepartments[collegeCode]) {
-      allDepts.push({
-        ...dept,
-        collegeName: college.name,
-        collegeCode: college.code
-      });
-    }
-  }
-  
-  return allDepts;
 }
 
 /**

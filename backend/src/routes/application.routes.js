@@ -1052,4 +1052,155 @@ router.put('/:id/status',
   }
 );
 
+// =============================================================================
+// Application Document Download Route
+// =============================================================================
+
+/**
+ * @route   GET /api/applications/:applicationId/documents/:documentId
+ * @desc    Download a document from an application
+ * @access  Private (Admin or Application Owner)
+ */
+router.get('/:applicationId/documents/:documentId',
+  authMiddleware,
+  async (req, res, next) => {
+    try {
+      const { applicationId, documentId } = req.params;
+      
+      console.log('📥 Application document request:', {
+        applicationId,
+        documentId,
+        requestedBy: req.user.email,
+        role: req.user.role
+      });
+
+      // Find the application
+      const application = await Application.findById(applicationId)
+        .populate('applicant')
+        .populate('scholarship');
+      
+      if (!application) {
+        return res.status(404).json({
+          success: false,
+          message: 'Application not found'
+        });
+      }
+
+      // Log all documents for debugging
+      console.log('📄 Application documents:', application.documents.map(d => ({
+        id: d._id.toString(),
+        name: d.name,
+        filePath: d.filePath,
+        url: d.url,
+        fileName: d.fileName
+      })));
+
+      // Check authorization
+      const isOwner = application.applicant._id.toString() === req.user._id.toString();
+      const isAdmin = req.user.role === 'admin';
+      
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to access this document'
+        });
+      }
+
+      // Find the document in the application
+      const document = application.documents.id(documentId);
+      
+      if (!document) {
+        console.log('❌ Document not found in application. Available documents:', 
+          application.documents.map(d => ({ id: d._id.toString(), name: d.name }))
+        );
+        return res.status(404).json({
+          success: false,
+          message: 'Document not found in application'
+        });
+      }
+
+      // Get the applicant ID for path reconstruction
+      const applicantId = application.applicant._id 
+        ? application.applicant._id.toString() 
+        : application.applicant.toString();
+
+      // Try multiple methods to find the file
+      let filePath = null;
+      
+      // Method 1: Use stored filePath if available
+      if (document.filePath) {
+        filePath = path.join(__dirname, '../../uploads', document.filePath);
+        console.log('📂 Trying stored filePath:', filePath);
+      }
+      
+      // Method 2: Use stored url if available
+      if (!filePath || !fs.existsSync(filePath)) {
+        if (document.url) {
+          filePath = path.join(__dirname, '../../uploads', document.url);
+          console.log('📂 Trying url field:', filePath);
+        }
+      }
+      
+      // Method 3: Search in applicant's document folder by filename pattern
+      if (!filePath || !fs.existsSync(filePath)) {
+        const userDocFolder = path.join(__dirname, '../../uploads/documents', applicantId);
+        console.log('📂 Searching in user folder:', userDocFolder);
+        
+        if (fs.existsSync(userDocFolder)) {
+          const files = fs.readdirSync(userDocFolder);
+          // Try to find a file that matches the document's original filename
+          const originalName = document.fileName || document.name;
+          const sanitizedName = originalName?.replace(/[^a-zA-Z0-9]/g, '_');
+          
+          const matchingFile = files.find(f => {
+            // Match by containing the original filename pattern
+            return f.includes(sanitizedName) || 
+                   f.toLowerCase().includes(originalName?.toLowerCase().replace(/\s+/g, '_'));
+          });
+          
+          if (matchingFile) {
+            filePath = path.join(userDocFolder, matchingFile);
+            console.log('📂 Found matching file:', filePath);
+          } else {
+            // If no exact match, just return the first file as fallback (if only one doc)
+            console.log('📂 Available files in folder:', files);
+          }
+        }
+      }
+      
+      // Final check if file exists
+      if (!filePath || !fs.existsSync(filePath)) {
+        console.error('❌ File not found. Tried paths:', {
+          storedFilePath: document.filePath,
+          storedUrl: document.url,
+          applicantFolder: path.join(__dirname, '../../uploads/documents', applicantId),
+          finalPath: filePath
+        });
+        return res.status(404).json({
+          success: false,
+          message: 'Document file not found on server'
+        });
+      }
+
+      console.log('📂 Serving file from:', filePath);
+
+      // Set appropriate headers
+      res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${document.fileName}"`);
+      if (document.fileSize) {
+        res.setHeader('Content-Length', document.fileSize);
+      }
+
+      // Stream the file
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+
+      console.log('✅ Application document sent successfully:', document.fileName);
+    } catch (error) {
+      console.error('❌ Application document download error:', error);
+      next(error);
+    }
+  }
+);
+
 module.exports = router;

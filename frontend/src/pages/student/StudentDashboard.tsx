@@ -34,7 +34,7 @@ const StudentDashboard: React.FC = () => {
   const authContext = useContext(AuthContext);
   const user = authContext?.user;
   const studentUser = isStudentProfile(user) ? user : null;
-  const [activeTab, setActiveTab] = useState<'recommended' | 'all' | 'applied' | 'saved'>('recommended');
+  const [activeTab, setActiveTab] = useState<'recommended' | 'all' | 'applied'>('recommended');
   
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [userApplications, setUserApplications] = useState<any[]>([]);
@@ -121,8 +121,6 @@ const StudentDashboard: React.FC = () => {
           const schol = r.scholarship as any;
           return appliedIds.has(schol?.id) || appliedIds.has(schol?._id);
         });
-      case 'saved':
-        return [];
       default:
         return results;
     }
@@ -263,8 +261,7 @@ const StudentDashboard: React.FC = () => {
                 {[
                   { id: 'recommended', label: 'Recommended', icon: Sparkles, count: stats.eligible },
                   { id: 'all', label: 'All', icon: GraduationCap, count: stats.total },
-                  { id: 'applied', label: 'Applied', icon: FileText, count: userApplications.length },
-                  { id: 'saved', label: 'Saved', icon: BookOpen, count: 0 }
+                  { id: 'applied', label: 'Applied', icon: FileText, count: userApplications.length }
                 ].map(tab => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id as typeof activeTab)} className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-medium transition-all relative ${activeTab === tab.id ? 'text-primary-600' : 'text-slate-500 hover:text-slate-700'}`}>
                     <tab.icon className="w-4 h-4" />
@@ -285,10 +282,10 @@ const StudentDashboard: React.FC = () => {
             ) : (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
                 <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                  {activeTab === 'applied' ? <FileText className="w-8 h-8 text-slate-400" /> : activeTab === 'saved' ? <BookOpen className="w-8 h-8 text-slate-400" /> : <GraduationCap className="w-8 h-8 text-slate-400" />}
+                  {activeTab === 'applied' ? <FileText className="w-8 h-8 text-slate-400" /> : <GraduationCap className="w-8 h-8 text-slate-400" />}
                 </div>
-                <h3 className="text-lg font-semibold text-slate-700 mb-2">{activeTab === 'applied' ? 'No Applications Yet' : activeTab === 'saved' ? 'No Saved Scholarships' : 'No Scholarships Found'}</h3>
-                <p className="text-slate-500 max-w-sm mx-auto mb-4">{activeTab === 'applied' ? "You haven't applied to any scholarships yet." : activeTab === 'saved' ? 'Save scholarships to review later.' : 'Try browsing all available scholarships.'}</p>
+                <h3 className="text-lg font-semibold text-slate-700 mb-2">{activeTab === 'applied' ? 'No Applications Yet' : 'No Scholarships Found'}</h3>
+                <p className="text-slate-500 max-w-sm mx-auto mb-4">{activeTab === 'applied' ? "You haven't applied to any scholarships yet." : 'Try browsing all available scholarships.'}</p>
                 <Link to="/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white font-medium rounded-xl hover:bg-primary-700 transition-all">Browse Scholarships<ArrowUpRight className="w-4 h-4" /></Link>
               </div>
             )}

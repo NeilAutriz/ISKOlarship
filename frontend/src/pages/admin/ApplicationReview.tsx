@@ -207,21 +207,25 @@ const ApplicationReview: React.FC = () => {
         return;
       }
 
-      // Determine the URL to fetch - include studentId for admin access
+      // Use the application documents endpoint
       let fetchUrl = '';
-      const studentIdParam = application?.applicantId ? `?studentId=${application.applicantId}` : '';
-      if (document._id) {
-        fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${document._id}${studentIdParam}`;
+      const applicationId = application?.id || id;
+      
+      if (document._id && applicationId) {
+        // Use the new application documents endpoint
+        fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/applications/${applicationId}/documents/${document._id}`;
       } else if (document.url) {
         // If the URL is already a full URL, use it directly
         const baseUrl = document.url.startsWith('http') 
           ? document.url 
           : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${document.url}`;
-        fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '') + studentIdParam.replace('?', '');
+        fetchUrl = baseUrl;
       } else {
         toast.error('Document URL not available');
         return;
       }
+
+      console.log('📥 Fetching document from:', fetchUrl);
 
       const response = await fetch(fetchUrl, {
         method: 'GET',
@@ -259,20 +263,24 @@ const ApplicationReview: React.FC = () => {
         return;
       }
 
-      // Include studentId for admin access
-      const studentIdParam = application?.applicantId ? `?studentId=${application.applicantId}` : '';
+      // Use the application documents endpoint
       let fetchUrl = '';
-      if (document._id) {
-        fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${document._id}${studentIdParam}`;
+      const applicationId = application?.id || id;
+      
+      if (document._id && applicationId) {
+        // Use the new application documents endpoint
+        fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/applications/${applicationId}/documents/${document._id}`;
       } else if (document.url) {
         const baseUrl = document.url.startsWith('http') 
           ? document.url 
           : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${document.url}`;
-        fetchUrl = baseUrl + (baseUrl.includes('?') ? '&' : '') + studentIdParam.replace('?', '');
+        fetchUrl = baseUrl;
       } else {
         toast.error('Document URL not available');
         return;
       }
+
+      console.log('📥 Downloading document from:', fetchUrl);
 
       const response = await fetch(fetchUrl, {
         headers: {

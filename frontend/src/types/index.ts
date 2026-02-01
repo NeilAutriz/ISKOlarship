@@ -178,7 +178,16 @@ export interface StudentProfile extends BaseUser {
     street?: string;
     zipCode: string;
   };
+  homeAddress?: {
+    street?: string;
+    barangay?: string;
+    city?: string;
+    province?: string;
+    zipCode?: string;
+    fullAddress?: string;
+  };
   hometown: string; // Province of origin (important for location-based scholarships)
+  citizenship?: string;
   
   // Academic Information
   studentNumber: string;
@@ -246,11 +255,6 @@ export type User = StudentProfile | AdminProfile;
 // Type guard to check if user is a student
 export const isStudentProfile = (user: User | null | undefined): user is StudentProfile => {
   return user?.role === UserRole.STUDENT;
-};
-
-// Type guard to check if user is an admin
-export const isAdminProfile = (user: User | null | undefined): user is AdminProfile => {
-  return user?.role === UserRole.ADMIN;
 };
 
 // ============================================================================
@@ -514,8 +518,10 @@ export interface PaginatedResponse<T> {
 
 export interface Application {
   _id: string;
+  id?: string; // Alias for _id
   applicant: string | StudentProfile;
   scholarship: string | Scholarship;
+  scholarshipId?: string; // For convenience
   status: ApplicationStatus;
   statusHistory: Array<{
     status: ApplicationStatus;
@@ -541,6 +547,10 @@ export interface Application {
   }>;
   passedAllEligibilityCriteria: boolean;
   eligibilityScore: number;
+  eligibilityPercentage?: number; // Alias for eligibilityScore
+  criteriaPassed?: number;
+  criteriaTotal?: number;
+  appliedDate?: Date;
   prediction?: PredictionResult;
   applicantSnapshot?: {
     gwa: number;

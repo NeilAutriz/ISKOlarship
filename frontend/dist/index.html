@@ -3,10 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISKOlarship/title>
-    <link rel="icon" type="image/svg+xml" href="/logo.jpeg">
-  <script type="module" crossorigin src="/assets/index-CydYHKPG.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-hZSRiq2U.css">
+    <title>ISKOlarship - Scholarship Discovery Platform</title>
+    <link rel="icon" type="image/x-icon" href="https://upload.wikimedia.org/wikipedia/en/thumb/c/c0/University_of_the_Philippines_seal.svg/1200px-University_of_the_Philippines_seal.svg.png">
+    <!-- Suppress browser extension errors BEFORE React loads -->
+    <script>
+      (function() {
+        // Suppress deref errors from browser extensions (content_script.js)
+        window.addEventListener('error', function(e) {
+          if (e.message && (e.message.indexOf('deref') !== -1 || 
+              e.filename && e.filename.indexOf('content_script') !== -1 ||
+              e.filename && e.filename.indexOf('extension') !== -1)) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }, true);
+        
+        // Override console.error to filter extension errors
+        var origError = console.error;
+        console.error = function() {
+          var msg = Array.prototype.join.call(arguments, ' ');
+          if (msg.indexOf('deref') !== -1 || msg.indexOf('content_script') !== -1) {
+            return;
+          }
+          return origError.apply(console, arguments);
+        };
+      })();
+    </script>
+  <script type="module" crossorigin src="/assets/index-BKJDeycD.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BKa77U4u.css">
 </head>
 <body>
     <div id="root"></div>

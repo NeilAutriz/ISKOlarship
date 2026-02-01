@@ -58,7 +58,6 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   const [internalShowEligibleOnly, setInternalShowEligibleOnly] = useState(false);
   const showEligibleOnly = externalShowEligibleOnly ?? internalShowEligibleOnly;
   const setShowEligibleOnly = setInternalShowEligibleOnly;
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // All scholarship types using enum values
@@ -155,19 +154,6 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
         ? prev.filter(t => t !== type)
         : [...prev, type]
     );
-  };
-
-  // Toggle bookmark
-  const handleBookmark = (scholarshipId: string) => {
-    setBookmarkedIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(scholarshipId)) {
-        newSet.delete(scholarshipId);
-      } else {
-        newSet.add(scholarshipId);
-      }
-      return newSet;
-    });
   };
 
   // Clear all filters
@@ -401,8 +387,6 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
                 scholarship={scholarship}
                 matchResult={matchResults.get(scholarshipId)}
                 showPrediction={!!studentProfile}
-                onBookmark={handleBookmark}
-                isBookmarked={bookmarkedIds.has(scholarshipId)}
                 variant={viewMode === 'list' ? 'compact' : 'default'}
               />
             );

@@ -18,8 +18,6 @@ import {
   AlertCircle,
   ChevronRight,
   Calendar,
-  Bookmark,
-  BookmarkCheck,
   Sparkles,
   Building2,
   FileText
@@ -30,8 +28,6 @@ interface ScholarshipCardProps {
   scholarship: Scholarship;
   matchResult?: MatchResult;
   showPrediction?: boolean;
-  onBookmark?: (scholarshipId: string) => void;
-  isBookmarked?: boolean;
   variant?: 'default' | 'compact' | 'detailed';
 }
 
@@ -141,8 +137,6 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
   scholarship,
   matchResult,
   showPrediction = true,
-  onBookmark,
-  isBookmarked = false,
   variant = 'default'
 }) => {
   // Get color scheme based on type
@@ -346,28 +340,6 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
               <span className="font-medium">{scholarship.sponsor}</span>
             </p>
           </div>
-          
-          {/* Bookmark Button */}
-          {onBookmark && (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onBookmark(getScholarshipId());
-              }}
-              className={`p-2.5 rounded-xl transition-all duration-200 ${
-                isBookmarked 
-                  ? 'bg-gold-100 text-gold-600 shadow-sm' 
-                  : 'bg-white/80 text-slate-400 hover:bg-white hover:text-gold-600 hover:shadow-sm'
-              }`}
-            >
-              {isBookmarked ? (
-                <BookmarkCheck className="w-5 h-5" />
-              ) : (
-                <Bookmark className="w-5 h-5" />
-              )}
-            </button>
-          )}
         </div>
       </div>
 
