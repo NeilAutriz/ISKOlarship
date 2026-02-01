@@ -208,10 +208,18 @@ function extractFeatures(user, scholarship) {
 
 /**
  * Predict approval probability using logistic regression
+ * Now uses trained models from TrainedModel database
  */
 async function predictApprovalProbability(user, scholarship) {
-  // Use the trained logistic regression model
-  const prediction = logisticRegression.predict(user, scholarship);
+  // Use the async prediction that loads from TrainedModel database
+  let prediction;
+  try {
+    prediction = await logisticRegression.predictAsync(user, scholarship);
+  } catch (error) {
+    console.error('Async prediction failed, using sync fallback:', error.message);
+    prediction = logisticRegression.predict(user, scholarship);
+  }
+  
   const factors = logisticRegression.getPredictionFactors(user, scholarship);
   
   // Check for previous applications to adjust confidence
@@ -238,14 +246,25 @@ async function predictApprovalProbability(user, scholarship) {
   // Analyze factors in favor and areas to consider
   const detailedFactors = analyzeDetailedFactors(user, scholarship, eligibility, prediction);
 
+  // Ensure factors array contains only flat objects with string/number values
+  const sanitizedFactors = (prediction.factors || []).map(f => ({
+    factor: String(f.factor || ''),
+    contribution: Number(f.contribution) || 0,
+    rawContribution: Number(f.rawContribution) || 0,
+    description: String(f.description || ''),
+    met: Boolean(f.met),
+    value: Number(f.value) || 0,
+    weight: Number(f.weight) || 0
+  }));
+
   return {
     probability: Math.round(adjustedProbability * 100) / 100,
     probabilityPercentage: Math.round(adjustedProbability * 100),
     predictedOutcome: adjustedProbability >= 0.5 ? 'approved' : 'rejected',
     confidence: prediction.confidence,
     matchLevel: getMatchLevel(adjustedProbability),
-    factors,
-    detailedFactors, // New: comprehensive factor breakdown for UI
+    factors: sanitizedFactors,
+    zScore: prediction.zScore, // Include z-score for transparency
     features: prediction.features,
     modelVersion: MODEL_VERSION,
     trainedModel: prediction.trainedModel,
@@ -522,42 +541,24 @@ function formatFactorName(name) {
 
 /**
  * Generate recommendation text based on analysis
+ * Returns a simple string for display
  */
 function generateRecommendation(probability, detailedFactors) {
-  const { workingInFavor, areasToConsider } = detailedFactors;
+  const areasToConsider = detailedFactors?.areasToConsider || [];
   
   if (probability >= 0.75) {
-    return {
-      shouldApply: true,
-      level: 'highly_recommended',
-      message: '✅ Yes! You have a strong chance based on historical patterns.',
-      details: 'We highly recommend applying for this scholarship. Your profile strongly matches past awardees of this scholarship. Remember: this prediction helps you make informed decisions, but your unique qualities, essay, and recommendations also matter.',
-      actionText: 'When in doubt, apply! Every application is a learning opportunity.'
-    };
+    return 'Strongly recommended! Your profile is an excellent match for this scholarship based on historical approval patterns.';
   } else if (probability >= 0.60) {
-    return {
-      shouldApply: true,
-      level: 'recommended',
-      message: '✅ Yes! You have a good chance based on your profile.',
-      details: 'We recommend applying for this scholarship. Your profile aligns well with requirements, though there may be some areas to strengthen. Remember: this prediction helps you make informed decisions, but your unique qualities, essay, and recommendations also matter.',
-      actionText: 'When in doubt, apply! Every application is a learning opportunity.'
-    };
+    return 'Good match! You have a solid chance of approval. Your profile aligns well with scholarship requirements.';
   } else if (probability >= 0.45) {
-    return {
-      shouldApply: true,
-      level: 'consider',
-      message: '⚠️ Consider applying, but strengthen weak areas if possible.',
-      details: `You meet the basic requirements and have a moderate chance. Consider addressing the following areas: ${areasToConsider.map(a => a.title).join(', ')}. Your essays, recommendations, and personal circumstances also play important roles.`,
-      actionText: 'When in doubt, apply! Every application is a learning opportunity.'
-    };
+    const areas = areasToConsider.length > 0 
+      ? ` Consider strengthening: ${areasToConsider.slice(0, 2).map(a => a.title || a).join(', ')}.`
+      : '';
+    return `Moderate match. You meet basic requirements but may face competition.${areas}`;
+  } else if (probability >= 0.25) {
+    return 'Low match. Review eligibility criteria carefully. Your profile may not fully align with requirements.';
   } else {
-    return {
-      shouldApply: false,
-      level: 'not_recommended',
-      message: '⚠️ Your current profile may not be competitive for this scholarship.',
-      details: `Based on historical patterns, this may not be the best match. Focus on improving: ${areasToConsider.slice(0, 3).map(a => a.title).join(', ')}. Consider other scholarships that better match your profile.`,
-      actionText: 'Look for scholarships that align better with your current profile, or work on strengthening your weak areas first.'
-    };
+    return 'Not recommended. Your current profile may not be competitive for this scholarship.';
   }
 }
 

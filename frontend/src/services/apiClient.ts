@@ -941,6 +941,147 @@ export const statisticsApi = {
 };
 
 // ============================================================================
+// Training API (Model Management)
+// ============================================================================
+
+export const trainingApi = {
+  // Get active global model
+  getActiveModel: async () => {
+    const response = await api.get<ApiResponse<{
+      modelId: string;
+      weights: Record<string, number>;
+      bias: number;
+      metrics: {
+        accuracy: number;
+        precision: number;
+        recall: number;
+        f1Score: number;
+      };
+      featureImportance: Record<string, number>;
+      trainedAt: string;
+    } | null>>('/training/models/active');
+    return response.data;
+  },
+
+  // Get model for specific scholarship
+  getScholarshipModel: async (scholarshipId: string) => {
+    const response = await api.get<ApiResponse<{
+      modelId: string;
+      modelType: 'global' | 'scholarship_specific';
+      usingFallback: boolean;
+      weights: Record<string, number>;
+      bias: number;
+      metrics: {
+        accuracy: number;
+        precision: number;
+        recall: number;
+        f1Score: number;
+      };
+      featureImportance: Record<string, number>;
+      trainedAt: string;
+    } | null>>(`/training/models/scholarship/${scholarshipId}`);
+    return response.data;
+  },
+
+  // Get all models (admin)
+  getAllModels: async () => {
+    const response = await api.get<ApiResponse<Array<{
+      _id: string;
+      name: string;
+      modelType: string;
+      scholarshipId: { name: string; scholarshipType: string } | null;
+      isActive: boolean;
+      metrics: any;
+      trainedAt: string;
+    }>>>('/training/models');
+    return response.data;
+  },
+
+  // Get training statistics
+  getStats: async () => {
+    const response = await api.get<ApiResponse<{
+      totalApplications: number;
+      approvedCount: number;
+      rejectedCount: number;
+      totalModels: number;
+      activeModels: number;
+      scholarshipsWithData: number;
+      scholarshipsWithEnoughData: number;
+      minSamplesRequired: number;
+    }>>('/training/stats');
+    return response.data;
+  },
+
+  // Get trainable scholarships
+  getTrainableScholarships: async () => {
+    const response = await api.get<ApiResponse<Array<{
+      _id: string;
+      name: string;
+      scholarshipType: string;
+      applicationCount: number;
+      isTrainable: boolean;
+    }>>>('/training/scholarships/trainable');
+    return response.data;
+  },
+
+  // Train global model (admin)
+  trainGlobalModel: async () => {
+    const response = await api.post<ApiResponse<{
+      modelId: string;
+      metrics: any;
+      featureImportance: Record<string, number>;
+    }>>('/training/train');
+    return response.data;
+  },
+
+  // Train specific scholarship model (admin)
+  trainScholarshipModel: async (scholarshipId: string) => {
+    const response = await api.post<ApiResponse<{
+      modelId: string;
+      scholarshipName: string;
+      metrics: any;
+      featureImportance: Record<string, number>;
+    }>>(`/training/train/${scholarshipId}`);
+    return response.data;
+  },
+
+  // Train all scholarship models (admin)
+  trainAllModels: async () => {
+    const response = await api.post<ApiResponse<{
+      results: Array<{
+        scholarshipId: string;
+        scholarshipName: string;
+        success: boolean;
+        accuracy?: number;
+        error?: string;
+      }>;
+      summary: {
+        successful: number;
+        failed: number;
+        total: number;
+      };
+    }>>('/training/train-all');
+    return response.data;
+  },
+
+  // Activate model (admin)
+  activateModel: async (modelId: string) => {
+    const response = await api.post<ApiResponse<{
+      modelId: string;
+      name: string;
+      isActive: boolean;
+    }>>(`/training/models/${modelId}/activate`);
+    return response.data;
+  },
+
+  // Delete model (admin)
+  deleteModel: async (modelId: string) => {
+    const response = await api.delete<ApiResponse<void>>(`/training/models/${modelId}`);
+    return response.data;
+  },
+};
+
+// ============================================================================
 // Export Default API Instance
 // ============================================================================
 

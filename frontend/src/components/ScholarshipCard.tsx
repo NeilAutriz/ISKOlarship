@@ -51,7 +51,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-blue-600',
     iconBg: 'bg-blue-100',
     border: 'border-l-blue-500',
-    headerBg: 'bg-gradient-to-r from-blue-50 via-blue-100/50 to-white',
+    headerBg: 'bg-blue-50',
     tagIcon: 'GraduationCap',
   },
   'government': {
@@ -62,7 +62,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-amber-600',
     iconBg: 'bg-amber-100',
     border: 'border-l-amber-500',
-    headerBg: 'bg-gradient-to-r from-amber-50 via-amber-100/50 to-white',
+    headerBg: 'bg-amber-50',
     tagIcon: 'Building2',
   },
   'thesis_grant': {
@@ -73,7 +73,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-emerald-600',
     iconBg: 'bg-emerald-100',
     border: 'border-l-emerald-500',
-    headerBg: 'bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-white',
+    headerBg: 'bg-emerald-50',
     tagIcon: 'FileText',
   },
   'Thesis/Research Grant': {
@@ -84,7 +84,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-emerald-600',
     iconBg: 'bg-emerald-100',
     border: 'border-l-emerald-500',
-    headerBg: 'bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-white',
+    headerBg: 'bg-emerald-50',
     tagIcon: 'FileText',
   },
   'private': {
@@ -95,7 +95,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-purple-600',
     iconBg: 'bg-purple-100',
     border: 'border-l-purple-500',
-    headerBg: 'bg-gradient-to-r from-purple-50 via-purple-100/50 to-white',
+    headerBg: 'bg-purple-50',
     tagIcon: 'Sparkles',
   },
   'Private Scholarship': {
@@ -106,7 +106,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-purple-600',
     iconBg: 'bg-purple-100',
     border: 'border-l-purple-500',
-    headerBg: 'bg-gradient-to-r from-purple-50 via-purple-100/50 to-white',
+    headerBg: 'bg-purple-50',
     tagIcon: 'Sparkles',
   },
   'college': {
@@ -117,7 +117,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-teal-600',
     iconBg: 'bg-teal-100',
     border: 'border-l-teal-500',
-    headerBg: 'bg-gradient-to-r from-teal-50 via-teal-100/50 to-white',
+    headerBg: 'bg-teal-50',
     tagIcon: 'GraduationCap',
   },
   'default': {
@@ -128,7 +128,7 @@ const typeColorSchemes: Record<string, {
     icon: 'text-slate-600',
     iconBg: 'bg-slate-100',
     border: 'border-l-slate-500',
-    headerBg: 'bg-gradient-to-r from-slate-50 via-slate-100/50 to-white',
+    headerBg: 'bg-slate-50',
     tagIcon: 'Award',
   },
 };
@@ -295,7 +295,7 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
   return (
     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden 
                     hover:shadow-xl hover:border-slate-300 transition-all duration-300
-                    border-l-4 ${colorScheme.border}`}>
+                    border-l-4 ${colorScheme.border} flex flex-col h-full`}>
       
       {/* Color-coded Header */}
       <div className={`${colorScheme.headerBg} px-6 py-5 border-b border-slate-100`}>
@@ -312,15 +312,10 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                 <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 ${eligibilityStatus.className}`}>
                   <eligibilityStatus.icon className="w-4 h-4" />
                   {eligibilityStatus.text}
-                  {matchResult?.isEligible && matchResult?.predictionScore !== undefined && (
-                    <span className="ml-1.5 px-2 py-0.5 bg-white/90 text-green-700 rounded-full text-xs font-extrabold">
-                      {Math.round(matchResult.predictionScore * 100)}%
-                    </span>
-                  )}
                 </span>
               )}
               {daysUntil !== null && daysUntil > 0 && daysUntil <= 7 && (
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md shadow-orange-200">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white shadow-sm">
                   <Clock className="w-3.5 h-3.5" />
                   {daysUntil} days left
                 </span>
@@ -344,10 +339,10 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="px-6 py-5">
+      <div className="px-6 py-5 flex-1">
         {/* Grant Amount - Prominent Display */}
-        <div className="flex items-center gap-4 mb-5 p-4 bg-gradient-to-r from-gold-50 to-amber-50 rounded-xl border border-gold-100">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold-400 to-amber-500 flex items-center justify-center shadow-sm">
+        <div className="flex items-center gap-4 mb-5 p-4 bg-amber-50 rounded-xl border border-amber-200">
+          <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-sm">
             <Award className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
@@ -452,33 +447,100 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
           )}
         </div>
 
-        {/* Prediction Score */}
-        {showPrediction && matchResult?.predictionScore !== undefined && matchResult.isEligible && (
-          <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-xl p-4 mb-4 border border-primary-100">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary-600" />
-                <span className="text-sm font-semibold text-slate-700">Success Probability</span>
+        {/* Prediction Score - Enhanced Prominent Display */}
+        {showPrediction && matchResult?.predictionScore !== undefined && (
+          <div className={`rounded-xl p-4 mb-4 border-2 ${
+            matchResult.predictionScore >= 0.7 
+              ? 'bg-green-50 border-green-200' 
+              : matchResult.predictionScore >= 0.4
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex items-center justify-between">
+              {/* Left: Circular Progress + Label */}
+              <div className="flex items-center gap-3">
+                {/* Circular Progress */}
+                <div className="relative flex-shrink-0">
+                  <svg className="w-14 h-14 transform -rotate-90">
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="22"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="5"
+                      className="text-white/60"
+                    />
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="22"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray={`${matchResult.predictionScore * 138.23} 138.23`}
+                      className={`transition-all duration-700 ${
+                        matchResult.predictionScore >= 0.7 ? 'text-green-500' :
+                        matchResult.predictionScore >= 0.4 ? 'text-amber-500' : 'text-red-500'
+                      }`}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Sparkles className={`w-5 h-5 ${
+                      matchResult.predictionScore >= 0.7 ? 'text-green-500' :
+                      matchResult.predictionScore >= 0.4 ? 'text-amber-500' : 'text-red-500'
+                    }`} />
+                  </div>
+                </div>
+                
+                {/* Label */}
+                <div>
+                  <div className="text-sm font-semibold text-slate-700">Success Probability</div>
+                  {!matchResult.isEligible && (
+                    <p className="text-xs text-slate-500 italic">
+                      * May not meet all criteria
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              
+              {/* Right: Percentage + Level */}
+              <div className="text-right">
+                <div className={`text-xs font-medium px-2.5 py-1 rounded-full inline-block mb-1 ${
                   matchResult.predictionScore >= 0.7 ? 'bg-green-100 text-green-700' :
-                  matchResult.predictionScore >= 0.4 ? 'bg-amber-100 text-amber-700' :
-                  'bg-red-100 text-red-700'
+                  matchResult.predictionScore >= 0.4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
                 }`}>
                   {getProbabilityLevel(matchResult.predictionScore).text}
-                </span>
-                <span className={`text-xl font-bold ${getProbabilityLevel(matchResult.predictionScore).color}`}>
+                </div>
+                <div className={`text-3xl font-bold ${
+                  matchResult.predictionScore >= 0.7 ? 'text-green-600' :
+                  matchResult.predictionScore >= 0.4 ? 'text-amber-600' : 'text-red-600'
+                }`}>
                   {(matchResult.predictionScore * 100).toFixed(0)}%
-                </span>
+                </div>
               </div>
             </div>
-            <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+            
+            {/* Progress Bar */}
+            <div className="mt-3 h-2 bg-white/80 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-500 ${getProbabilityLevel(matchResult.predictionScore).bg}`}
+                className={`h-full rounded-full transition-all duration-700 ${getProbabilityLevel(matchResult.predictionScore).bg}`}
                 style={{ width: `${matchResult.predictionScore * 100}%` }}
               />
             </div>
+            
+            {/* Contextual Message */}
+            <p className={`mt-3 text-sm ${
+              matchResult.predictionScore >= 0.7 ? 'text-green-700' :
+              matchResult.predictionScore >= 0.4 ? 'text-amber-700' : 'text-red-700'
+            }`}>
+              {matchResult.predictionScore >= 0.7 
+                ? 'Your profile strongly matches this scholarship criteria.'
+                : matchResult.predictionScore >= 0.4 
+                ? 'You have a reasonable chance. Consider strengthening weak areas.'
+                : 'Review the requirements to improve your chances.'}
+            </p>
           </div>
         )}
 
@@ -509,8 +571,8 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         )}
       </div>
 
-      {/* Footer */}
-      <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+      {/* Footer - Always at bottom */}
+      <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto">
         <div className="flex items-center justify-between">
           {/* Deadline */}
           <div className="flex items-center gap-2">

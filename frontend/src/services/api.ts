@@ -449,6 +449,14 @@ export const getBatchPredictions = async (scholarshipIds: string[]) => {
   }
 };
 
+/**
+ * Get personalized prediction for a specific scholarship (alias for getPrediction)
+ * Returns prediction with factors from trained ML model
+ */
+export const getPredictionForScholarship = async (scholarshipId: string) => {
+  return getPrediction(scholarshipId);
+};
+
 // ============================================================================
 // Auth API (re-exported for convenience)
 // ============================================================================

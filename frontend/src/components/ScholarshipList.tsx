@@ -3,7 +3,7 @@
 // List of scholarships with filtering, sorting, and view options
 // ============================================================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   LayoutGrid,
   List,
@@ -21,6 +21,7 @@ import {
 import ScholarshipCard from './ScholarshipCard';
 import { Scholarship, MatchResult, ScholarshipType, StudentProfile } from '../types';
 import { matchStudentToScholarships, sortScholarships } from '../services/filterEngine';
+import { predictionApi } from '../services/apiClient';
 
 interface ScholarshipListProps {
   scholarships: Scholarship[];
@@ -59,6 +60,10 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   const showEligibleOnly = externalShowEligibleOnly ?? internalShowEligibleOnly;
   const setShowEligibleOnly = setInternalShowEligibleOnly;
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
+  // State for API predictions
+  const [apiPredictions, setApiPredictions] = useState<Map<string, { probability: number; eligible: boolean }>>(new Map());
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
 
   // All scholarship types using enum values
   const allTypes: ScholarshipType[] = [
@@ -75,8 +80,48 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
     const results = matchStudentToScholarships(studentProfile, scholarships);
     return new Map(results.map(r => {
       const id = r.scholarship.id || (r.scholarship as any)._id;
-      return [id, r];
+      // Merge with API predictions if available
+      const apiPred = apiPredictions.get(id);
+      return [id, {
+        ...r,
+        predictionScore: apiPred?.probability ?? r.compatibilityScore,
+        isEligible: apiPred?.eligible ?? r.isEligible
+      }];
     }));
+  }, [studentProfile, scholarships, apiPredictions]);
+
+  // Fetch predictions from API when scholarships change
+  useEffect(() => {
+    if (!studentProfile || scholarships.length === 0) return;
+    
+    const fetchPredictions = async () => {
+      setPredictionsLoading(true);
+      try {
+        const scholarshipIds = scholarships.map(s => s.id || (s as any)._id).filter(Boolean);
+        if (scholarshipIds.length === 0) return;
+        
+        const response = await predictionApi.getBatchPredictions(scholarshipIds);
+        if (response.success && response.data) {
+          const predictionsMap = new Map<string, { probability: number; eligible: boolean }>();
+          response.data.forEach((pred: any) => {
+            if (pred.scholarshipId) {
+              predictionsMap.set(pred.scholarshipId, {
+                probability: pred.probability?.probability ?? 0,
+                eligible: pred.eligibility?.passed ?? false
+              });
+            }
+          });
+          setApiPredictions(predictionsMap);
+        }
+      } catch (error) {
+        console.error('Failed to fetch predictions:', error);
+        // Fall back to local matching (no-op, already using matchResults)
+      } finally {
+        setPredictionsLoading(false);
+      }
+    };
+    
+    fetchPredictions();
   }, [studentProfile, scholarships]);
 
   // Filter and sort scholarships
@@ -191,6 +236,12 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
               <span className="flex items-center gap-1 text-green-600">
                 <CheckCircle className="w-4 h-4" />
                 {eligibleCount} eligible
+              </span>
+            )}
+            {predictionsLoading && (
+              <span className="flex items-center gap-1.5 text-primary-600">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="text-xs">Loading predictions...</span>
               </span>
             )}
           </div>

@@ -3,8 +3,8 @@
 // Implements scholarship success probability prediction based on:
 // - Research showing 91% accuracy in Philippine scholarship contexts
 // - Features: GWA, year level, income, ST bracket, college
-// Note: This service uses the backend API when available, with fallback
-// to client-side predictions using pre-trained weights
+// Note: This service uses trained models from backend API with fallback
+// to client-side predictions using default weights
 // ============================================================================
 
 import {
@@ -17,7 +17,98 @@ import {
   STBracket,
   MatchResult
 } from '../types';
-import { predictionApi } from './apiClient';
+import { predictionApi, trainingApi } from './apiClient';
+
+// ============================================================================
+// DYNAMIC MODEL WEIGHTS CACHE
+// Fetched from trained models stored in the database
+// ============================================================================
+
+interface ModelWeights {
+  intercept: number;
+  gwaScore: number;
+  yearLevelMatch: number;
+  incomeMatch: number;
+  stBracketMatch: number;
+  collegeMatch: number;
+  courseMatch: number;
+  citizenshipMatch: number;
+  documentCompleteness: number;
+  applicationTiming: number;
+  eligibilityScore: number;
+}
+
+// Cache for trained model weights
+const modelWeightsCache: Map<string, ModelWeights> = new Map();
+const cacheExpiry: Map<string, number> = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
+
+/**
+ * Fetch model weights from the training API
+ * Uses per-scholarship models when available, falls back to global model
+ */
+export const fetchModelWeights = async (scholarshipId?: string): Promise<ModelWeights | null> => {
+  const cacheKey = scholarshipId || 'global';
+  
+  // Check cache first
+  const cached = modelWeightsCache.get(cacheKey);
+  const expiry = cacheExpiry.get(cacheKey);
+  if (cached && expiry && Date.now() < expiry) {
+    return cached;
+  }
+  
+  try {
+    let response;
+    
+    // Try to get scholarship-specific model first
+    if (scholarshipId) {
+      response = await trainingApi.getScholarshipModel(scholarshipId);
+      if (!response.success || !response.data) {
+        // Fall back to global model
+        response = await trainingApi.getActiveModel();
+      }
+    } else {
+      response = await trainingApi.getActiveModel();
+    }
+    
+    if (response.success && response.data) {
+      const modelData = response.data as any;
+      const weights: ModelWeights = {
+        intercept: modelData.weights?.intercept ?? -0.5,
+        gwaScore: modelData.weights?.gwaScore ?? 2.5,
+        yearLevelMatch: modelData.weights?.yearLevelMatch ?? 0.8,
+        incomeMatch: modelData.weights?.incomeMatch ?? 2.0,
+        stBracketMatch: modelData.weights?.stBracketMatch ?? 1.5,
+        collegeMatch: modelData.weights?.collegeMatch ?? 1.5,
+        courseMatch: modelData.weights?.courseMatch ?? 1.8,
+        citizenshipMatch: modelData.weights?.citizenshipMatch ?? 0.5,
+        documentCompleteness: modelData.weights?.documentCompleteness ?? 1.0,
+        applicationTiming: modelData.weights?.applicationTiming ?? 0.3,
+        eligibilityScore: modelData.weights?.eligibilityScore ?? 2.0
+      };
+      
+      // Cache the weights
+      modelWeightsCache.set(cacheKey, weights);
+      cacheExpiry.set(cacheKey, Date.now() + CACHE_TTL);
+      
+      console.log(`Loaded ${scholarshipId ? 'scholarship-specific' : 'global'} model weights:`, weights);
+      return weights;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Failed to fetch model weights:', error);
+    return null;
+  }
+};
+
+/**
+ * Clear the model weights cache (useful when new models are trained)
+ */
+export const clearModelWeightsCache = () => {
+  modelWeightsCache.clear();
+  cacheExpiry.clear();
+};
 
 // ============================================================================
 // API-BASED PREDICTION (Primary method when authenticated)
@@ -162,11 +253,26 @@ const extractFeatures = (
 
 // ============================================================================
 // LOGISTIC REGRESSION MODEL
-// Simple implementation for client-side prediction
+// Uses dynamic weights from trained models when available
 // ============================================================================
 
-// Pre-trained weights based on historical data analysis
+// Default weights (fallback when no trained model is available)
 // These weights are derived from the patterns in UPLB scholarship approvals
+const DEFAULT_MODEL_WEIGHTS = {
+  intercept: -0.5,
+  gwaScore: 2.5,              // Strong positive effect for better GWA
+  yearLevelMatch: 0.3,        // Slight preference for higher year levels
+  incomeMatch: 2.0,           // Lower income increases approval probability
+  stBracketMatch: 1.5,        // Higher discount brackets preferred
+  collegeMatch: 1.5,          // Strong positive for matching college
+  courseMatch: 1.8,           // Very strong for matching course
+  citizenshipMatch: 0.5,      // Small bonus for citizenship match
+  documentCompleteness: 1.0,  // Complete documents help
+  applicationTiming: 0.3,     // Early applications slightly preferred
+  eligibilityScore: 2.0       // Critical: must meet eligibility requirements
+};
+
+// Legacy weights mapping for backward compatibility
 const MODEL_WEIGHTS = {
   intercept: -0.5,
   gwa: 2.5,              // Strong positive effect for better GWA
@@ -216,118 +322,228 @@ const generatePredictionFactors = (
 ): PredictionFactor[] => {
   const factors: PredictionFactor[] = [];
   const criteria = scholarship.eligibilityCriteria;
+  const weights = DEFAULT_MODEL_WEIGHTS;
   
-  // GWA Factor (in UPLB, maxGWA is the threshold - lower GWA is better)
-  if (criteria.maxGWA && student.gwa !== undefined && student.gwa !== null) {
-    const gwaMargin = criteria.maxGWA - student.gwa; // Positive means student qualifies with margin to spare
-    if (gwaMargin > 0.5) {
-      factors.push({
-        factor: 'Academic Performance',
-        contribution: 0.15,
-        description: `Your GWA (${student.gwa.toFixed(2)}) is significantly better than the requirement (≤${criteria.maxGWA})`
-      });
-    } else if (gwaMargin >= 0) {
-      factors.push({
-        factor: 'Academic Performance',
-        contribution: 0.08,
-        description: `Your GWA (${student.gwa.toFixed(2)}) meets the requirement (≤${criteria.maxGWA})`
-      });
-    } else if (gwaMargin > -0.2) {
-      factors.push({
-        factor: 'Academic Performance',
-        contribution: -0.05,
-        description: `Your GWA (${student.gwa.toFixed(2)}) is slightly above the requirement (≤${criteria.maxGWA})`
-      });
-    } else {
-      factors.push({
-        factor: 'Academic Performance',
-        contribution: -0.20,
-        description: `Your GWA (${student.gwa.toFixed(2)}) does not meet the requirement (≤${criteria.maxGWA})`
-      });
+  // Helper to normalize GWA (1.0 = best = 1.0, 5.0 = worst = 0.0)
+  const normalizeGWA = (gwa: number | undefined): number => {
+    if (gwa === undefined || gwa === null) return 0.5;
+    return Math.max(0, Math.min(1, (5 - gwa) / 4));
+  };
+  
+  // Helper to normalize income (lower = higher score)
+  const normalizeIncome = (income: number | undefined, max: number | undefined): number => {
+    if (!income || !max) return 0.5;
+    if (income <= max) {
+      return 1 - (income / max) * 0.5; // 0.5 to 1.0
     }
+    return 0; // Exceeds max
+  };
+  
+  // Helper to get ST Bracket score
+  const getSTBracketScore = (bracket: string | undefined): number => {
+    const bracketMap: Record<string, number> = {
+      'Full Discount with Stipend': 1.0,
+      'Full Discount': 0.9,
+      'PD80': 0.8,
+      'PD60': 0.6,
+      'PD40': 0.4,
+      'PD20': 0.2,
+      'No Discount': 0.1
+    };
+    return bracketMap[bracket || ''] || 0.5;
+  };
+  
+  // 1. Overall Eligibility Score
+  let eligibleCount = 0;
+  let totalCriteria = 0;
+  
+  if (criteria.maxGWA) {
+    totalCriteria++;
+    if (student.gwa && student.gwa <= criteria.maxGWA) eligibleCount++;
+  }
+  if (criteria.maxAnnualFamilyIncome) {
+    totalCriteria++;
+    if (student.annualFamilyIncome && student.annualFamilyIncome <= criteria.maxAnnualFamilyIncome) eligibleCount++;
+  }
+  if (criteria.eligibleColleges?.length) {
+    totalCriteria++;
+    if (student.college && criteria.eligibleColleges.includes(student.college)) eligibleCount++;
+  }
+  if (criteria.eligibleClassifications?.length || criteria.requiredYearLevels?.length) {
+    totalCriteria++;
+    const yearLevels = criteria.eligibleClassifications || criteria.requiredYearLevels || [];
+    if (student.yearLevel && yearLevels.includes(student.yearLevel)) eligibleCount++;
   }
   
-  // Income Factor
-  if (criteria.maxAnnualFamilyIncome && student.annualFamilyIncome !== undefined && student.annualFamilyIncome !== null) {
-    const incomeRatio = student.annualFamilyIncome / criteria.maxAnnualFamilyIncome;
-    if (incomeRatio < 0.5) {
-      factors.push({
-        factor: 'Financial Need',
-        contribution: 0.18,
-        description: `Your family income (₱${student.annualFamilyIncome.toLocaleString()}) shows significant financial need`
-      });
-    } else if (incomeRatio <= 1) {
-      factors.push({
-        factor: 'Financial Need',
-        contribution: 0.10,
-        description: `Your family income meets the maximum threshold requirement`
-      });
-    } else {
-      factors.push({
-        factor: 'Financial Need',
-        contribution: -0.25,
-        description: `Your family income exceeds the maximum threshold of ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}`
-      });
-    }
-  }
+  const eligibilityScore = totalCriteria > 0 ? eligibleCount / totalCriteria : 1;
+  const eligibilityWeight = weights.eligibilityScore;
+  const eligibilityContrib = eligibilityScore * eligibilityWeight;
   
-  // ST Bracket Factor
-  if (criteria.requiredSTBrackets && criteria.requiredSTBrackets.length > 0) {
-    if (student.stBracket && criteria.requiredSTBrackets.includes(student.stBracket)) {
-      factors.push({
-        factor: 'ST Bracket',
-        contribution: 0.12,
-        description: `Your ST bracket (${student.stBracket}) matches the requirement`
-      });
-    } else {
-      factors.push({
-        factor: 'ST Bracket',
-        contribution: -0.15,
-        description: `Your ST bracket does not match the required brackets`
-      });
-    }
-  }
+  factors.push({
+    factor: 'Overall Eligibility',
+    value: eligibilityScore,
+    weight: eligibilityWeight,
+    rawContribution: eligibilityContrib,
+    contribution: 0, // Will be normalized later
+    description: `${eligibleCount}/${totalCriteria} criteria met (${Math.round(eligibilityScore * 100)}%)`,
+    met: eligibilityScore >= 0.5
+  });
   
-  // Course/Major Match Factor
-  if (features.courseMatch === 1 && features.majorMatch === 1) {
-    factors.push({
-      factor: 'Course & Major Match',
-      contribution: 0.20,
-      description: `Your course and major perfectly match the scholarship criteria`
-    });
-  } else if (features.courseMatch === 1) {
-    factors.push({
-      factor: 'Course Match',
-      contribution: 0.12,
-      description: `Your course matches the scholarship eligibility`
-    });
-  } else if (criteria.eligibleCourses && criteria.eligibleCourses.length > 0) {
-    factors.push({
-      factor: 'Course Match',
-      contribution: -0.20,
-      description: `Your course does not match the required courses`
-    });
-  }
+  // 2. College Match
+  const collegeMatch = criteria.eligibleColleges?.length 
+    ? (criteria.eligibleColleges.includes(student.college || '') ? 1 : 0)
+    : 0.5;
+  const collegeWeight = weights.collegeMatch;
+  const collegeContrib = collegeMatch * collegeWeight;
   
-  // Competition Factor (based on slots)
-  if (scholarship.slots) {
-    if (scholarship.slots >= 5) {
-      factors.push({
-        factor: 'Available Slots',
-        contribution: 0.05,
-        description: `Multiple slots available (${scholarship.slots}), increasing your chances`
-      });
-    } else if (scholarship.slots <= 2) {
-      factors.push({
-        factor: 'Available Slots',
-        contribution: -0.08,
-        description: `Limited slots available (${scholarship.slots}), higher competition`
-      });
-    }
-  }
+  factors.push({
+    factor: 'College',
+    value: collegeMatch,
+    weight: collegeWeight,
+    rawContribution: collegeContrib,
+    contribution: 0,
+    description: criteria.eligibleColleges?.length 
+      ? (collegeMatch === 1 ? `${student.college} is eligible` : 'College not in eligible list')
+      : 'Open to all colleges',
+    met: collegeMatch >= 0.5
+  });
   
-  // Sort by absolute contribution value
-  return factors.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+  // 3. Financial Need (Income)
+  const incomeValue = normalizeIncome(student.annualFamilyIncome, criteria.maxAnnualFamilyIncome || 500000);
+  const incomeWeight = weights.incomeMatch;
+  const incomeContrib = incomeValue * incomeWeight;
+  
+  factors.push({
+    factor: 'Financial Need',
+    value: incomeValue,
+    weight: incomeWeight,
+    rawContribution: incomeContrib,
+    contribution: 0,
+    description: criteria.maxAnnualFamilyIncome
+      ? `₱${(student.annualFamilyIncome || 0).toLocaleString()} / ₱${criteria.maxAnnualFamilyIncome.toLocaleString()} max`
+      : `₱${(student.annualFamilyIncome || 0).toLocaleString()} annual income`,
+    met: !criteria.maxAnnualFamilyIncome || (student.annualFamilyIncome || 0) <= criteria.maxAnnualFamilyIncome
+  });
+  
+  // 4. Citizenship
+  const citizenshipMatch = student.citizenship === 'Filipino' ? 1 : 0.4;
+  const citizenshipWeight = weights.citizenshipMatch;
+  const citizenshipContrib = citizenshipMatch * citizenshipWeight;
+  
+  factors.push({
+    factor: 'Citizenship',
+    value: citizenshipMatch,
+    weight: citizenshipWeight,
+    rawContribution: citizenshipContrib,
+    contribution: 0,
+    description: student.citizenship || 'Not specified',
+    met: citizenshipMatch >= 0.5
+  });
+  
+  // 5. Academic Performance (GWA)
+  const gwaValue = normalizeGWA(student.gwa);
+  const gwaWeight = weights.gwaScore;
+  const gwaContrib = gwaValue * gwaWeight;
+  
+  factors.push({
+    factor: 'Academic Performance (GWA)',
+    value: gwaValue,
+    weight: gwaWeight,
+    rawContribution: gwaContrib,
+    contribution: 0,
+    description: student.gwa 
+      ? `GWA of ${student.gwa.toFixed(2)}${criteria.maxGWA ? ` (requires ≤${criteria.maxGWA})` : ''}`
+      : 'GWA not provided',
+    met: !criteria.maxGWA || (student.gwa || 5) <= criteria.maxGWA
+  });
+  
+  // 6. Year Level
+  const yearLevels = criteria.eligibleClassifications || criteria.requiredYearLevels || [];
+  const yearLevelMatch = yearLevels.length 
+    ? (yearLevels.includes(student.yearLevel || '' as any) ? 1 : 0)
+    : 0.5;
+  const yearLevelWeight = weights.yearLevelMatch;
+  const yearLevelContrib = yearLevelMatch * yearLevelWeight;
+  
+  factors.push({
+    factor: 'Year Level',
+    value: yearLevelMatch,
+    weight: yearLevelWeight,
+    rawContribution: yearLevelContrib,
+    contribution: 0,
+    description: yearLevels.length 
+      ? (yearLevelMatch === 1 ? `${student.yearLevel} is eligible` : `Requires: ${yearLevels.join(', ')}`)
+      : (student.yearLevel || 'Not specified'),
+    met: yearLevelMatch >= 0.5
+  });
+  
+  // 7. Course/Major
+  const courseMatch = criteria.eligibleCourses?.length
+    ? (criteria.eligibleCourses.some(c => 
+        (student.course || '').toLowerCase().includes(c.toLowerCase()) ||
+        c.toLowerCase().includes((student.course || '').toLowerCase())
+      ) ? 1 : 0)
+    : 0.5;
+  const courseWeight = weights.courseMatch;
+  const courseContrib = courseMatch * courseWeight;
+  
+  factors.push({
+    factor: 'Course/Major',
+    value: courseMatch,
+    weight: courseWeight,
+    rawContribution: courseContrib,
+    contribution: 0,
+    description: criteria.eligibleCourses?.length 
+      ? (courseMatch === 1 ? `${student.course} matches` : 'Course not in list')
+      : 'Open to all courses',
+    met: courseMatch >= 0.5
+  });
+  
+  // 8. ST Bracket
+  const stBrackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
+  const stBracketMatch = stBrackets.length 
+    ? (stBrackets.includes(student.stBracket || '') ? 1 : getSTBracketScore(student.stBracket))
+    : getSTBracketScore(student.stBracket);
+  const stBracketWeight = weights.stBracketMatch;
+  const stBracketContrib = stBracketMatch * stBracketWeight;
+  
+  factors.push({
+    factor: 'ST Bracket',
+    value: stBracketMatch,
+    weight: stBracketWeight,
+    rawContribution: stBracketContrib,
+    contribution: 0,
+    description: stBrackets.length 
+      ? (stBrackets.includes(student.stBracket || '') ? `${student.stBracket} qualifies` : `Requires: ${stBrackets.join(', ')}`)
+      : (student.stBracket || 'Not specified'),
+    met: !stBrackets.length || stBrackets.includes(student.stBracket || '')
+  });
+  
+  // 9. Profile Completeness
+  const profileComplete = student.profileCompleted ? 1 : 0.5;
+  const profileWeight = weights.documentCompleteness;
+  const profileContrib = profileComplete * profileWeight;
+  
+  factors.push({
+    factor: 'Profile Completeness',
+    value: profileComplete,
+    weight: profileWeight,
+    rawContribution: profileContrib,
+    contribution: 0,
+    description: student.profileCompleted ? 'Profile complete' : 'Profile incomplete',
+    met: student.profileCompleted || false
+  });
+  
+  // Calculate total absolute contribution for normalization
+  const totalAbsContrib = factors.reduce((sum, f) => sum + Math.abs(f.rawContribution || 0), 0);
+  
+  // Normalize contributions
+  factors.forEach(f => {
+    f.contribution = totalAbsContrib > 0 ? (f.rawContribution || 0) / totalAbsContrib : 0;
+  });
+  
+  // Sort by absolute raw contribution (most impactful first)
+  return factors.sort((a, b) => Math.abs(b.rawContribution || 0) - Math.abs(a.rawContribution || 0));
 };
 
 // ============================================================================
@@ -422,7 +638,7 @@ export const predictScholarshipSuccess = (
 };
 
 /**
- * Async prediction function - uses API when available
+ * Async prediction function - uses trained model weights when available
  */
 export const predictScholarshipSuccessAsync = async (
   student: StudentProfile,
@@ -444,12 +660,133 @@ export const predictScholarshipSuccessAsync = async (
         };
       }
     } catch (error) {
-      console.log('API prediction unavailable, using local prediction');
+      console.log('API prediction unavailable, trying local with dynamic weights');
+    }
+    
+    // Try to get trained model weights for local prediction
+    try {
+      const dynamicWeights = await fetchModelWeights(scholarship.id);
+      if (dynamicWeights) {
+        const result = predictWithDynamicWeights(student, scholarship, dynamicWeights);
+        return {
+          ...result,
+          trainedModel: true
+        };
+      }
+    } catch (error) {
+      console.log('Dynamic weights unavailable, using default weights');
     }
   }
   
-  // Fallback to local prediction
+  // Fallback to local prediction with default weights
   return predictScholarshipSuccessLocal(student, scholarship);
+};
+
+/**
+ * Predict using dynamic weights from trained model
+ */
+const predictWithDynamicWeights = (
+  student: StudentProfile,
+  scholarship: Scholarship,
+  weights: ModelWeights
+): PredictionResult => {
+  // Safety check for undefined inputs
+  if (!student || !scholarship) {
+    return {
+      probability: 0,
+      percentageScore: 0,
+      confidence: 'low',
+      factors: [],
+      recommendation: 'Unable to calculate prediction - missing student or scholarship data.',
+      trainedModel: true
+    };
+  }
+
+  // Ensure eligibilityCriteria exists
+  const criteria = scholarship.eligibilityCriteria || {} as any;
+  
+  // Extract features aligned with trained model format
+  const studentGwa = student.gwa ?? 2.5;
+  const gwaNormalized = (5 - studentGwa) / 4; // 0-1, higher is better GWA
+  
+  // Year level match - check both possible field names
+  const yearLevels = criteria.requiredYearLevels || criteria.eligibleClassifications || [];
+  const yearLevelMatch = yearLevels.length > 0
+    ? (student.yearLevel && yearLevels.includes(student.yearLevel) ? 1 : 0)
+    : 1;
+    
+  const incomeMatch = criteria.maxAnnualFamilyIncome
+    ? ((student.annualFamilyIncome ?? 0) <= criteria.maxAnnualFamilyIncome ? 1 : 0)
+    : 1;
+  
+  // ST bracket match - check both possible field names
+  const stBrackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
+  const stBracketMatch = stBrackets.length > 0
+    ? (student.stBracket && stBrackets.includes(student.stBracket) ? 1 : 0)
+    : 1;
+    
+  const collegeMatch = criteria.eligibleColleges && criteria.eligibleColleges.length > 0
+    ? (student.college && criteria.eligibleColleges.includes(student.college) ? 1 : 0)
+    : 1;
+    
+  const courseMatch = criteria.eligibleCourses && criteria.eligibleCourses.length > 0
+    ? (student.course && criteria.eligibleCourses.some((c: string) => 
+        c && student.course && student.course.toLowerCase().includes(c.toLowerCase())
+      ) ? 1 : 0)
+    : 1;
+  
+  // Citizenship match - check filipinoOnly flag
+  const citizenshipMatch = (criteria.isFilipinoOnly || criteria.filipinoOnly)
+    ? (student.citizenship === 'Filipino' ? 1 : 0)
+    : 1;
+    
+  const documentCompleteness = student.profileCompleted ? 1 : 0.7;
+  
+  // Calculate eligibility score (based on how many criteria are met)
+  const eligibilityScore = (
+    (criteria.maxGWA ? (studentGwa <= criteria.maxGWA ? 1 : 0) : 1) +
+    yearLevelMatch +
+    incomeMatch +
+    stBracketMatch +
+    collegeMatch +
+    courseMatch +
+    citizenshipMatch
+  ) / 7;
+  
+  // Calculate z using dynamic weights
+  const z = weights.intercept +
+    weights.gwaScore * gwaNormalized +
+    weights.yearLevelMatch * yearLevelMatch +
+    weights.incomeMatch * incomeMatch +
+    weights.stBracketMatch * stBracketMatch +
+    weights.collegeMatch * collegeMatch +
+    weights.courseMatch * courseMatch +
+    weights.citizenshipMatch * citizenshipMatch +
+    weights.documentCompleteness * documentCompleteness +
+    weights.eligibilityScore * eligibilityScore;
+  
+  const probability = sigmoid(z);
+  const percentageScore = Math.round(probability * 100);
+  
+  // Extract features for factor generation
+  const features = extractFeatures(student, scholarship);
+  
+  // Generate explanation factors
+  const factors = generatePredictionFactors(student, scholarship, features, probability);
+  
+  // Determine confidence level
+  const confidence: 'high' | 'medium' | 'low' = 
+    student.profileCompleted ? 'high' :
+    student.gwa && student.annualFamilyIncome ? 'medium' : 'low';
+  
+  return {
+    probability,
+    percentageScore,
+    confidence,
+    factors,
+    recommendation: getRecommendation(percentageScore),
+    trainedModel: true
+  };
 };
 
 /**

@@ -417,8 +417,12 @@ export interface EligibilityCheckResult {
 
 export interface PredictionFactor {
   factor: string;
-  contribution: number; // Positive or negative contribution to probability
+  contribution: number; // Normalized contribution (0-1 representing % of total impact)
   description: string;
+  rawContribution?: number; // Actual weighted contribution value
+  value?: number; // Feature value (0-1)
+  weight?: number; // Model weight for this feature
+  met?: boolean; // Whether the criterion is met (for positive/negative display)
 }
 
 // ============================================================================
@@ -580,9 +584,17 @@ export interface Application {
 export interface PredictionResult {
   probability: number;
   probabilityPercentage: number;
-  predictedOutcome: 'approved' | 'rejected';
+  predictedOutcome?: 'approved' | 'rejected' | 'likely_approved' | 'needs_improvement';
   confidence: 'low' | 'medium' | 'high';
-  featureContributions: {
+  matchLevel?: string;
+  factors?: PredictionFactor[];
+  zScore?: number; // The raw z-score before sigmoid transformation
+  intercept?: number; // The model intercept/bias term
+  detailedFactors?: {
+    workingInFavor?: Array<any>;
+    areasToConsider?: Array<any>;
+  };
+  featureContributions?: {
     gwa?: number;
     financialNeed?: number;
     yearLevel?: number;
@@ -593,16 +605,12 @@ export interface PredictionResult {
     previousApprovals?: number;
     previousRejections?: number;
   };
-  factors?: {
-    [category: string]: Array<{
-      factor: string;
-      description: string;
-      contribution: number;
-      contributionPercentage: number;
-      impact: 'high' | 'medium' | 'low';
-    }>;
-  };
-  features: Record<string, number>;
-  modelVersion: string;
-  generatedAt: Date;
+  features?: Record<string, number>;
+  modelVersion?: string;
+  trainedModel?: boolean;
+  recommendation?: string;
+  previousApprovals?: number;
+  previousRejections?: number;
+  generatedAt?: Date;
+  disclaimer?: string;
 }

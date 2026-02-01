@@ -22,6 +22,7 @@ import { authApi, userApi, clearTokens, getAccessToken } from './services/apiCli
 import Home from './pages/Home';
 import Scholarships from './pages/Scholarships';
 import ScholarshipDetails from './pages/ScholarshipDetails';
+import PredictionExplanation from './pages/PredictionExplanation';
 import Analytics from './pages/Analytics';
 
 // Student Pages
@@ -42,6 +43,7 @@ import {
 } from './pages/admin';
 import ScholarshipApplicants from './pages/admin/ScholarshipApplicants';
 import ApplicationReview from './pages/admin/ApplicationReview';
+import ModelTraining from './pages/admin/ModelTraining';
 
 import './styles/globals.css';
 
@@ -819,6 +821,7 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           <Route path="/" element={<Home />} />
           <Route path="/scholarships" element={<Scholarships />} />
           <Route path="/scholarships/:id" element={<ScholarshipDetails />} />
+          <Route path="/scholarships/:scholarshipId/prediction" element={<PredictionExplanation />} />
           
           {/* Protected Student Portal Routes */}
           <Route path="/dashboard" element={
@@ -886,6 +889,11 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           <Route path="/admin/profile" element={
             <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
               <AdminProfilePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/model-training" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
+              <ModelTraining />
             </ProtectedRoute>
           } />
           

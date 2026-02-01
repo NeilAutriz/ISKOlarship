@@ -2,9 +2,11 @@
 // ISKOlarship - Logistic Regression Service
 // A proper implementation of logistic regression that trains on historical data
 // Based on Research Paper: "91% accuracy in Philippine scholarship contexts"
+// 
+// Now integrates with TrainedModel database for per-scholarship models
 // =============================================================================
 
-const { Application } = require('../models');
+const { Application, TrainedModel } = require('../models');
 
 // =============================================================================
 // Model Configuration
@@ -26,6 +28,19 @@ const MODEL_CONFIG = {
     'unitsCompleted',         // Academic: Progress indicator (continuous)
     'eligibilityScore'        // Meta: How many criteria met (continuous 0-1)
   ],
+  // New feature names for TrainedModel integration
+  trainedModelFeatureNames: [
+    'gwaScore',
+    'yearLevelMatch',
+    'incomeMatch',
+    'stBracketMatch',
+    'collegeMatch',
+    'courseMatch',
+    'citizenshipMatch',
+    'documentCompleteness',
+    'applicationTiming',
+    'eligibilityScore'
+  ],
   // Categorize features for display
   featureCategories: {
     'Academic Performance': ['gwa', 'yearLevel', 'unitsCompleted'],
@@ -42,6 +57,67 @@ const MODEL_CONFIG = {
     'eligibilityScore': 'Percentage of scholarship criteria you meet'
   }
 };
+
+// =============================================================================
+// Cached Model Weights (from TrainedModel database)
+// =============================================================================
+
+// Cache for loaded model weights
+const modelWeightsCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Load trained model weights from database
+ * Tries scholarship-specific model first, falls back to global
+ */
+async function loadModelWeights(scholarshipId = null) {
+  const cacheKey = scholarshipId ? `scholarship_${scholarshipId}` : 'global';
+  
+  // Check cache first
+  const cached = modelWeightsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.weights;
+  }
+  
+  try {
+    // Try to get scholarship-specific model first
+    let model = null;
+    if (scholarshipId) {
+      model = await TrainedModel.getActiveModelForScholarship(scholarshipId);
+    }
+    
+    // Fall back to global model
+    if (!model) {
+      model = await TrainedModel.findOne({ 
+        modelType: 'global', 
+        isActive: true 
+      }).sort({ trainedAt: -1 });
+    }
+    
+    if (model && model.weights) {
+      // Cache the weights
+      modelWeightsCache.set(cacheKey, {
+        weights: model.weights,
+        expiry: Date.now() + CACHE_TTL,
+        modelId: model._id,
+        modelType: model.modelType
+      });
+      
+      return model.weights;
+    }
+  } catch (error) {
+    console.error('Error loading trained model weights:', error.message);
+  }
+  
+  return null;
+}
+
+/**
+ * Clear the model weights cache (useful when new models are trained)
+ */
+function clearModelWeightsCache() {
+  modelWeightsCache.clear();
+}
 
 // =============================================================================
 // Trained Model State (Persisted in memory, can be saved to DB)
@@ -497,8 +573,9 @@ function calculateMetrics(yTrue, yPred) {
 // =============================================================================
 
 /**
- * Predict approval probability for a user-scholarship pair
+ * Predict approval probability for a user-scholarship pair (synchronous version)
  * Research-based implementation preventing superlative values
+ * Uses in-memory trained model or defaults
  */
 function predict(user, scholarship) {
   const features = extractFeaturesFromUserAndScholarship(user, scholarship);
@@ -546,6 +623,277 @@ function predict(user, scholarship) {
     zScore: z,
     modelVersion: trainedModel.version,
     trainedModel: trainedModel.trained,
+    disclaimer: 'Prediction based on historical patterns. Actual results may vary.'
+  };
+}
+
+/**
+ * Predict approval probability using trained models from database (async version)
+ * Tries scholarship-specific model first, falls back to global
+ * Returns personalized prediction factors with weighted contributions
+ */
+async function predictAsync(user, scholarship) {
+  const scholarshipId = scholarship._id?.toString() || scholarship.id;
+  
+  // Load weights from database (cached)
+  const dbWeights = await loadModelWeights(scholarshipId);
+  
+  // Extract features matching TrainedModel format
+  const studentProfile = user.studentProfile || {};
+  const criteria = scholarship.eligibilityCriteria || {};
+  
+  // Calculate GWA score (normalized 0-1, higher is better GWA)
+  const gwaScore = normalizeGWA(studentProfile.gwa);
+  
+  // Year level match - binary for explicit requirements, normalized otherwise
+  const yearLevels = criteria.eligibleClassifications || [];
+  let yearLevelMatch;
+  if (yearLevels.length > 0) {
+    yearLevelMatch = yearLevels.includes(studentProfile.classification) ? 1 : 0;
+  } else {
+    // No specific requirement - use year level as a continuous feature
+    const yearMap = { 'Freshman': 0.2, 'Sophomore': 0.4, 'Junior': 0.6, 'Senior': 0.8, 'Graduate': 1.0 };
+    yearLevelMatch = yearMap[studentProfile.classification] || 0.5;
+  }
+  
+  // Income match - need to differentiate between meeting threshold and financial need level
+  let incomeMatch;
+  if (criteria.maxAnnualFamilyIncome) {
+    if (studentProfile.annualFamilyIncome && studentProfile.annualFamilyIncome <= criteria.maxAnnualFamilyIncome) {
+      // Meets requirement - score based on how much below threshold (more need = higher score)
+      incomeMatch = 1 - (studentProfile.annualFamilyIncome / criteria.maxAnnualFamilyIncome) * 0.5;
+    } else {
+      // Doesn't meet requirement
+      incomeMatch = 0;
+    }
+  } else {
+    // No income requirement - use normalized income (lower = more need = higher score)
+    const income = studentProfile.annualFamilyIncome || 250000;
+    incomeMatch = Math.max(0, 1 - (income / 500000)); // Normalize against 500k
+  }
+  
+  // ST Bracket match
+  const stBrackets = criteria.eligibleSTBrackets || [];
+  let stBracketMatch;
+  if (stBrackets.length > 0) {
+    stBracketMatch = stBrackets.includes(studentProfile.stBracket) ? 1 : 0;
+  } else {
+    // No specific requirement - use ST bracket as financial need indicator
+    stBracketMatch = normalizeSTBracket(studentProfile.stBracket);
+  }
+  
+  // College match - binary
+  let collegeMatch;
+  if (criteria.eligibleColleges?.length > 0) {
+    collegeMatch = criteria.eligibleColleges.includes(studentProfile.college) ? 1 : 0;
+  } else {
+    collegeMatch = 0.5; // Neutral when no college restriction
+  }
+  
+  // Course match - binary
+  let courseMatch;
+  if (criteria.eligibleCourses?.length > 0) {
+    const studentCourse = (studentProfile.course || '').toLowerCase();
+    courseMatch = criteria.eligibleCourses.some(c => 
+      studentCourse.includes(c.toLowerCase()) || c.toLowerCase().includes(studentCourse)
+    ) ? 1 : 0;
+  } else {
+    courseMatch = 0.5; // Neutral when no course restriction
+  }
+  
+  // Citizenship match
+  let citizenshipMatch;
+  if (criteria.eligibleCitizenship?.length > 0) {
+    citizenshipMatch = criteria.eligibleCitizenship.includes(studentProfile.citizenship) ? 1 : 0;
+  } else if (criteria.isFilipinoOnly || criteria.filipinoOnly) {
+    citizenshipMatch = studentProfile.citizenship === 'Filipino' ? 1 : 0;
+  } else {
+    citizenshipMatch = studentProfile.citizenship === 'Filipino' ? 0.6 : 0.4; // Slight preference
+  }
+  
+  // Document completeness
+  const documentCompleteness = studentProfile.profileCompleted ? 1 : 0.5;
+  
+  // Application timing (neutral for predictions before applying)
+  const applicationTiming = 0.5;
+  
+  // Calculate eligibility score (percentage of explicit criteria met)
+  let matchedCriteria = 0;
+  let totalCriteria = 0;
+  
+  if (criteria.maxGWA) {
+    totalCriteria++;
+    if (studentProfile.gwa && studentProfile.gwa <= criteria.maxGWA) matchedCriteria++;
+  }
+  if (criteria.maxAnnualFamilyIncome) {
+    totalCriteria++;
+    if (studentProfile.annualFamilyIncome && studentProfile.annualFamilyIncome <= criteria.maxAnnualFamilyIncome) matchedCriteria++;
+  }
+  if (yearLevels.length > 0) {
+    totalCriteria++;
+    if (yearLevels.includes(studentProfile.classification)) matchedCriteria++;
+  }
+  if (criteria.eligibleColleges?.length > 0) {
+    totalCriteria++;
+    if (criteria.eligibleColleges.includes(studentProfile.college)) matchedCriteria++;
+  }
+  if (criteria.eligibleCourses?.length > 0) {
+    totalCriteria++;
+    if (courseMatch === 1) matchedCriteria++;
+  }
+  
+  const eligibilityScore = totalCriteria > 0 ? matchedCriteria / totalCriteria : 0.7;
+  
+  // Get weights from database or use defaults
+  const weights = dbWeights || {
+    intercept: -2.5,
+    gwaScore: 2.5,
+    yearLevelMatch: 0.6,
+    incomeMatch: 1.8,
+    stBracketMatch: 1.5,
+    collegeMatch: 1.5,
+    courseMatch: 1.8,
+    citizenshipMatch: 0.5,
+    documentCompleteness: 0.7,
+    applicationTiming: 0.3,
+    eligibilityScore: 3.0
+  };
+  const usedTrainedModel = !!dbWeights;
+  
+  // Use intercept from weights or default
+  const intercept = weights.intercept ?? -2.5;
+  
+  // Build feature values array for computation
+  const features = {
+    gwaScore,
+    yearLevelMatch,
+    incomeMatch,
+    stBracketMatch,
+    collegeMatch,
+    courseMatch,
+    citizenshipMatch,
+    documentCompleteness,
+    applicationTiming,
+    eligibilityScore
+  };
+  
+  // Calculate z-score
+  let z = intercept;
+  const contributions = {};
+  
+  for (const [featureName, featureValue] of Object.entries(features)) {
+    const weight = weights[featureName] ?? 0;
+    const contribution = featureValue * weight;
+    z += contribution;
+    contributions[featureName] = {
+      value: featureValue,
+      weight: weight,
+      contribution: contribution
+    };
+  }
+  
+  // Apply sigmoid (natural bounds without additional capping)
+  const rawProbability = sigmoid(z);
+  
+  // Don't artificially cap at 90% - let the model determine the probability
+  // Only apply soft bounds to avoid extreme values (5% - 95%)
+  const probability = Math.max(0.05, Math.min(0.95, rawProbability));
+  
+  // Build human-readable factors for display
+  const factorLabels = {
+    gwaScore: 'Academic Performance (GWA)',
+    yearLevelMatch: 'Year Level',
+    incomeMatch: 'Financial Need',
+    stBracketMatch: 'ST Bracket',
+    collegeMatch: 'College',
+    courseMatch: 'Course/Major',
+    citizenshipMatch: 'Citizenship',
+    documentCompleteness: 'Profile Completeness',
+    eligibilityScore: 'Overall Eligibility'
+  };
+  
+  // Calculate total absolute contribution for normalization
+  let totalAbsContribution = 0;
+  for (const c of Object.values(contributions)) {
+    totalAbsContribution += Math.abs(c.contribution);
+  }
+  
+  // Build factors array for display
+  const factors = Object.entries(contributions)
+    .filter(([name]) => name !== 'applicationTiming') // Don't show timing in prediction
+    .map(([name, data]) => {
+      const normalizedContribution = totalAbsContribution > 0 
+        ? data.contribution / totalAbsContribution 
+        : 0;
+      
+      // Generate personalized description
+      let description = '';
+      switch (name) {
+        case 'gwaScore':
+          description = studentProfile.gwa
+            ? `GWA of ${studentProfile.gwa.toFixed(2)}${criteria.maxGWA ? ` (requires ≤${criteria.maxGWA})` : ''}`
+            : 'GWA not provided';
+          break;
+        case 'yearLevelMatch':
+          description = yearLevels.length > 0
+            ? (yearLevels.includes(studentProfile.classification) 
+                ? `${studentProfile.classification} is eligible` 
+                : `Requires: ${yearLevels.join(', ')}`)
+            : `${studentProfile.classification || 'Year level not set'}`;
+          break;
+        case 'incomeMatch':
+          description = criteria.maxAnnualFamilyIncome
+            ? `₱${(studentProfile.annualFamilyIncome || 0).toLocaleString()} / ₱${criteria.maxAnnualFamilyIncome.toLocaleString()} max`
+            : `₱${(studentProfile.annualFamilyIncome || 0).toLocaleString()} annual income`;
+          break;
+        case 'stBracketMatch':
+          description = stBrackets.length > 0
+            ? (stBrackets.includes(studentProfile.stBracket) ? `${studentProfile.stBracket} qualifies` : `Requires: ${stBrackets.join(', ')}`)
+            : `${studentProfile.stBracket || 'ST bracket not set'}`;
+          break;
+        case 'collegeMatch':
+          description = criteria.eligibleColleges?.length > 0
+            ? (collegeMatch === 1 ? `${studentProfile.college} is eligible` : 'College not eligible')
+            : 'Open to all colleges';
+          break;
+        case 'courseMatch':
+          description = criteria.eligibleCourses?.length > 0
+            ? (courseMatch === 1 ? `${studentProfile.course} matches` : 'Course not in list')
+            : 'Open to all courses';
+          break;
+        case 'citizenshipMatch':
+          description = `${studentProfile.citizenship || 'Not specified'}`;
+          break;
+        case 'documentCompleteness':
+          description = studentProfile.profileCompleted ? 'Profile complete' : 'Profile incomplete';
+          break;
+        case 'eligibilityScore':
+          description = `${matchedCriteria}/${totalCriteria || '0'} criteria met (${Math.round(eligibilityScore * 100)}%)`;
+          break;
+      }
+      
+      return {
+        factor: factorLabels[name] || name,
+        contribution: normalizedContribution,
+        rawContribution: data.contribution,
+        value: data.value,
+        weight: data.weight,
+        description: description,
+        met: data.value >= 0.5
+      };
+    })
+    .sort((a, b) => Math.abs(b.rawContribution) - Math.abs(a.rawContribution));
+  
+  return {
+    probability: probability,
+    probabilityPercentage: Math.round(probability * 100),
+    predictedOutcome: probability >= 0.5 ? 'likely_approved' : 'needs_improvement',
+    confidence: calculateConfidence(probability),
+    factors: factors,
+    zScore: z,
+    intercept: intercept,
+    trainedModel: usedTrainedModel,
+    modelVersion: usedTrainedModel ? '3.0.0-trained' : '2.0.0-default',
     disclaimer: 'Prediction based on historical patterns. Actual results may vary.'
   };
 }
@@ -701,6 +1049,7 @@ module.exports = {
   
   // Prediction
   predict,
+  predictAsync,  // New: async prediction using trained models from DB
   getPredictionFactors,
   extractFeaturesFromUserAndScholarship,
   
@@ -708,6 +1057,8 @@ module.exports = {
   getModelState,
   getFeatureImportance,
   resetModel,
+  loadModelWeights,      // New: load weights from TrainedModel DB
+  clearModelWeightsCache, // New: clear cached weights
   
   // Utilities
   sigmoid,

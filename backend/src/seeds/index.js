@@ -110,10 +110,27 @@ const runAllSeeds = async () => {
     console.log('');
 
     // =========================================================================
-    // Step 5: Train Logistic Regression Model
+    // Step 5: Seed Historical Applications for Model Training
     // =========================================================================
     console.log('════════════════════════════════════════════════════════════════');
-    console.log('Step 5: Training Logistic Regression Model');
+    console.log('Step 5: Seeding Historical Applications for Model Training');
+    console.log('════════════════════════════════════════════════════════════════');
+    
+    const { seedHistoricalApplications } = require('./applications-historical.seed');
+    const historicalApplications = await seedHistoricalApplications(
+      Application, 
+      Scholarship, 
+      User,
+      50 // 50 applications per scholarship
+    );
+    console.log(`   ✅ Created ${historicalApplications.length} historical applications`);
+    console.log('');
+
+    // =========================================================================
+    // Step 6: Train Logistic Regression Model
+    // =========================================================================
+    console.log('════════════════════════════════════════════════════════════════');
+    console.log('Step 6: Training Logistic Regression Model');
     console.log('════════════════════════════════════════════════════════════════');
     
     const trainingResult = await logisticRegression.trainModel();
@@ -137,10 +154,11 @@ const runAllSeeds = async () => {
     console.log('╔════════════════════════════════════════════════════════════════╗');
     console.log('║              🎉 DATABASE SEEDING COMPLETE! 🎉                  ║');
     console.log('╠════════════════════════════════════════════════════════════════╣');
-    console.log(`║  Users:         ${allUsers.length.toString().padStart(4)} (${studentUsers.length} students, ${allUsers.length - studentUsers.length} admins)           ║`);
-    console.log(`║  Scholarships:  ${scholarships.length.toString().padStart(4)} (Realistic with proper scoping)          ║`);
-    console.log(`║  Applications:  ${applications.length.toString().padStart(4)} (Comprehensive format)                   ║`);
-    console.log(`║  Training Data: ${trainingData.length.toString().padStart(4)} samples for ML                          ║`);
+    console.log(`║  Users:              ${allUsers.length.toString().padStart(4)} (${studentUsers.length} students, ${allUsers.length - studentUsers.length} admins)      ║`);
+    console.log(`║  Scholarships:       ${scholarships.length.toString().padStart(4)} (Realistic with proper scoping)     ║`);
+    console.log(`║  Applications:       ${applications.length.toString().padStart(4)} (Comprehensive format)              ║`);
+    console.log(`║  Historical Data:    ${historicalApplications.length.toString().padStart(4)} (For ML training)               ║`);
+    console.log(`║  Training Samples:   ${trainingData.length.toString().padStart(4)} samples for ML                     ║`);
     console.log('╚════════════════════════════════════════════════════════════════╝\n');
 
     console.log('📋 Test Credentials:');
@@ -148,6 +166,10 @@ const runAllSeeds = async () => {
     console.log('   Admin (College):    cas.admin@iskolarship.uplb.edu.ph / password123');
     console.log('   Admin (Academic):   ics.admin@iskolarship.uplb.edu.ph / password123');
     console.log('   Student:            student1@up.edu.ph / password123');
+    console.log('');
+    
+    console.log('🤖 To train models with the new historical data, run:');
+    console.log('   node scripts/train-model.js --all');
     console.log('');
 
   } catch (error) {

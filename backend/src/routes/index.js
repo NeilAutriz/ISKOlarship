@@ -9,6 +9,7 @@ const scholarshipRoutes = require('./scholarship.routes');
 const applicationRoutes = require('./application.routes');
 const predictionRoutes = require('./prediction.routes');
 const statisticsRoutes = require('./statistics.routes');
+const trainingRoutes = require('./training.routes');
 
 module.exports = {
   authRoutes,
@@ -16,5 +17,6 @@ module.exports = {
   scholarshipRoutes,
   applicationRoutes,
   predictionRoutes,
-  statisticsRoutes
+  statisticsRoutes,
+  trainingRoutes
 };

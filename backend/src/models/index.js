@@ -32,12 +32,15 @@ const {
 
 const { PlatformStats } = require('./PlatformStats.model');
 
+const { TrainedModel } = require('./TrainedModel.model');
+
 module.exports = {
   // Models
   User,
   Scholarship,
   Application,
   PlatformStats,
+  TrainedModel,
   
   // User Enums
   UserRole,

@@ -115,6 +115,10 @@ app.use('/api/predictions', checkDatabaseConnection, predictionRoutes);
 // Statistics Routes (with DB check)
 app.use('/api/statistics', checkDatabaseConnection, statisticsRoutes);
 
+// Training Routes (with DB check)
+const { trainingRoutes } = require('./routes');
+app.use('/api/training', checkDatabaseConnection, trainingRoutes);
+
 // =============================================================================
 // Error Handling Middleware
 // =============================================================================
