@@ -128,7 +128,13 @@ const trainedModelSchema = new mongoose.Schema({
     citizenshipMatch: { type: Number, default: 0 },
     documentCompleteness: { type: Number, default: 0 },
     applicationTiming: { type: Number, default: 0 },
-    eligibilityScore: { type: Number, default: 0 }
+    eligibilityScore: { type: Number, default: 0 },
+    // Interaction features
+    academicStrength: { type: Number, default: 0 },
+    financialNeed: { type: Number, default: 0 },
+    programFit: { type: Number, default: 0 },
+    applicationQuality: { type: Number, default: 0 },
+    overallFit: { type: Number, default: 0 }
   },
   
   // Bias term

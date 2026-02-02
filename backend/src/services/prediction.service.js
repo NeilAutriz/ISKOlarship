@@ -58,10 +58,7 @@ const { normalizeSTBracket, stBracketsMatch } = require('./eligibility/normalize
 // Model Version and State
 // =============================================================================
 
-const MODEL_VERSION = '2.1.0';
-
-// Re-export logistic regression weights for backward compatibility
-const MODEL_WEIGHTS = logisticRegression.DEFAULT_WEIGHTS;
+const MODEL_VERSION = '3.0.0';
 
 // =============================================================================
 // Eligibility Checking (Rule-Based Filtering)
@@ -759,29 +756,35 @@ async function getFeatureImportance() {
 
 /**
  * Train model with historical application data
+ * NOTE: For full training with database persistence, use:
+ *   node scripts/train-all-scholarships.js
  */
 async function trainModel() {
   console.log('Starting model training...');
   
-  // Train the logistic regression model on historical data
-  const result = await logisticRegression.trainModel();
+  // Use the dedicated training service for database-backed training
+  const trainingService = require('./training.service');
+  const result = await trainingService.trainGlobalModel();
+  
+  // Clear prediction cache to use new weights
+  logisticRegression.clearModelWeightsCache();
   
   if (!result.success) {
     return {
       status: 'failed',
       message: result.message,
-      samplesAvailable: result.samplesAvailable
+      samplesAvailable: result.samplesUsed || 0
     };
   }
   
   return {
     status: 'completed',
-    message: 'Model training completed successfully',
-    samplesUsed: result.model.trainingSize,
-    accuracy: result.model.metrics?.accuracy,
-    f1Score: result.model.metrics?.f1Score,
+    message: 'Model training completed and saved to database',
+    samplesUsed: result.samplesUsed,
+    accuracy: result.accuracy,
+    f1Score: result.f1Score,
     modelVersion: MODEL_VERSION,
-    trainingDate: result.model.trainingDate
+    trainingDate: new Date()
   };
 }
 
@@ -796,12 +799,11 @@ module.exports = {
   getModelStats,
   getFeatureImportance,
   trainModel,
-  MODEL_WEIGHTS,
   MODEL_VERSION,
-  // Re-export logistic regression utilities
+  // Re-export logistic regression utilities for backward compatibility
   logisticRegression: {
     getModelState: logisticRegression.getModelState,
     resetModel: logisticRegression.resetModel,
-    predict: logisticRegression.predict
+    clearModelWeightsCache: logisticRegression.clearModelWeightsCache
   }
 };

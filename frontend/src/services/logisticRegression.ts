@@ -43,6 +43,82 @@ const modelWeightsCache: Map<string, ModelWeights> = new Map();
 const cacheExpiry: Map<string, number> = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
 
+// Minimum accuracy threshold to use trained weights (55% - slightly above random)
+const MIN_ACCURACY_THRESHOLD = 0.55;
+
+// Neutral fallback weights (only used when NO trained model exists)
+const NEUTRAL_FALLBACK_WEIGHTS: ModelWeights = {
+  intercept: 0.0,
+  eligibilityScore: 1.0,
+  gwaScore: 1.0,
+  incomeMatch: 1.0,
+  stBracketMatch: 1.0,
+  collegeMatch: 1.0,
+  courseMatch: 1.0,
+  yearLevelMatch: 1.0,
+  citizenshipMatch: 1.0,
+  documentCompleteness: 1.0,
+  applicationTiming: 1.0
+};
+
+// Features that should typically be positive (used for adjustment)
+const EXPECTED_POSITIVE_FEATURES = ['eligibilityScore', 'gwaScore', 'incomeMatch', 'citizenshipMatch'];
+
+/**
+ * Validate trained weights and adjust problematic negative weights
+ * Uses the model's own learned magnitudes for adjustment
+ */
+const validateTrainedWeights = (
+  modelData: any
+): { weights: ModelWeights; isAdjusted: boolean; adjustments: string[] } | null => {
+  const adjustments: string[] = [];
+  
+  // Check model accuracy
+  const accuracy = modelData.metrics?.accuracy || modelData.accuracy || 0;
+  if (accuracy < MIN_ACCURACY_THRESHOLD) {
+    console.warn(`Model accuracy (${(accuracy * 100).toFixed(1)}%) below threshold (${MIN_ACCURACY_THRESHOLD * 100}%)`);
+    return null; // Use neutral fallback
+  }
+  
+  // Extract raw weights
+  const rawWeights = modelData.weights || {};
+  
+  // Build adjusted weights
+  const adjustedWeights: ModelWeights = {
+    intercept: rawWeights.intercept ?? modelData.bias ?? 0.0,
+    eligibilityScore: rawWeights.eligibilityScore ?? 1.0,
+    gwaScore: rawWeights.gwaScore ?? 1.0,
+    incomeMatch: rawWeights.incomeMatch ?? 1.0,
+    stBracketMatch: rawWeights.stBracketMatch ?? 1.0,
+    collegeMatch: rawWeights.collegeMatch ?? 1.0,
+    courseMatch: rawWeights.courseMatch ?? 1.0,
+    yearLevelMatch: rawWeights.yearLevelMatch ?? 1.0,
+    citizenshipMatch: rawWeights.citizenshipMatch ?? 1.0,
+    documentCompleteness: rawWeights.documentCompleteness ?? 1.0,
+    applicationTiming: rawWeights.applicationTiming ?? 1.0
+  };
+  
+  // Adjust problematic negative weights using absolute values
+  for (const key of EXPECTED_POSITIVE_FEATURES) {
+    const value = adjustedWeights[key as keyof ModelWeights];
+    if (typeof value === 'number' && value < 0) {
+      const absValue = Math.abs(value);
+      adjustedWeights[key as keyof ModelWeights] = absValue;
+      adjustments.push(`${key}: ${value.toFixed(2)} → ${absValue.toFixed(2)}`);
+    }
+  }
+  
+  if (adjustments.length > 0) {
+    console.log('⚡ Adjusted negative weights:', adjustments);
+  }
+  
+  return {
+    weights: adjustedWeights,
+    isAdjusted: adjustments.length > 0,
+    adjustments
+  };
+};
+
 /**
  * Fetch model weights from the training API
  * Uses per-scholarship models when available, falls back to global model
@@ -73,26 +149,25 @@ export const fetchModelWeights = async (scholarshipId?: string): Promise<ModelWe
     
     if (response.success && response.data) {
       const modelData = response.data as any;
-      const weights: ModelWeights = {
-        intercept: modelData.weights?.intercept ?? -0.5,
-        gwaScore: modelData.weights?.gwaScore ?? 2.5,
-        yearLevelMatch: modelData.weights?.yearLevelMatch ?? 0.8,
-        incomeMatch: modelData.weights?.incomeMatch ?? 2.0,
-        stBracketMatch: modelData.weights?.stBracketMatch ?? 1.5,
-        collegeMatch: modelData.weights?.collegeMatch ?? 1.5,
-        courseMatch: modelData.weights?.courseMatch ?? 1.8,
-        citizenshipMatch: modelData.weights?.citizenshipMatch ?? 0.5,
-        documentCompleteness: modelData.weights?.documentCompleteness ?? 1.0,
-        applicationTiming: modelData.weights?.applicationTiming ?? 0.3,
-        eligibilityScore: modelData.weights?.eligibilityScore ?? 2.0
-      };
       
-      // Cache the weights
-      modelWeightsCache.set(cacheKey, weights);
-      cacheExpiry.set(cacheKey, Date.now() + CACHE_TTL);
+      // Validate and adjust weights
+      const validationResult = validateTrainedWeights(modelData);
       
-      console.log(`Loaded ${scholarshipId ? 'scholarship-specific' : 'global'} model weights:`, weights);
-      return weights;
+      if (validationResult) {
+        const { weights, isAdjusted } = validationResult;
+        
+        console.log(`✅ Loaded ${isAdjusted ? 'adjusted' : 'trained'} ${scholarshipId ? 'scholarship-specific' : 'global'} model weights`);
+        
+        // Cache the validated weights
+        modelWeightsCache.set(cacheKey, weights);
+        cacheExpiry.set(cacheKey, Date.now() + CACHE_TTL);
+        
+        return weights;
+      } else {
+        // Model failed validation
+        console.log('⚠️ Model failed validation, using neutral fallback');
+        return null;
+      }
     }
     
     return null;
@@ -256,35 +331,34 @@ const extractFeatures = (
 // Uses dynamic weights from trained models when available
 // ============================================================================
 
-// Default weights (fallback when no trained model is available)
-// These weights are derived from the patterns in UPLB scholarship approvals
-const DEFAULT_MODEL_WEIGHTS = {
-  intercept: -0.5,
-  gwaScore: 2.5,              // Strong positive effect for better GWA
-  yearLevelMatch: 0.3,        // Slight preference for higher year levels
-  incomeMatch: 2.0,           // Lower income increases approval probability
-  stBracketMatch: 1.5,        // Higher discount brackets preferred
-  collegeMatch: 1.5,          // Strong positive for matching college
-  courseMatch: 1.8,           // Very strong for matching course
-  citizenshipMatch: 0.5,      // Small bonus for citizenship match
-  documentCompleteness: 1.0,  // Complete documents help
-  applicationTiming: 0.3,     // Early applications slightly preferred
-  eligibilityScore: 2.0       // Critical: must meet eligibility requirements
-};
+// ==========================================================================
+// FULLY DYNAMIC WEIGHTS FROM DATABASE
+// ==========================================================================
+// Weights are ALWAYS loaded from the TrainedModel database via the API.
+// The model is trained on actual UPLB scholarship application data.
+//
+// To train/update the model:
+//   node scripts/train-all-scholarships.js (in backend)
+//
+// Neutral fallback is only used when NO trained model exists in the database.
+// ==========================================================================
+
+// Alias for backward compatibility - uses neutral fallback
+const DEFAULT_MODEL_WEIGHTS = NEUTRAL_FALLBACK_WEIGHTS;
 
 // Legacy weights mapping for backward compatibility
 const MODEL_WEIGHTS = {
-  intercept: -0.5,
-  gwa: 2.5,              // Strong positive effect for better GWA
-  yearLevelNumeric: 0.3, // Slight preference for higher year levels
-  incomeNormalized: -1.8, // Lower income increases approval probability
-  stBracketNumeric: 1.2,  // Higher discount brackets preferred
-  collegeMatch: 1.5,      // Strong positive for matching college
-  courseMatch: 1.8,       // Very strong for matching course
-  majorMatch: 1.2,        // Positive for matching major
-  meetsIncomeReq: 2.0,    // Critical: must meet income requirement
-  meetsGWAReq: 2.2,       // Critical: must meet GWA requirement
-  profileCompleteness: 0.5 // Bonus for complete profiles
+  intercept: 0.0,
+  gwa: 1.0,
+  yearLevelNumeric: 1.0,
+  incomeNormalized: -1.0,
+  stBracketNumeric: 1.0,
+  collegeMatch: 1.0,
+  courseMatch: 1.0,
+  majorMatch: 1.0,
+  meetsIncomeReq: 1.0,
+  meetsGWAReq: 1.0,
+  profileCompleteness: 1.0
 };
 
 // Sigmoid function for probability calculation
@@ -684,6 +758,7 @@ export const predictScholarshipSuccessAsync = async (
 
 /**
  * Predict using dynamic weights from trained model
+ * Feature scoring matches training.service.js for consistency
  */
 const predictWithDynamicWeights = (
   student: StudentProfile,
@@ -705,55 +780,135 @@ const predictWithDynamicWeights = (
   // Ensure eligibilityCriteria exists
   const criteria = scholarship.eligibilityCriteria || {} as any;
   
-  // Extract features aligned with trained model format
+  // Extract features - MUST match training.service.js scoring exactly
   const studentGwa = student.gwa ?? 2.5;
   const gwaNormalized = (5 - studentGwa) / 4; // 0-1, higher is better GWA
   
-  // Year level match - check both possible field names
+  // Year level match - give partial score when not matching
   const yearLevels = criteria.requiredYearLevels || criteria.eligibleClassifications || [];
   const yearLevelMatch = yearLevels.length > 0
-    ? (student.yearLevel && yearLevels.includes(student.yearLevel) ? 1 : 0)
-    : 1;
+    ? (student.yearLevel && yearLevels.includes(student.yearLevel) ? 1.0 : 0.4)
+    : 1.0; // No requirement - full score
     
-  const incomeMatch = criteria.maxAnnualFamilyIncome
-    ? ((student.annualFamilyIncome ?? 0) <= criteria.maxAnnualFamilyIncome ? 1 : 0)
-    : 1;
+  // Income match - give partial score even when exceeding limit
+  let incomeMatch: number;
+  if (criteria.maxAnnualFamilyIncome) {
+    const income = student.annualFamilyIncome ?? 0;
+    if (income === 0) {
+      incomeMatch = 0.6; // Unknown income - slightly positive
+    } else if (income <= criteria.maxAnnualFamilyIncome) {
+      // Meets requirement - lower income = higher score
+      incomeMatch = 0.7 + (1 - (income / criteria.maxAnnualFamilyIncome)) * 0.3;
+    } else {
+      incomeMatch = 0.3; // Exceeds limit - partial score
+    }
+  } else {
+    incomeMatch = 0.85; // No requirement - good baseline
+  }
   
-  // ST bracket match - check both possible field names
+  // ST bracket match - give partial score when not matching
   const stBrackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
-  const stBracketMatch = stBrackets.length > 0
-    ? (student.stBracket && stBrackets.includes(student.stBracket) ? 1 : 0)
-    : 1;
+  let stBracketMatch: number;
+  if (stBrackets.length > 0) {
+    const normalizedBracket = (student.stBracket || '').toLowerCase().replace(/\s+/g, '');
+    const isMatch = stBrackets.some((b: string) => {
+      const nb = b.toLowerCase().replace(/\s+/g, '');
+      return normalizedBracket === nb || normalizedBracket.includes(nb);
+    });
+    if (isMatch) {
+      // Use bracket importance scoring
+      const bracketScores: Record<string, number> = {
+        'fulldiscountwithstipend': 1.0, 'full discount with stipend': 1.0,
+        'fulldiscount': 0.9, 'full discount': 0.9,
+        'pd80': 0.7, '80% partial discount': 0.7,
+        'pd60': 0.5, '60% partial discount': 0.5,
+        'pd40': 0.3, '40% partial discount': 0.3,
+        'pd20': 0.2, '20% partial discount': 0.2,
+        'nodiscount': 0.1, 'no discount': 0.1
+      };
+      stBracketMatch = bracketScores[normalizedBracket] || 0.85;
+    } else {
+      stBracketMatch = 0.4; // Partial score for non-match
+    }
+  } else {
+    stBracketMatch = 0.85; // No requirement - good baseline
+  }
     
-  const collegeMatch = criteria.eligibleColleges && criteria.eligibleColleges.length > 0
-    ? (student.college && criteria.eligibleColleges.includes(student.college) ? 1 : 0)
-    : 1;
+  // College match - give partial score when not matching
+  let collegeMatch: number;
+  if (criteria.eligibleColleges && criteria.eligibleColleges.length > 0) {
+    const normalizedCollege = (student.college || '').toLowerCase();
+    const isMatch = criteria.eligibleColleges.some((c: string) => {
+      const nc = c.toLowerCase();
+      return normalizedCollege.includes(nc) || nc.includes(normalizedCollege);
+    });
+    collegeMatch = isMatch ? 1.0 : 0.35; // Partial score for non-match
+  } else {
+    collegeMatch = 1.0; // No requirement - full score
+  }
     
-  const courseMatch = criteria.eligibleCourses && criteria.eligibleCourses.length > 0
-    ? (student.course && criteria.eligibleCourses.some((c: string) => 
-        c && student.course && student.course.toLowerCase().includes(c.toLowerCase())
-      ) ? 1 : 0)
-    : 1;
+  // Course match - give partial score when not matching
+  let courseMatch: number;
+  if (criteria.eligibleCourses && criteria.eligibleCourses.length > 0) {
+    const normalizedCourse = (student.course || '').toLowerCase();
+    const isMatch = criteria.eligibleCourses.some((c: string) => {
+      const nc = c.toLowerCase();
+      return normalizedCourse.includes(nc) || nc.includes(normalizedCourse);
+    });
+    courseMatch = isMatch ? 1.0 : 0.35; // Partial score for non-match
+  } else {
+    courseMatch = 1.0; // No requirement - full score
+  }
   
-  // Citizenship match - check filipinoOnly flag
-  const citizenshipMatch = (criteria.isFilipinoOnly || criteria.filipinoOnly)
-    ? (student.citizenship === 'Filipino' ? 1 : 0)
-    : 1;
+  // Citizenship match - give partial score when not matching
+  let citizenshipMatch: number;
+  if (criteria.eligibleCitizenship && criteria.eligibleCitizenship.length > 0) {
+    const normalizedCitizenship = (student.citizenship || '').toLowerCase();
+    const isMatch = criteria.eligibleCitizenship.some((c: string) => 
+      normalizedCitizenship === c.toLowerCase()
+    );
+    citizenshipMatch = isMatch ? 1.0 : 0.4;
+  } else if (criteria.isFilipinoOnly || criteria.filipinoOnly) {
+    citizenshipMatch = student.citizenship === 'Filipino' ? 1.0 : 0.4;
+  } else {
+    // No requirement - Filipino gets full, others get high score
+    citizenshipMatch = student.citizenship === 'Filipino' ? 1.0 : 0.85;
+  }
     
-  const documentCompleteness = student.profileCompleted ? 1 : 0.7;
+  // Document completeness - matching training defaults (0.8 for predictions)
+  const documentCompleteness = student.profileCompleted ? 1.0 : 0.8;
   
-  // Calculate eligibility score (based on how many criteria are met)
-  const eligibilityScore = (
-    (criteria.maxGWA ? (studentGwa <= criteria.maxGWA ? 1 : 0) : 1) +
-    yearLevelMatch +
-    incomeMatch +
-    stBracketMatch +
-    collegeMatch +
-    courseMatch +
-    citizenshipMatch
-  ) / 7;
+  // Application timing - matching training default for predictions
+  const applicationTiming = 0.7;
   
-  // Calculate z using dynamic weights
+  // Calculate eligibility score (percentage of explicit criteria met)
+  let matchedCriteria = 0;
+  let totalCriteria = 0;
+  
+  if (criteria.maxGWA) {
+    totalCriteria++;
+    if (studentGwa <= criteria.maxGWA) matchedCriteria++;
+  }
+  if (criteria.maxAnnualFamilyIncome) {
+    totalCriteria++;
+    if ((student.annualFamilyIncome ?? 0) <= criteria.maxAnnualFamilyIncome) matchedCriteria++;
+  }
+  if (yearLevels.length > 0) {
+    totalCriteria++;
+    if (yearLevelMatch === 1.0) matchedCriteria++;
+  }
+  if (criteria.eligibleColleges?.length > 0) {
+    totalCriteria++;
+    if (collegeMatch === 1.0) matchedCriteria++;
+  }
+  if (criteria.eligibleCourses?.length > 0) {
+    totalCriteria++;
+    if (courseMatch === 1.0) matchedCriteria++;
+  }
+  
+  const eligibilityScore = totalCriteria > 0 ? matchedCriteria / totalCriteria : 0.7;
+  
+  // Calculate z using base feature weights only (no interaction features needed)
   const z = weights.intercept +
     weights.gwaScore * gwaNormalized +
     weights.yearLevelMatch * yearLevelMatch +

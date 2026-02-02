@@ -19,8 +19,8 @@ const { seedScholarships } = require('./scholarships.seed');
 const { seedApplications, generateTrainingData } = require('./applications.seed');
 const { seedComprehensiveApplications, generateTrainingData: generateComprehensiveTrainingData } = require('./applications-comprehensive.seed');
 
-// Import Logistic Regression Service for training
-const logisticRegression = require('../services/logisticRegression.service');
+// Import Training Service for model training
+const trainingService = require('../services/training.service');
 
 // =============================================================================
 // Main Seed Function
@@ -133,18 +133,18 @@ const runAllSeeds = async () => {
     console.log('Step 6: Training Logistic Regression Model');
     console.log('════════════════════════════════════════════════════════════════');
     
-    const trainingResult = await logisticRegression.trainModel();
+    const trainingResult = await trainingService.trainGlobalModel();
     
     if (trainingResult.success) {
       console.log(`   ✅ Model trained successfully!`);
-      console.log(`   📊 Training samples: ${trainingResult.model.trainingSize}`);
-      console.log(`   🎯 Accuracy: ${(trainingResult.model.metrics.accuracy * 100).toFixed(2)}%`);
-      console.log(`   📈 Precision: ${(trainingResult.model.metrics.precision * 100).toFixed(2)}%`);
-      console.log(`   📉 Recall: ${(trainingResult.model.metrics.recall * 100).toFixed(2)}%`);
-      console.log(`   ⚖️  F1 Score: ${trainingResult.model.metrics.f1Score.toFixed(4)}`);
+      console.log(`   📊 Training samples: ${trainingResult.samplesUsed}`);
+      console.log(`   🎯 Accuracy: ${(trainingResult.accuracy * 100).toFixed(2)}%`);
+      console.log(`   📈 Precision: ${(trainingResult.precision * 100).toFixed(2)}%`);
+      console.log(`   📉 Recall: ${(trainingResult.recall * 100).toFixed(2)}%`);
+      console.log(`   ⚖️  F1 Score: ${trainingResult.f1Score.toFixed(4)}`);
     } else {
       console.log(`   ⚠️  Model training skipped: ${trainingResult.message}`);
-      console.log(`   📋 Using default weights based on domain knowledge`);
+      console.log(`   📋 Run 'node scripts/train-all-scholarships.js' to train manually`);
     }
     console.log('');
 

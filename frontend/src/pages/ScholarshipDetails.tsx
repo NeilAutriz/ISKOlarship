@@ -615,165 +615,105 @@ const ScholarshipDetails: React.FC = () => {
 
             {/* Prediction Factors (if eligible and logged in) */}
             {prediction && (
-              <div className="card p-6">
+              <div className="card p-5">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                      <BarChart2 className="w-5 h-5 text-primary-600" />
+                    <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                      <BarChart2 className="w-4 h-4 text-primary-600" />
                       Success Prediction
                     </h2>
-                    <p className="text-sm text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       AI-powered analysis based on your profile
                     </p>
                   </div>
                   {prediction.trainedModel && (
-                    <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                      </svg>
+                    <span className="text-[10px] px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full font-semibold flex items-center gap-1 border border-primary-100">
+                      <Sparkles className="w-2.5 h-2.5" />
                       ML
                     </span>
                   )}
                 </div>
 
-                {/* Main Probability Display - Enhanced Design */}
-                <div className={`mb-6 p-6 rounded-2xl border-2 ${
-                  prediction.probability >= 0.7 ? 'bg-green-50 border-green-300' :
-                  prediction.probability >= 0.4 ? 'bg-amber-50 border-amber-300' : 'bg-red-50 border-red-300'
+                {/* Main Probability Display */}
+                <div className={`p-4 rounded-xl border ${
+                  prediction.probability >= 0.7 ? 'bg-gradient-to-br from-green-50 to-emerald-50/50 border-green-200' :
+                  prediction.probability >= 0.4 ? 'bg-gradient-to-br from-amber-50 to-yellow-50/50 border-amber-200' : 'bg-gradient-to-br from-red-50 to-rose-50/50 border-red-200'
                 }`}>
-                  <div className="flex items-center gap-5">
-                    {/* Circular Progress Indicator */}
-                    <div className="relative flex-shrink-0">
-                      <svg className="w-28 h-28 transform -rotate-90">
-                        {/* Background circle */}
-                        <circle
-                          cx="56"
-                          cy="56"
-                          r="48"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          className="text-white/60"
-                        />
-                        {/* Progress circle */}
-                        <circle
-                          cx="56"
-                          cy="56"
-                          r="48"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          strokeLinecap="round"
-                          strokeDasharray={`${prediction.probability * 301.59} 301.59`}
-                          className={`transition-all duration-1000 ${
-                            prediction.probability >= 0.7 ? 'text-green-500' :
-                            prediction.probability >= 0.4 ? 'text-amber-500' : 'text-red-500'
-                          }`}
-                        />
-                      </svg>
-                      {/* Percentage in center */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className={`text-2xl font-bold ${getProbabilityColor(prediction.probability)}`}>
-                          {prediction.probabilityPercentage || Math.round(prediction.probability * 100)}%
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Text content */}
-                    <div className="flex-1">
-                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Success Probability</div>
-                      <div className={`text-xl font-bold mb-2 ${
-                        prediction.probability >= 0.7 ? 'text-green-700' :
-                        prediction.probability >= 0.4 ? 'text-amber-700' : 'text-red-700'
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                        prediction.probability >= 0.7 ? 'bg-green-100' :
+                        prediction.probability >= 0.4 ? 'bg-amber-100' : 'bg-red-100'
                       }`}>
-                        {prediction.probability >= 0.7 ? 'High Chance' :
-                         prediction.probability >= 0.4 ? 'Moderate Chance' : 'Low Chance'}
+                        <Sparkles className={`w-3.5 h-3.5 ${
+                          prediction.probability >= 0.7 ? 'text-green-600' :
+                          prediction.probability >= 0.4 ? 'text-amber-600' : 'text-red-600'
+                        }`} />
                       </div>
-                      <p className="text-sm text-slate-600 leading-relaxed">
-                        {prediction.probability >= 0.7 
-                          ? 'Your profile strongly matches this scholarship criteria.'
-                          : prediction.probability >= 0.4 
-                          ? 'You have a reasonable chance with some areas to improve.'
-                          : 'Consider strengthening your profile for better chances.'}
-                      </p>
+                      <span className="text-sm font-medium text-slate-700">Success Probability</span>
                     </div>
+                    <span className={`text-xl font-bold ${
+                      prediction.probability >= 0.7 ? 'text-green-600' :
+                      prediction.probability >= 0.4 ? 'text-amber-600' : 'text-red-600'
+                    }`}>
+                      {prediction.probabilityPercentage || Math.round(prediction.probability * 100)}%
+                    </span>
                   </div>
-                </div>
-
-                {/* Top Contributing Factors - Names only */}
-                <div className="mb-5">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-slate-600" />
-                    Top Contributing Factors
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {prediction.factors && prediction.factors
-                      .filter(f => f && (f.rawContribution || 0) > 0)
-                      .slice(0, 4)
-                      .map((factor, index) => {
-                        if (!factor || typeof factor !== 'object') return null;
-                        const factorName = String(factor.factor || 'Unknown Factor');
-                        
-                        return (
-                          <span 
-                            key={index} 
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full text-sm text-green-700"
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                            {factorName}
-                          </span>
-                        );
-                      })}
+                  
+                  {/* Progress Bar */}
+                  <div className="h-2 bg-white/80 rounded-full overflow-hidden shadow-inner mb-2.5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        prediction.probability >= 0.7 ? 'bg-gradient-to-r from-green-400 to-green-500' :
+                        prediction.probability >= 0.4 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-red-400 to-red-500'
+                      }`}
+                      style={{ width: `${(prediction.probabilityPercentage || prediction.probability * 100)}%` }}
+                    />
                   </div>
-                </div>
-
-                {/* Calculation Breakdown */}
-                <div className="mb-5 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    Score Calculation
-                  </h3>
-                  <div className="space-y-2">
-                    {/* Intercept */}
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Model Intercept (baseline)</span>
-                      <span className="font-mono font-medium text-slate-700">
-                        {prediction.intercept !== undefined 
-                          ? (prediction.intercept >= 0 ? '+' : '') + prediction.intercept.toFixed(3)
-                          : '-2.500'}
-                      </span>
-                    </div>
-                    {/* Sum of Contributions */}
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">+ Sum of Contributions</span>
-                      <span className="font-mono font-medium text-green-600">
-                        {(() => {
-                          const sum = prediction.factors?.reduce((acc, f) => acc + (f.rawContribution || 0), 0) || 0;
-                          return (sum >= 0 ? '+' : '') + sum.toFixed(3);
-                        })()}
-                      </span>
-                    </div>
-                    {/* Divider */}
-                    <div className="border-t border-slate-300 my-2"></div>
-                    {/* Z-Score Result */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-800">= Combined Score (z)</span>
-                      <span className="font-mono font-bold text-lg text-slate-900">
-                        {prediction.zScore !== undefined 
-                          ? prediction.zScore.toFixed(3)
-                          : ((prediction.intercept || -2.5) + (prediction.factors?.reduce((acc, f) => acc + (f.rawContribution || 0), 0) || 0)).toFixed(3)}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-3">
-                    z-score is converted to probability using sigmoid: P = 1/(1+e<sup>-z</sup>)
+                  
+                  <p className={`text-xs leading-relaxed ${
+                    prediction.probability >= 0.7 ? 'text-green-700' :
+                    prediction.probability >= 0.4 ? 'text-amber-700' : 'text-red-700'
+                  }`}>
+                    {prediction.probability >= 0.7 
+                      ? 'Strong match with scholarship criteria'
+                      : prediction.probability >= 0.4 
+                      ? 'Moderate match - some areas to improve'
+                      : 'Consider strengthening your profile'}
                   </p>
                 </div>
 
-                {/* Learn More Button - Navigate to full page */}
+                {/* Top Contributing Factors */}
+                {prediction.factors && prediction.factors.filter(f => f && (f.rawContribution || 0) > 0).length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-slate-500" />
+                      Top Contributing Factors
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {prediction.factors
+                        .filter(f => f && (f.rawContribution || 0) > 0)
+                        .slice(0, 4)
+                        .map((factor, index) => {
+                          if (!factor || typeof factor !== 'object') return null;
+                          const factorName = String(factor.factor || 'Unknown Factor');
+                          
+                          return (
+                            <span 
+                              key={index} 
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded-md text-xs text-green-700 font-medium"
+                            >
+                              <div className="w-1 h-1 rounded-full bg-green-500" />
+                              {factorName}
+                            </span>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* View Details Button */}
                 <button
                   onClick={() => navigate(`/scholarships/${id}/prediction`, {
                     state: {
@@ -782,36 +722,31 @@ const ScholarshipDetails: React.FC = () => {
                       scholarshipId: id
                     }
                   })}
-                  className="w-full py-3 px-4 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg text-primary-700 font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+                  className="w-full mt-4 py-2 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-medium text-xs flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <Info className="w-4 h-4" />
-                  View Detailed Calculation Breakdown
+                  <Info className="w-3.5 h-3.5" />
+                  View Detailed Calculation
                 </button>
 
                 {/* Recommendation */}
                 {prediction.recommendation && typeof prediction.recommendation === 'string' && (
-                  <div className="mt-5 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <Lightbulb className="w-4 h-4 text-blue-600" />
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Lightbulb className="w-3.5 h-3.5 text-blue-600" />
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-sm font-semibold text-blue-900 mb-1">Recommendation</h4>
-                        <p className="text-sm text-blue-700 leading-relaxed">{prediction.recommendation}</p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-semibold text-blue-900 mb-0.5">Recommendation</h4>
+                        <p className="text-xs text-blue-700 leading-relaxed">{prediction.recommendation}</p>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Disclaimer */}
-                <div className="mt-5 pt-4 border-t border-slate-200">
-                  <p className="text-xs text-slate-500 flex items-start gap-2">
-                    <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                    <span className="leading-relaxed">
-                      This prediction is based on historical patterns. Actual results may vary.
-                    </span>
-                  </p>
-                </div>
+                <p className="mt-3 text-[10px] text-slate-400 text-center">
+                  Based on historical patterns. Results may vary.
+                </p>
               </div>
             )}
           </div>

@@ -1038,9 +1038,16 @@ export const trainingApi = {
   trainGlobalModel: async () => {
     const response = await api.post<ApiResponse<{
       modelId: string;
+      weights: Record<string, number>;
+      bias: number;
       metrics: any;
       featureImportance: Record<string, number>;
     }>>('/training/train');
+    // Clear local cache so predictions use the new model
+    if (response.data.success) {
+      const { clearModelWeightsCache } = await import('./logisticRegression');
+      clearModelWeightsCache();
+    }
     return response.data;
   },
 
@@ -1052,6 +1059,11 @@ export const trainingApi = {
       metrics: any;
       featureImportance: Record<string, number>;
     }>>(`/training/train/${scholarshipId}`);
+    // Clear local cache so predictions use the new model
+    if (response.data.success) {
+      const { clearModelWeightsCache } = await import('./logisticRegression');
+      clearModelWeightsCache();
+    }
     return response.data;
   },
 
@@ -1071,6 +1083,11 @@ export const trainingApi = {
         total: number;
       };
     }>>('/training/train-all');
+    // Clear local cache so predictions use the new model
+    if (response.data.success) {
+      const { clearModelWeightsCache } = await import('./logisticRegression');
+      clearModelWeightsCache();
+    }
     return response.data;
   },
 
@@ -1081,6 +1098,11 @@ export const trainingApi = {
       name: string;
       isActive: boolean;
     }>>(`/training/models/${modelId}/activate`);
+    // Clear local cache so predictions use the newly activated model
+    if (response.data.success) {
+      const { clearModelWeightsCache } = await import('./logisticRegression');
+      clearModelWeightsCache();
+    }
     return response.data;
   },
 

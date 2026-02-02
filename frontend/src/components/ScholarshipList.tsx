@@ -19,7 +19,7 @@ import {
   Loader2
 } from 'lucide-react';
 import ScholarshipCard from './ScholarshipCard';
-import { Scholarship, MatchResult, ScholarshipType, StudentProfile } from '../types';
+import { Scholarship, MatchResult, ScholarshipType, StudentProfile, EligibilityCheckResult } from '../types';
 import { matchStudentToScholarships, sortScholarships } from '../services/filterEngine';
 import { predictionApi } from '../services/apiClient';
 
@@ -62,7 +62,11 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   // State for API predictions
-  const [apiPredictions, setApiPredictions] = useState<Map<string, { probability: number; eligible: boolean }>>(new Map());
+  const [apiPredictions, setApiPredictions] = useState<Map<string, { 
+    probability: number; 
+    eligible: boolean;
+    eligibilityDetails?: EligibilityCheckResult[];
+  }>>(new Map());
   const [predictionsLoading, setPredictionsLoading] = useState(false);
 
   // All scholarship types using enum values
@@ -82,10 +86,34 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
       const id = r.scholarship.id || (r.scholarship as any)._id;
       // Merge with API predictions if available
       const apiPred = apiPredictions.get(id);
+      
+      // Get API failed checks
+      const apiFailedChecks = apiPred?.eligibilityDetails?.filter(d => !d.passed) || [];
+      
+      // Only use API eligibility if:
+      // 1. API says eligible (trust positive results), OR
+      // 2. API says not eligible AND has actual failed checks to explain why
+      // Otherwise, fall back to local matching which has the correct logic
+      let finalEligible = r.isEligible;
+      let finalEligibilityDetails = r.eligibilityDetails;
+      
+      if (apiPred !== undefined) {
+        if (apiPred.eligible) {
+          // API says eligible - trust it
+          finalEligible = true;
+        } else if (apiFailedChecks.length > 0) {
+          // API says not eligible with valid reasons - trust it
+          finalEligible = false;
+          finalEligibilityDetails = apiPred.eligibilityDetails!;
+        }
+        // If API says not eligible but no failed checks, keep local result
+      }
+      
       return [id, {
         ...r,
         predictionScore: apiPred?.probability ?? r.compatibilityScore,
-        isEligible: apiPred?.eligible ?? r.isEligible
+        isEligible: finalEligible,
+        eligibilityDetails: finalEligibilityDetails
       }];
     }));
   }, [studentProfile, scholarships, apiPredictions]);
@@ -102,12 +130,26 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
         
         const response = await predictionApi.getBatchPredictions(scholarshipIds);
         if (response.success && response.data) {
-          const predictionsMap = new Map<string, { probability: number; eligible: boolean }>();
+          const predictionsMap = new Map<string, { 
+            probability: number; 
+            eligible: boolean;
+            eligibilityDetails?: EligibilityCheckResult[];
+          }>();
           response.data.forEach((pred: any) => {
             if (pred.scholarshipId) {
+              // Transform API eligibility checks to match frontend EligibilityCheckResult format
+              const eligibilityDetails: EligibilityCheckResult[] = pred.eligibility?.checks?.map((check: any) => ({
+                criterion: check.criterion || check.notes || 'Requirement',
+                passed: check.passed,
+                studentValue: check.applicantValue || check.studentValue || 'N/A',
+                requiredValue: check.requiredValue || 'Required',
+                importance: 'required' as const
+              })) || [];
+              
               predictionsMap.set(pred.scholarshipId, {
-                probability: pred.probability?.probability ?? 0,
-                eligible: pred.eligibility?.passed ?? false
+                probability: pred.probability?.probability ?? pred.probability?.probabilityPercentage ?? 0,
+                eligible: pred.eligibility?.passed ?? false,
+                eligibilityDetails
               });
             }
           });

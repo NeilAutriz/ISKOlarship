@@ -447,105 +447,65 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
           )}
         </div>
 
-        {/* Prediction Score - Enhanced Prominent Display */}
+        {/* Success Prediction - ML Analysis */}
         {showPrediction && matchResult?.predictionScore !== undefined && (
-          <div className={`rounded-xl p-4 mb-4 border-2 ${
+          <div className={`rounded-xl p-3.5 mb-4 border ${
             matchResult.predictionScore >= 0.7 
-              ? 'bg-green-50 border-green-200' 
+              ? 'bg-gradient-to-br from-green-50 to-emerald-50/50 border-green-200' 
               : matchResult.predictionScore >= 0.4
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-red-50 border-red-200'
+              ? 'bg-gradient-to-br from-amber-50 to-yellow-50/50 border-amber-200'
+              : 'bg-gradient-to-br from-red-50 to-rose-50/50 border-red-200'
           }`}>
-            <div className="flex items-center justify-between">
-              {/* Left: Circular Progress + Label */}
-              <div className="flex items-center gap-3">
-                {/* Circular Progress */}
-                <div className="relative flex-shrink-0">
-                  <svg className="w-14 h-14 transform -rotate-90">
-                    <circle
-                      cx="28"
-                      cy="28"
-                      r="22"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="5"
-                      className="text-white/60"
-                    />
-                    <circle
-                      cx="28"
-                      cy="28"
-                      r="22"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeDasharray={`${matchResult.predictionScore * 138.23} 138.23`}
-                      className={`transition-all duration-700 ${
-                        matchResult.predictionScore >= 0.7 ? 'text-green-500' :
-                        matchResult.predictionScore >= 0.4 ? 'text-amber-500' : 'text-red-500'
-                      }`}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Sparkles className={`w-5 h-5 ${
-                      matchResult.predictionScore >= 0.7 ? 'text-green-500' :
-                      matchResult.predictionScore >= 0.4 ? 'text-amber-500' : 'text-red-500'
-                    }`} />
-                  </div>
-                </div>
-                
-                {/* Label */}
-                <div>
-                  <div className="text-sm font-semibold text-slate-700">Success Probability</div>
-                  {!matchResult.isEligible && (
-                    <p className="text-xs text-slate-500 italic">
-                      * May not meet all criteria
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              {/* Right: Percentage + Level */}
-              <div className="text-right">
-                <div className={`text-xs font-medium px-2.5 py-1 rounded-full inline-block mb-1 ${
-                  matchResult.predictionScore >= 0.7 ? 'bg-green-100 text-green-700' :
-                  matchResult.predictionScore >= 0.4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+            {/* Header */}
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-1.5">
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center ${
+                  matchResult.predictionScore >= 0.7 ? 'bg-green-100' :
+                  matchResult.predictionScore >= 0.4 ? 'bg-amber-100' : 'bg-red-100'
                 }`}>
-                  {getProbabilityLevel(matchResult.predictionScore).text}
+                  <Sparkles className={`w-3 h-3 ${
+                    matchResult.predictionScore >= 0.7 ? 'text-green-600' :
+                    matchResult.predictionScore >= 0.4 ? 'text-amber-600' : 'text-red-600'
+                  }`} />
                 </div>
-                <div className={`text-3xl font-bold ${
-                  matchResult.predictionScore >= 0.7 ? 'text-green-600' :
-                  matchResult.predictionScore >= 0.4 ? 'text-amber-600' : 'text-red-600'
-                }`}>
-                  {(matchResult.predictionScore * 100).toFixed(0)}%
-                </div>
+                <span className="text-xs font-semibold text-slate-600">ML Prediction</span>
               </div>
+              <span className={`text-base font-bold ${
+                matchResult.predictionScore >= 0.7 ? 'text-green-600' :
+                matchResult.predictionScore >= 0.4 ? 'text-amber-600' : 'text-red-600'
+              }`}>
+                {Math.round(matchResult.predictionScore * 100)}%
+              </span>
             </div>
             
             {/* Progress Bar */}
-            <div className="mt-3 h-2 bg-white/80 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-white/80 rounded-full overflow-hidden shadow-inner">
               <div
-                className={`h-full rounded-full transition-all duration-700 ${getProbabilityLevel(matchResult.predictionScore).bg}`}
+                className={`h-full rounded-full transition-all duration-500 ${
+                  matchResult.predictionScore >= 0.7 ? 'bg-gradient-to-r from-green-400 to-green-500' :
+                  matchResult.predictionScore >= 0.4 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-red-400 to-red-500'
+                }`}
                 style={{ width: `${matchResult.predictionScore * 100}%` }}
               />
             </div>
             
-            {/* Contextual Message */}
-            <p className={`mt-3 text-sm ${
+            {/* Brief Message */}
+            <p className={`mt-2 text-[11px] leading-relaxed ${
               matchResult.predictionScore >= 0.7 ? 'text-green-700' :
               matchResult.predictionScore >= 0.4 ? 'text-amber-700' : 'text-red-700'
             }`}>
               {matchResult.predictionScore >= 0.7 
-                ? 'Your profile strongly matches this scholarship criteria.'
+                ? 'Strong match with scholarship criteria'
                 : matchResult.predictionScore >= 0.4 
-                ? 'You have a reasonable chance. Consider strengthening weak areas.'
-                : 'Review the requirements to improve your chances.'}
+                ? 'Moderate match - some areas to improve'
+                : 'Consider strengthening your profile'}
             </p>
           </div>
         )}
 
         {/* Failed Criteria */}
-        {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && (
+        {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && 
+         matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 0 && (
           <div className="bg-red-50 rounded-xl p-4 mb-4 border border-red-100">
             <div className="flex items-center gap-2 text-red-700 mb-2">
               <AlertCircle className="w-4 h-4" />

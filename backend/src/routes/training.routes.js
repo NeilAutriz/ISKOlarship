@@ -44,6 +44,8 @@ router.post('/train', authMiddleware, async (req, res) => {
       message: 'Global model trained successfully',
       data: {
         modelId: result.model._id,
+        weights: result.model.weights,
+        bias: result.model.bias,
         metrics: result.metrics,
         featureImportance: result.featureImportance
       }
