@@ -561,8 +561,28 @@ router.post('/',
           break;
       }
 
+      // Normalize scholarship type if provided (handle old format -> new format)
+      let scholarshipType = req.body.type;
+      if (scholarshipType) {
+        const typeMapping = {
+          'university': 'University Scholarship',
+          'college': 'College Scholarship',
+          'government': 'Government Scholarship',
+          'private': 'Private Scholarship',
+          'thesis_grant': 'Thesis/Research Grant',
+          'thesis': 'Thesis/Research Grant',
+          'research': 'Thesis/Research Grant',
+        };
+        const normalizedType = scholarshipType.toLowerCase().trim();
+        if (typeMapping[normalizedType]) {
+          console.log(`🔄 Normalizing scholarship type: '${scholarshipType}' → '${typeMapping[normalizedType]}'`);
+          scholarshipType = typeMapping[normalizedType];
+        }
+      }
+
       const scholarship = new Scholarship({
         ...req.body,
+        type: scholarshipType || req.body.type,
         scholarshipLevel,
         managingCollegeCode,
         managingAcademicUnitCode,
@@ -651,6 +671,24 @@ router.put('/:id',
         delete req.body.managingCollegeCode;
         delete req.body.managingAcademicUnit;
         delete req.body.managingAcademicUnitCode;
+      }
+
+      // Normalize scholarship type if provided (handle old format -> new format)
+      if (req.body.type) {
+        const typeMapping = {
+          'university': 'University Scholarship',
+          'college': 'College Scholarship',
+          'government': 'Government Scholarship',
+          'private': 'Private Scholarship',
+          'thesis_grant': 'Thesis/Research Grant',
+          'thesis': 'Thesis/Research Grant',
+          'research': 'Thesis/Research Grant',
+        };
+        const normalizedType = req.body.type.toLowerCase().trim();
+        if (typeMapping[normalizedType]) {
+          console.log(`🔄 Normalizing scholarship type: '${req.body.type}' → '${typeMapping[normalizedType]}'`);
+          req.body.type = typeMapping[normalizedType];
+        }
       }
 
       const scholarship = await Scholarship.findByIdAndUpdate(

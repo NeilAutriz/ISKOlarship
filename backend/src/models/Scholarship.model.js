@@ -189,7 +189,71 @@ const eligibilityCriteriaSchema = new mongoose.Schema({
   },
   
   // =========================================================================
-  // Additional Custom Requirements
+  // Custom Conditions (Dynamic, admin-configurable)
+  // =========================================================================
+  
+  // Custom conditions that can be automatically evaluated
+  // Each condition specifies: type, field, operator, value
+  customConditions: [{
+    // Unique identifier for this condition
+    id: {
+      type: String,
+      required: true
+    },
+    // Display name
+    name: {
+      type: String,
+      required: true
+    },
+    // Description for students
+    description: String,
+    // Condition type: 'range', 'boolean', 'list'
+    conditionType: {
+      type: String,
+      enum: ['range', 'boolean', 'list'],
+      required: true
+    },
+    // Field to check from student profile
+    studentField: {
+      type: String,
+      required: true
+    },
+    // Operator for comparison
+    operator: {
+      type: String,
+      required: true
+      // For range: 'lt', 'lte', 'gt', 'gte', 'eq', 'between'
+      // For boolean: 'is', 'isNot', 'isTruthy', 'isFalsy'
+      // For list: 'in', 'notIn', 'includes'
+    },
+    // Value(s) to compare against
+    value: {
+      type: mongoose.Schema.Types.Mixed
+      // For range: number or { min, max }
+      // For boolean: true/false
+      // For list: array of values
+    },
+    // Category for grouping
+    category: {
+      type: String,
+      enum: ['academic', 'financial', 'status', 'location', 'demographic', 'custom'],
+      default: 'custom'
+    },
+    // Importance level
+    importance: {
+      type: String,
+      enum: ['required', 'preferred', 'optional'],
+      default: 'required'
+    },
+    // Whether this condition is active
+    isActive: {
+      type: Boolean,
+      default: true
+    }
+  }],
+  
+  // =========================================================================
+  // Additional Custom Requirements (Text-based, manual verification)
   // =========================================================================
   
   additionalRequirements: [{
@@ -328,6 +392,11 @@ const scholarshipSchema = new mongoose.Schema({
     isRequired: {
       type: Boolean,
       default: true
+    },
+    fileType: {
+      type: String,
+      enum: ['any', 'pdf', 'image', 'text'],
+      default: 'any'
     }
   }],
   

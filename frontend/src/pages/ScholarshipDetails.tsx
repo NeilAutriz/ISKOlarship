@@ -39,7 +39,18 @@ import { AuthContext } from '../App';
 import { fetchScholarshipDetails, fetchScholarships, getPredictionForScholarship } from '../services/api';
 import { matchStudentToScholarships } from '../services/filterEngine';
 import { predictScholarshipSuccess } from '../services/logisticRegression';
-import { Scholarship, MatchResult, EligibilityCheckResult, isStudentProfile, PredictionResult, PredictionFactor } from '../types';
+import { 
+  Scholarship, 
+  MatchResult, 
+  EligibilityCheckResult, 
+  isStudentProfile, 
+  PredictionResult, 
+  PredictionFactor,
+  CustomCondition,
+  ConditionType,
+  ConditionImportance,
+  STUDENT_PROFILE_FIELDS
+} from '../types';
 
 // UPLB HD Background Images for scholarship headers
 const UPLB_BACKGROUND_IMAGES = [
@@ -360,9 +371,9 @@ const ScholarshipDetails: React.FC = () => {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-3">
                 <span className={`badge ${
-                  scholarship.type === 'government'
+                  scholarship.type === 'Government Scholarship'
                     ? 'badge-warning'
-                    : scholarship.type === 'thesis_grant'
+                    : scholarship.type === 'Thesis/Research Grant'
                     ? 'badge-info'
                     : 'badge-success'
                 }`}>
@@ -424,8 +435,15 @@ const ScholarshipDetails: React.FC = () => {
 
               <div className="grid md:grid-cols-2 gap-4">
                 {/* GWA - Note: In Philippine grading system, lower GWA is better (1.0 = highest)
-                    We display maxGWA as the requirement (the threshold students must meet or beat) */}
-                {(scholarship.eligibilityCriteria?.maxGWA || scholarship.eligibilityCriteria?.minGWA) && (() => {
+                    We display maxGWA as the requirement (the threshold students must meet or beat)
+                    maxGWA of 5.0 or higher means "no restriction" (backend default) */}
+                {(() => {
+                  const maxGWA = scholarship.eligibilityCriteria?.maxGWA;
+                  const minGWA = scholarship.eligibilityCriteria?.minGWA;
+                  // Only show GWA requirement if there's a meaningful restriction
+                  const hasGWARequirement = (maxGWA && maxGWA < 5.0) || (minGWA && minGWA > 1.0);
+                  if (!hasGWARequirement) return null;
+                  
                   const gwaStatus = getEligibilityStatus('gwa');
                   return (
                     <div className={`p-4 rounded-xl border ${
@@ -460,7 +478,11 @@ const ScholarshipDetails: React.FC = () => {
                 })()}
 
                 {/* Year Levels */}
-                {scholarship.eligibilityCriteria?.requiredYearLevels && scholarship.eligibilityCriteria.requiredYearLevels.length > 0 && (() => {
+                {/* Year Levels - handles both frontend (requiredYearLevels) and API (eligibleClassifications) field names */}
+                {(() => {
+                  const yearLevels = scholarship.eligibilityCriteria?.requiredYearLevels || scholarship.eligibilityCriteria?.eligibleClassifications;
+                  if (!yearLevels || yearLevels.length === 0) return null;
+                  
                   const yearLevelStatus = getEligibilityStatus('year level');
                   return (
                     <div className={`p-4 rounded-xl border ${
@@ -481,7 +503,7 @@ const ScholarshipDetails: React.FC = () => {
                         <div>
                           <div className="text-sm text-slate-500">Year Level</div>
                           <div className="font-semibold text-slate-900">
-                            {scholarship.eligibilityCriteria.requiredYearLevels.join(', ')}
+                            {yearLevels.join(', ')}
                           </div>
                         </div>
                         {matchResult && (
@@ -596,17 +618,130 @@ const ScholarshipDetails: React.FC = () => {
                   </div>
                 )}
 
-                {/* No Existing Scholarship */}
-                {scholarship.eligibilityCriteria?.mustNotHaveOtherScholarship && (
-                  <div className="p-4 rounded-xl border bg-slate-50 border-slate-200">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <div className="text-sm text-slate-500">Requirement</div>
-                        <div className="font-semibold text-slate-900">
-                          No existing scholarship
+                {/* No Existing Scholarship - CRITICAL for exclusivity */}
+                {scholarship.eligibilityCriteria?.mustNotHaveOtherScholarship && (() => {
+                  const scholarshipStatus = getEligibilityStatus('no existing scholarship');
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? scholarshipStatus
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <AlertCircle className={`w-5 h-5 ${
+                          matchResult
+                            ? scholarshipStatus
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">Requirement</div>
+                          <div className="font-semibold text-slate-900">
+                            No existing scholarship
+                          </div>
                         </div>
+                        {matchResult && (
+                          scholarshipStatus
+                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                        )}
                       </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Custom Conditions Display */}
+                {scholarship.eligibilityCriteria?.customConditions && 
+                 scholarship.eligibilityCriteria.customConditions.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-indigo-500" />
+                      Additional Eligibility Conditions
+                    </h4>
+                    <div className="space-y-2">
+                      {scholarship.eligibilityCriteria.customConditions
+                        .filter((c: CustomCondition) => c.isActive !== false)
+                        .map((condition: CustomCondition) => {
+                          // Handle custom fields (stored as customFields.fieldName)
+                          let fieldLabel: string;
+                          if (condition.studentField?.startsWith('customFields.')) {
+                            const customFieldKey = condition.studentField.replace('customFields.', '');
+                            fieldLabel = customFieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+                          } else {
+                            fieldLabel = STUDENT_PROFILE_FIELDS.find(f => f.value === condition.studentField)?.label || condition.studentField;
+                          }
+                          
+                          const isCustomField = condition.studentField?.startsWith('customFields.');
+                          return (
+                            <div 
+                              key={condition.id}
+                              className={`p-3 rounded-lg border ${
+                                condition.importance === ConditionImportance.REQUIRED
+                                  ? 'bg-red-50 border-red-200'
+                                  : condition.importance === ConditionImportance.PREFERRED
+                                  ? 'bg-amber-50 border-amber-200'
+                                  : 'bg-slate-50 border-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                  condition.importance === ConditionImportance.REQUIRED
+                                    ? 'bg-red-500'
+                                    : condition.importance === ConditionImportance.PREFERRED
+                                    ? 'bg-amber-500'
+                                    : 'bg-slate-400'
+                                }`} />
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm text-slate-800">{condition.name}</div>
+                                  <div className="text-xs text-slate-500 mt-0.5">
+                                    {isCustomField ? (
+                                      <span className="flex items-center gap-1">
+                                        <span className="text-purple-600">📝 {fieldLabel}</span>
+                                        <span className="text-slate-400">•</span>
+                                        <span>You'll provide this when applying</span>
+                                      </span>
+                                    ) : (
+                                      <span>{fieldLabel} requirement</span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Description - now more prominent */}
+                                  {condition.description && (
+                                    <div className={`mt-2 p-2 rounded-md text-xs ${
+                                      isCustomField 
+                                        ? 'bg-purple-50 border border-purple-100 text-purple-700'
+                                        : 'bg-white border border-slate-100 text-slate-600'
+                                    }`}>
+                                      <span className="font-medium">ℹ️ </span>
+                                      {condition.description}
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                      condition.importance === ConditionImportance.REQUIRED
+                                        ? 'bg-red-100 text-red-700'
+                                        : condition.importance === ConditionImportance.PREFERRED
+                                        ? 'bg-amber-100 text-amber-700'
+                                        : 'bg-slate-100 text-slate-600'
+                                    }`}>
+                                      {condition.importance === ConditionImportance.REQUIRED ? 'Required' : 
+                                       condition.importance === ConditionImportance.PREFERRED ? 'Preferred' : 'Optional'}
+                                    </span>
+                                    {isCustomField && (
+                                      <span className="inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-700">
+                                        ✏️ Custom Field
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}

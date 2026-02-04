@@ -1,71 +1,191 @@
 /**
  * =============================================================================
- * ISKOlarship - Modular Eligibility Checking System
+ * ISKOlarship - Unified Eligibility Checking System
  * =============================================================================
  * 
- * This module provides a standardized, maintainable approach to scholarship
- * eligibility checking with clear separation of concerns:
+ * ARCHITECTURE:
  * 
- * 1. RANGE-BASED CRITERIA - Numeric comparisons (min/max)
- *    - GWA (lower is better in Philippine system)
- *    - Annual Family Income
- *    - Units Enrolled/Passed
- *    - Household Size
- * 
- * 2. LIST MEMBERSHIP CRITERIA - Must be in a list of allowed values
- *    - Year Level/Classification
- *    - College
- *    - Course
- *    - Major
- *    - ST Bracket
- *    - Province
- *    - Citizenship
- * 
- * 3. BOOLEAN CRITERIA - True/False conditions
- *    - Has Approved Thesis
- *    - Has Other Scholarship (exclusivity)
- *    - Has Disciplinary Action
- *    - Is Graduating
- *    - Has Failing Grade
- *    etc.
+ * eligibility/
+ * ├── index.js              # Main entry point (this file)
+ * ├── types/                # Enums and type definitions
+ * │   ├── index.js
+ * │   └── ConditionTypes.js # ConditionType, Operators, Categories
+ * ├── conditions/           # OOP Condition Classes
+ * │   ├── index.js
+ * │   ├── BaseCondition.js  # Abstract base class
+ * │   ├── RangeCondition.js # Numeric: GWA, Income, Units
+ * │   ├── BooleanCondition.js # True/False: Scholarship, Thesis
+ * │   └── ListCondition.js  # Lists: College, Year Level, Course
+ * ├── utils/                # Utilities
+ * │   ├── index.js
+ * │   ├── normalizers.js    # Value normalization (ST Bracket, etc.)
+ * │   └── ConditionEvaluators.js # Comparison functions
+ * ├── engine/               # Core Engine
+ * │   ├── index.js
+ * │   ├── EligibilityEngine.js # Main orchestrator
+ * │   └── ScholarshipConditions.js # Pre-configured conditions
+ * └── core/                 # Legacy (will be removed)
  * 
  * USAGE:
  * const eligibility = require('./eligibility');
  * const result = await eligibility.checkEligibility(user, scholarship);
  * 
- * RESULT FORMAT:
- * {
- *   passed: boolean,           // Overall eligibility (all checks must pass)
- *   score: number,             // Percentage of checks passed (0-100)
- *   checks: Array,             // All individual check results
- *   summary: Object,           // Quick summary (total, passed, failed)
- *   breakdown: Object          // Grouped by check type (range, list, boolean)
- * }
- * 
  * =============================================================================
  */
 
-const rangeChecks = require('./rangeChecks');
-const listChecks = require('./listChecks');
-const booleanChecks = require('./booleanChecks');
-const normalizers = require('./normalizers');
+// Import organized modules
+const types = require('./types');
+const conditions = require('./conditions');
+const utils = require('./utils');
+const engine = require('./engine');
 
-// Re-export commonly used normalizers for convenience
-const { 
-  normalizeSTBracket, 
-  stBracketsMatch,
-  normalizeYearLevel,
-  yearLevelsMatch,
-  normalizeCollege,
-  collegesMatch,
-  normalizeCourse,
-  coursesMatch,
-  normalizeProvince,
-  provincesMatch,
-  hasValue,
-  formatCurrency,
-  formatGWA
-} = normalizers;
+// Create a singleton engine instance
+let _engine = null;
+
+function getEngine() {
+  if (!_engine) {
+    _engine = engine.createEngine();
+  }
+  return _engine;
+}
+
+// =============================================================================
+// CUSTOM CONDITION PROCESSOR
+// =============================================================================
+
+/**
+ * Process custom conditions defined by scholarship admins
+ * These are dynamic conditions that can be configured per scholarship
+ * 
+ * @param {Object} profile - Student profile
+ * @param {Array} customConditions - Array of custom condition definitions
+ * @returns {Object} Results of custom condition checks
+ */
+function processCustomConditions(profile, customConditions) {
+  if (!customConditions || !Array.isArray(customConditions) || customConditions.length === 0) {
+    return { checks: [], passed: true, failedRequired: [] };
+  }
+  
+  const checks = [];
+  const failedRequired = [];
+  
+  for (const condition of customConditions) {
+    // Skip inactive conditions
+    if (condition.isActive === false) continue;
+    
+    try {
+      const result = evaluateCustomCondition(profile, condition);
+      checks.push(result);
+      
+      // Track failed required conditions
+      if (!result.passed && condition.importance === 'required') {
+        failedRequired.push(result);
+      }
+    } catch (error) {
+      console.error(`Error evaluating custom condition ${condition.id}:`, error);
+      checks.push({
+        id: condition.id,
+        criterion: condition.name,
+        passed: false,
+        applicantValue: 'Error',
+        requiredValue: condition.value,
+        notes: `Evaluation error: ${error.message}`,
+        type: condition.conditionType,
+        category: condition.category || 'custom',
+        importance: condition.importance || 'required',
+        isCustom: true
+      });
+    }
+  }
+  
+  // All required custom conditions must pass
+  const requiredChecks = checks.filter(c => c.importance === 'required');
+  const passed = requiredChecks.every(c => c.passed);
+  
+  return { checks, passed, failedRequired };
+}
+
+/**
+ * Evaluate a single custom condition
+ * 
+ * @param {Object} profile - Student profile
+ * @param {Object} condition - Custom condition definition
+ * @returns {Object} Condition check result
+ */
+function evaluateCustomCondition(profile, condition) {
+  const { id, name, description, conditionType, studentField, operator, value, category, importance } = condition;
+  
+  // Get student value from profile
+  const studentValue = utils.getNestedValue(profile, studentField);
+  
+  let passed = false;
+  let formattedStudentValue = studentValue;
+  let formattedCriteriaValue = value;
+  
+  switch (conditionType) {
+    case 'range':
+      passed = utils.evaluateRange(studentValue, operator, value);
+      formattedStudentValue = studentValue != null ? String(studentValue) : 'Not specified';
+      formattedCriteriaValue = formatRangeValue(operator, value);
+      break;
+      
+    case 'boolean':
+      passed = utils.evaluateBoolean(studentValue, operator, value);
+      formattedStudentValue = studentValue ? 'Yes' : 'No';
+      formattedCriteriaValue = value ? 'Required' : 'Not required';
+      break;
+      
+    case 'list':
+      passed = utils.evaluateList(studentValue, operator, value);
+      formattedStudentValue = Array.isArray(studentValue) ? studentValue.join(', ') : (studentValue || 'Not specified');
+      formattedCriteriaValue = Array.isArray(value) ? value.join(', ') : String(value);
+      break;
+      
+    default:
+      passed = false;
+      formattedCriteriaValue = 'Unknown condition type';
+  }
+  
+  // Handle null (can't evaluate)
+  if (passed === null) {
+    passed = importance !== 'required'; // Fail required, pass optional
+  }
+  
+  return {
+    id,
+    criterion: name,
+    passed,
+    applicantValue: formattedStudentValue,
+    requiredValue: formattedCriteriaValue,
+    notes: passed ? 'Meets requirement' : 'Does not meet requirement',
+    type: conditionType,
+    category: category || 'custom',
+    importance: importance || 'required',
+    isCustom: true,
+    description
+  };
+}
+
+/**
+ * Format range value for display
+ */
+function formatRangeValue(operator, value) {
+  const opMap = {
+    'lt': '<',
+    'lte': '≤',
+    'gt': '>',
+    'gte': '≥',
+    'eq': '=',
+    'neq': '≠',
+    'between': 'between'
+  };
+  
+  if (operator === 'between' && typeof value === 'object') {
+    return `${value.min || '∞'} - ${value.max || '∞'}`;
+  }
+  
+  return `${opMap[operator] || operator} ${value}`;
+}
 
 // =============================================================================
 // MAIN ELIGIBILITY CHECK FUNCTION
@@ -91,73 +211,73 @@ async function checkEligibility(user, scholarship) {
   }
   
   // Extract profile and criteria with defaults
-  const profile = user.studentProfile || {};
+  const profile = user.studentProfile || user;
   const criteria = scholarship.eligibilityCriteria || {};
+  const customConditions = criteria.customConditions || [];
   
   try {
-    // Run all checks in parallel for efficiency
-    const [rangeResults, listResults, booleanResults] = await Promise.all([
-      Promise.resolve(rangeChecks.checkAll(profile, criteria)),
-      Promise.resolve(listChecks.checkAll(profile, criteria)),
-      Promise.resolve(booleanChecks.checkAll(profile, criteria))
-    ]);
+    const eligibilityEngine = getEngine();
     
-    // Combine all checks
-    const allChecks = [...rangeResults, ...listResults, ...booleanResults];
+    // Check standard conditions
+    const result = eligibilityEngine.check(profile, criteria);
     
-    // Calculate statistics
-    const totalChecks = allChecks.length;
-    const passedChecks = allChecks.filter(c => c.passed).length;
-    const failedChecks = totalChecks - passedChecks;
+    // Process custom conditions if any
+    const customResults = processCustomConditions(profile, customConditions);
     
-    // Calculate score (percentage of checks passed)
+    // Merge custom results with standard results
+    const allChecks = [...result.checks, ...customResults.checks];
+    const allPassed = result.passed && customResults.passed;
+    const totalChecks = result.summary.total + customResults.checks.length;
+    const passedChecks = result.summary.passed + customResults.checks.filter(c => c.passed).length;
     const score = totalChecks > 0 ? Math.round((passedChecks / totalChecks) * 100) : 100;
     
-    // Determine overall pass (all checks must pass for full eligibility)
-    const passed = allChecks.every(c => c.passed);
-    
-    // Group checks by category for detailed analysis
-    const categorizedChecks = categorizeChecks(allChecks);
-    
+    // Transform to match the expected output format
     return {
-      passed,
+      passed: allPassed,
       score,
       checks: allChecks,
       summary: {
         total: totalChecks,
         passed: passedChecks,
-        failed: failedChecks,
+        failed: totalChecks - passedChecks,
         percentage: score
       },
       breakdown: {
         range: {
-          checks: rangeResults,
-          passed: rangeResults.every(c => c.passed),
-          count: rangeResults.length,
-          passedCount: rangeResults.filter(c => c.passed).length
+          checks: result.byType.range || [],
+          passed: (result.byType.range || []).every(c => c.passed),
+          count: (result.byType.range || []).length,
+          passedCount: (result.byType.range || []).filter(c => c.passed).length
         },
         list: {
-          checks: listResults,
-          passed: listResults.every(c => c.passed),
-          count: listResults.length,
-          passedCount: listResults.filter(c => c.passed).length
+          checks: result.byType.list || [],
+          passed: (result.byType.list || []).every(c => c.passed),
+          count: (result.byType.list || []).length,
+          passedCount: (result.byType.list || []).filter(c => c.passed).length
         },
         boolean: {
-          checks: booleanResults,
-          passed: booleanResults.every(c => c.passed),
-          count: booleanResults.length,
-          passedCount: booleanResults.filter(c => c.passed).length
+          checks: result.byType.boolean || [],
+          passed: (result.byType.boolean || []).every(c => c.passed),
+          count: (result.byType.boolean || []).length,
+          passedCount: (result.byType.boolean || []).filter(c => c.passed).length
+        },
+        custom: {
+          checks: customResults.checks,
+          passed: customResults.passed,
+          count: customResults.checks.length,
+          passedCount: customResults.checks.filter(c => c.passed).length
         }
       },
-      categories: categorizedChecks,
+      categories: result.byCategory,
+      failedRequired: [...result.failedRequired, ...customResults.failedRequired],
       metadata: {
-        checkedAt: new Date().toISOString(),
-        scholarshipId: scholarship._id?.toString() || null,
-        userId: user._id?.toString() || null
+        ...result.metadata,
+        scholarshipId: scholarship._id?.toString() || scholarship.id || null,
+        userId: user._id?.toString() || user.id || null,
+        customConditionsCount: customConditions.length
       }
     };
   } catch (error) {
-    // Log error for debugging but return a safe failure result
     console.error('Eligibility check error:', error);
     
     return {
@@ -187,252 +307,139 @@ async function checkEligibility(user, scholarship) {
 }
 
 /**
- * Get a quick eligibility summary without detailed checks
- * Useful for filtering/screening large numbers of scholarships
+ * Quick eligibility check - returns just pass/fail
+ * Useful for filtering large numbers of scholarships
  * 
  * @param {Object} user - User object with studentProfile
  * @param {Object} scholarship - Scholarship object with eligibilityCriteria
- * @returns {Object} Quick eligibility summary
+ * @returns {boolean} Whether the student is eligible
  */
 function quickCheck(user, scholarship) {
   if (!user || !scholarship) {
-    return { passed: false, rangePass: false, listPass: false, booleanPass: false };
-  }
-  
-  const profile = user.studentProfile || {};
-  const criteria = scholarship.eligibilityCriteria || {};
-  
-  try {
-    // Quick checks return boolean for each category
-    const rangePass = rangeChecks.quickCheck(profile, criteria);
-    const listPass = listChecks.quickCheck(profile, criteria);
-    const booleanPass = booleanChecks.quickCheck(profile, criteria);
-    
-    return {
-      passed: rangePass && listPass && booleanPass,
-      rangePass,
-      listPass,
-      booleanPass
-    };
-  } catch (error) {
-    console.error('Quick eligibility check error:', error);
-    return { passed: false, rangePass: false, listPass: false, booleanPass: false, error: error.message };
-  }
-}
-
-/**
- * Get detailed summary for each check category
- * 
- * @param {Object} user - User object with studentProfile
- * @param {Object} scholarship - Scholarship object with eligibilityCriteria
- * @returns {Object} Detailed summaries for each category
- */
-function getSummaries(user, scholarship) {
-  if (!user || !scholarship) {
-    return { range: null, list: null, boolean: null };
-  }
-  
-  const profile = user.studentProfile || {};
-  const criteria = scholarship.eligibilityCriteria || {};
-  
-  return {
-    range: rangeChecks.getSummary(profile, criteria),
-    list: listChecks.getSummary(profile, criteria),
-    boolean: booleanChecks.getSummary(profile, criteria)
-  };
-}
-
-// =============================================================================
-// HELPER FUNCTIONS
-// =============================================================================
-
-/**
- * Categorize checks by their category field
- * Useful for UI display grouped by academic/financial/etc.
- * 
- * @param {Array} checks - Array of check results
- * @returns {Object} Checks grouped by category
- */
-function categorizeChecks(checks) {
-  const categories = {
-    academic: [],
-    financial: [],
-    status: [],
-    location: [],
-    personal: []
-  };
-  
-  checks.forEach(check => {
-    const category = check.category || 'other';
-    if (categories[category]) {
-      categories[category].push(check);
-    } else {
-      // Handle unexpected categories
-      if (!categories.other) categories.other = [];
-      categories.other.push(check);
-    }
-  });
-  
-  // Add summary for each category
-  Object.keys(categories).forEach(key => {
-    const categoryChecks = categories[key];
-    if (categoryChecks.length > 0) {
-      categories[key] = {
-        checks: categoryChecks,
-        total: categoryChecks.length,
-        passed: categoryChecks.filter(c => c.passed).length,
-        failed: categoryChecks.filter(c => !c.passed).length,
-        allPassed: categoryChecks.every(c => c.passed)
-      };
-    } else {
-      // Remove empty categories
-      delete categories[key];
-    }
-  });
-  
-  return categories;
-}
-
-/**
- * Get list of failed criteria (useful for UI display)
- * 
- * @param {Object} eligibilityResult - Result from checkEligibility
- * @returns {Array} Array of failed check criterion names
- */
-function getFailedCriteria(eligibilityResult) {
-  if (!eligibilityResult || !eligibilityResult.checks) {
-    return [];
-  }
-  
-  return eligibilityResult.checks
-    .filter(c => !c.passed)
-    .map(c => ({
-      criterion: c.criterion,
-      category: c.category,
-      type: c.type,
-      notes: c.notes,
-      applicantValue: c.applicantValue,
-      requiredValue: c.requiredValue
-    }));
-}
-
-/**
- * Get list of passed criteria (useful for positive UI display)
- * 
- * @param {Object} eligibilityResult - Result from checkEligibility
- * @returns {Array} Array of passed check criterion names
- */
-function getPassedCriteria(eligibilityResult) {
-  if (!eligibilityResult || !eligibilityResult.checks) {
-    return [];
-  }
-  
-  return eligibilityResult.checks
-    .filter(c => c.passed)
-    .map(c => ({
-      criterion: c.criterion,
-      category: c.category,
-      type: c.type,
-      notes: c.notes,
-      applicantValue: c.applicantValue,
-      requiredValue: c.requiredValue
-    }));
-}
-
-/**
- * Calculate match level based on eligibility score
- * 
- * @param {number} score - Eligibility score (0-100)
- * @returns {string} Match level description
- */
-function getMatchLevel(score) {
-  if (score === 100) return 'Perfect Match';
-  if (score >= 80) return 'Strong Match';
-  if (score >= 60) return 'Good Match';
-  if (score >= 40) return 'Partial Match';
-  if (score >= 20) return 'Weak Match';
-  return 'Poor Match';
-}
-
-/**
- * Check if a scholarship has any eligibility requirements
- * Some scholarships may be open to all students
- * 
- * @param {Object} scholarship - Scholarship object with eligibilityCriteria
- * @returns {boolean} True if scholarship has criteria
- */
-function hasEligibilityCriteria(scholarship) {
-  if (!scholarship || !scholarship.eligibilityCriteria) {
     return false;
   }
   
-  const criteria = scholarship.eligibilityCriteria;
+  const profile = user.studentProfile || user;
+  const criteria = scholarship.eligibilityCriteria || {};
   
-  // Check if any criteria fields have values
-  const criteriaFields = [
-    // Range criteria
-    'minGWA', 'maxGWA',
-    'minAnnualFamilyIncome', 'maxAnnualFamilyIncome',
-    'minUnitsEnrolled', 'minUnitsPassed',
-    'minHouseholdSize', 'maxHouseholdSize',
-    // List criteria
-    'eligibleClassifications', 'requiredYearLevels',
-    'eligibleColleges', 'eligibleCourses', 'eligibleMajors',
-    'eligibleSTBrackets', 'requiredSTBrackets',
-    'eligibleProvinces', 'eligibleCitizenship',
-    // Boolean criteria
-    'requiresApprovedThesisOutline', 'requiresApprovedThesis',
-    'mustNotHaveOtherScholarship', 'mustNotHaveThesisGrant',
-    'mustNotHaveDisciplinaryAction', 'mustNotHaveFailingGrade',
-    'mustNotHaveGradeOf4', 'mustNotHaveIncompleteGrade',
-    'mustBeGraduating', 'isFilipinoOnly', 'filipinoOnly',
-    'mustBeRegularStudent', 'mustBeFullTime'
-  ];
+  return getEngine().quickCheck(profile, criteria);
+}
+
+/**
+ * Get detailed eligibility breakdown by category
+ * 
+ * @param {Object} user - User object with studentProfile
+ * @param {Object} scholarship - Scholarship object with eligibilityCriteria
+ * @returns {Object} Eligibility breakdown by category
+ */
+async function getEligibilityBreakdown(user, scholarship) {
+  const result = await checkEligibility(user, scholarship);
   
-  return criteriaFields.some(field => {
-    const value = criteria[field];
-    if (value === null || value === undefined) return false;
-    if (Array.isArray(value) && value.length === 0) return false;
-    if (value === false) return false; // Boolean false means not required
-    return true;
+  return {
+    passed: result.passed,
+    score: result.score,
+    academic: result.categories?.academic || [],
+    financial: result.categories?.financial || [],
+    status: result.categories?.status || [],
+    location: result.categories?.location || [],
+    demographic: result.categories?.demographic || [],
+    blockers: result.failedRequired || []
+  };
+}
+
+/**
+ * Check multiple scholarships for a single user
+ * Returns sorted results with eligibility status
+ * 
+ * @param {Object} user - User object with studentProfile
+ * @param {Array} scholarships - Array of scholarship objects
+ * @returns {Array} Array of {scholarship, eligibility} objects, sorted by score
+ */
+async function checkMultipleScholarships(user, scholarships) {
+  if (!user || !Array.isArray(scholarships)) {
+    return [];
+  }
+  
+  const results = await Promise.all(
+    scholarships.map(async (scholarship) => {
+      const eligibility = await checkEligibility(user, scholarship);
+      return {
+        scholarship,
+        eligibility,
+        passed: eligibility.passed,
+        score: eligibility.score
+      };
+    })
+  );
+  
+  // Sort by eligibility (passed first), then by score
+  return results.sort((a, b) => {
+    if (a.passed !== b.passed) return a.passed ? -1 : 1;
+    return b.score - a.score;
   });
 }
 
+/**
+ * Get the eligibility engine for advanced usage
+ * Allows registering custom conditions
+ */
+function getEligibilityEngine() {
+  return getEngine();
+}
+
+/**
+ * Reset the engine (useful for testing)
+ */
+function resetEngine() {
+  _engine = engine.createEngine();
+  return _engine;
+}
+
 // =============================================================================
-// MODULE EXPORTS
+// EXPORTS
 // =============================================================================
 
 module.exports = {
   // Main functions
   checkEligibility,
   quickCheck,
-  getSummaries,
+  getEligibilityBreakdown,
+  checkMultipleScholarships,
   
-  // Helper functions
-  categorizeChecks,
-  getFailedCriteria,
-  getPassedCriteria,
-  getMatchLevel,
-  hasEligibilityCriteria,
+  // Engine access
+  getEligibilityEngine,
+  resetEngine,
   
-  // Sub-modules (for advanced usage)
-  rangeChecks,
-  listChecks,
-  booleanChecks,
-  normalizers,
+  // Organized modules
+  types,
+  conditions,
+  utils,
+  engine,
   
-  // Commonly used normalizers (re-exported for convenience)
-  normalizeSTBracket,
-  stBracketsMatch,
-  normalizeYearLevel,
-  yearLevelsMatch,
-  normalizeCollege,
-  collegesMatch,
-  normalizeCourse,
-  coursesMatch,
-  normalizeProvince,
-  provincesMatch,
-  hasValue,
-  formatCurrency,
-  formatGWA
+  // Types (re-exported for convenience)
+  ConditionType: types.ConditionType,
+  RangeOperator: types.RangeOperator,
+  BooleanOperator: types.BooleanOperator,
+  ListOperator: types.ListOperator,
+  ConditionCategory: types.ConditionCategory,
+  ImportanceLevel: types.ImportanceLevel,
+  
+  // Condition classes (for creating custom conditions)
+  BaseCondition: conditions.BaseCondition,
+  RangeCondition: conditions.RangeCondition,
+  BooleanCondition: conditions.BooleanCondition,
+  ListCondition: conditions.ListCondition,
+  
+  // Engine
+  EligibilityEngine: engine.EligibilityEngine,
+  
+  // Utilities
+  normalizers: utils.normalizers,
+  normalizeSTBracket: utils.normalizeSTBracket,
+  stBracketsMatch: utils.stBracketsMatch,
+  normalizeYearLevel: utils.normalizeYearLevel,
+  normalizeCollege: utils.normalizeCollege,
+  
+  // Factory
+  createEngine: engine.createEngine
 };

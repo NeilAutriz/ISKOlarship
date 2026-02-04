@@ -17,10 +17,11 @@ import {
   Loader2,
   Info,
   Award,
-  Eye
+  Eye,
+  Edit3
 } from 'lucide-react';
-import { Scholarship, StudentProfile } from '../../types';
-import { scholarshipApi, applicationApi } from '../../services/apiClient';
+import { Scholarship, StudentProfile, CustomCondition } from '../../types';
+import { scholarshipApi, applicationApi, userApi } from '../../services/apiClient';
 import { matchStudentToScholarships } from '../../services/filterEngine';
 
 // ============================================================================
@@ -35,6 +36,8 @@ interface DocumentUpload {
   uploaded: boolean;
   error?: string;
   previewUrl?: string; // Preview URL for local files
+  allowedFileType?: 'any' | 'pdf' | 'image' | 'text'; // File type restriction from scholarship
+  textContent?: string; // For text-type documents (no file upload needed)
 }
 
 interface ApplicationFormData {
@@ -74,6 +77,16 @@ const ApplyScholarship: React.FC = () => {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<{ name: string; type: string; previewUrl: string } | null>(null);
 
+  // Custom fields state for scholarship-specific requirements
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string | number | boolean>>({});
+  const [customFieldRequirements, setCustomFieldRequirements] = useState<Array<{
+    fieldName: string;
+    displayName: string;
+    conditionType: string;
+    isRequired: boolean;
+    description?: string;
+  }>>([]);
+
   // Fetch scholarship and student profile
   useEffect(() => {
     let isMounted = true; // Track if component is mounted
@@ -103,8 +116,10 @@ const ApplyScholarship: React.FC = () => {
         
         // Check if scholarship has custom required documents
         if (scholarshipData.requiredDocuments && scholarshipData.requiredDocuments.length > 0) {
+          console.log('📄 Scholarship required documents:', scholarshipData.requiredDocuments);
           // Use scholarship-specific required documents
           scholarshipData.requiredDocuments.forEach((doc: any) => {
+            console.log('📋 Processing document:', doc.name, 'fileType:', doc.fileType);
             // Map document name to type
             let docType = 'other';
             const docNameLower = doc.name.toLowerCase();
@@ -121,9 +136,10 @@ const ApplyScholarship: React.FC = () => {
             requiredDocs.push({
               file: null,
               type: docType,
-              name: doc.name + (doc.isRequired ? '' : ' (Optional)'),
+              name: doc.name, // Don't add (Optional) - just show the name
               required: doc.isRequired !== false,
-              uploaded: false
+              uploaded: false,
+              allowedFileType: doc.fileType || 'any'
             });
           });
         } else {
@@ -178,6 +194,46 @@ const ApplyScholarship: React.FC = () => {
 
         if (isMounted) {
           setFormData(prev => ({ ...prev, documents: requiredDocs }));
+        }
+
+        // Extract custom field requirements from customConditions
+        const customConditions = scholarshipData.eligibilityCriteria?.customConditions as CustomCondition[] | undefined;
+        if (customConditions && Array.isArray(customConditions) && isMounted) {
+          const customFields = customConditions
+            .filter((cond: CustomCondition) => cond.isActive !== false && cond.studentField?.startsWith('customFields.'))
+            .map((cond: CustomCondition) => {
+              const fieldPath = cond.studentField;
+              const fieldName = fieldPath.replace('customFields.', '');
+              // Convert camelCase to readable label
+              const displayName = fieldName
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/^./, (str) => str.toUpperCase())
+                .trim();
+              
+              return {
+                fieldName,
+                displayName: cond.name || displayName,
+                conditionType: cond.conditionType,
+                isRequired: cond.importance === 'required',
+                description: cond.description
+              };
+            });
+          
+          setCustomFieldRequirements(customFields);
+          
+          // Initialize custom field values from existing student profile
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            const existingCustomFields = user.studentProfile?.customFields || {};
+            const initialValues: Record<string, string | number | boolean> = {};
+            customFields.forEach(field => {
+              if (existingCustomFields[field.fieldName] !== undefined) {
+                initialValues[field.fieldName] = existingCustomFields[field.fieldName];
+              }
+            });
+            setCustomFieldValues(initialValues);
+          }
         }
         
       } catch (err: any) {
@@ -307,6 +363,33 @@ const ApplyScholarship: React.FC = () => {
       if (!id) {
         throw new Error('Scholarship ID is missing');
       }
+
+      // Save custom field values to student profile if any were filled
+      if (Object.keys(customFieldValues).length > 0) {
+        try {
+          console.log('💾 Saving custom fields to profile:', customFieldValues);
+          await userApi.updateProfile({
+            studentProfile: {
+              customFields: customFieldValues
+            }
+          });
+          
+          // Update local storage with new custom fields
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            user.studentProfile = user.studentProfile || {};
+            user.studentProfile.customFields = {
+              ...user.studentProfile.customFields,
+              ...customFieldValues
+            };
+            localStorage.setItem('user', JSON.stringify(user));
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not save custom fields to profile:', err);
+          // Continue with application submission even if profile update fails
+        }
+      }
       
       // Create FormData for multipart/form-data upload (efficient!)
       const formDataToSend = new FormData();
@@ -314,17 +397,37 @@ const ApplyScholarship: React.FC = () => {
       formDataToSend.append('personalStatement', formData.personalStatement);
       formDataToSend.append('additionalInfo', formData.additionalInfo);
       
-      // Append files and their metadata
+      // Append custom field answers to be stored with the application
+      if (Object.keys(customFieldValues).length > 0) {
+        formDataToSend.append('customFieldAnswers', JSON.stringify(customFieldValues));
+      }
+      
+      // Append file documents and their metadata
       formData.documents
-        .filter(doc => doc.uploaded && doc.file)
+        .filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text')
         .forEach(doc => {
           formDataToSend.append('documents', doc.file!); // Append actual file
           formDataToSend.append('documentNames', doc.name);
           formDataToSend.append('documentTypes', doc.type);
         });
 
+      // Append text documents (no file, just text content)
+      const textDocuments = formData.documents
+        .filter(doc => doc.allowedFileType === 'text' && doc.textContent && doc.textContent.trim().length > 0)
+        .map(doc => ({
+          name: doc.name,
+          type: doc.type,
+          content: doc.textContent
+        }));
+      
+      if (textDocuments.length > 0) {
+        formDataToSend.append('textDocuments', JSON.stringify(textDocuments));
+      }
+
       console.log('📝 Submitting application with FormData');
-      console.log('📄 Document count:', formData.documents.filter(doc => doc.uploaded).length);
+      console.log('📄 File document count:', formData.documents.filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text').length);
+      console.log('📄 Text document count:', textDocuments.length);
+      console.log('📋 Custom field answers:', customFieldValues);
 
       // Create the application
       const response = await applicationApi.create(formDataToSend);
@@ -582,6 +685,111 @@ const ApplyScholarship: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Custom Fields Section - For scholarship-specific requirements */}
+                  {customFieldRequirements.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-slate-200">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                          <Edit3 className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-slate-900">Scholarship-Specific Requirements</h3>
+                          <p className="text-sm text-slate-600">
+                            This scholarship requires additional information from you
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+                        <div className="flex gap-3">
+                          <Info className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-purple-900 font-semibold mb-1">Custom Requirements</p>
+                            <p className="text-sm text-purple-700">
+                              The scholarship administrator has requested the following information. 
+                              Please fill them in to improve your eligibility.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        {customFieldRequirements.map((field, index) => (
+                          <div key={index} className="p-4 bg-white border border-slate-200 rounded-xl hover:border-purple-300 transition-colors">
+                            {/* Field Header */}
+                            <div className="flex items-start justify-between mb-2">
+                              <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
+                                  {index + 1}
+                                </span>
+                                {field.displayName}
+                                {/* Custom fields are optional - no Required label shown */}
+                              </label>
+                            </div>
+                            
+                            {/* Description Box */}
+                            {field.description ? (
+                              <div className="mb-3 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                                <p className="text-xs text-blue-700 flex items-start gap-1.5">
+                                  <span className="text-blue-500 mt-0.5">ℹ️</span>
+                                  {field.description}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-400 mb-2 italic">
+                                Enter your {field.displayName.toLowerCase()} value below
+                              </p>
+                            )}
+                            
+                            {/* Input Field */}
+                            {field.conditionType === 'boolean' ? (
+                              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:border-purple-300 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={!!customFieldValues[field.fieldName]}
+                                  onChange={(e) => setCustomFieldValues(prev => ({
+                                    ...prev,
+                                    [field.fieldName]: e.target.checked
+                                  }))}
+                                  className="w-5 h-5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span className="text-slate-700">Yes, I confirm this applies to me</span>
+                              </label>
+                            ) : field.conditionType === 'range' ? (
+                              <div>
+                                <input
+                                  type="number"
+                                  value={customFieldValues[field.fieldName] as number || ''}
+                                  onChange={(e) => setCustomFieldValues(prev => ({
+                                    ...prev,
+                                    [field.fieldName]: parseFloat(e.target.value) || 0
+                                  }))}
+                                  placeholder={`Enter a number (e.g., 25)`}
+                                  className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-slate-50"
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1">Enter a numeric value</p>
+                              </div>
+                            ) : (
+                              <div>
+                                <input
+                                  type="text"
+                                  value={customFieldValues[field.fieldName] as string || ''}
+                                  onChange={(e) => setCustomFieldValues(prev => ({
+                                    ...prev,
+                                    [field.fieldName]: e.target.value
+                                  }))}
+                                  placeholder={`Enter your ${field.displayName.toLowerCase()}`}
+                                  className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-slate-50"
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1">Enter text value</p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-6 flex justify-end">
                     <button
                       type="button"
@@ -617,12 +825,25 @@ const ApplyScholarship: React.FC = () => {
                               <FileText className="w-5 h-5 text-primary-600" />
                             </div>
                             <div className="flex-1">
-                              <h3 className="text-sm font-medium text-slate-900">{doc.name}</h3>
-                              {doc.required && (
-                                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded">
-                                  Required
-                                </span>
-                              )}
+                              <div className="flex items-center flex-wrap gap-2">
+                                <h3 className="text-sm font-medium text-slate-900">{doc.name}</h3>
+                                {doc.required && (
+                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded">
+                                    Required
+                                  </span>
+                                )}
+                                {doc.allowedFileType && doc.allowedFileType !== 'any' && (
+                                  <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                    doc.allowedFileType === 'pdf' ? 'bg-red-50 text-red-600 border border-red-200' :
+                                    doc.allowedFileType === 'image' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+                                    'bg-amber-50 text-amber-600 border border-amber-200'
+                                  }`}>
+                                    {doc.allowedFileType === 'pdf' ? '📄 PDF only' :
+                                     doc.allowedFileType === 'image' ? '🖼️ Image only' :
+                                     '📝 Text Input'}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                           {doc.uploaded && (
@@ -630,18 +851,68 @@ const ApplyScholarship: React.FC = () => {
                           )}
                         </div>
 
-                        {!doc.uploaded ? (
+                        {/* For TEXT type documents, show a textarea instead of file upload */}
+                        {doc.allowedFileType === 'text' ? (
+                          <>
+                            <textarea
+                              value={doc.textContent || ''}
+                              onChange={(e) => {
+                                const newDocs = [...formData.documents];
+                                newDocs[index] = {
+                                  ...newDocs[index],
+                                  textContent: e.target.value,
+                                  uploaded: e.target.value.trim().length > 0
+                                };
+                                setFormData(prev => ({ ...prev, documents: newDocs }));
+                              }}
+                              rows={4}
+                              className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                              placeholder={`Enter your ${doc.name} here...`}
+                            />
+                            {doc.textContent && doc.textContent.trim().length > 0 && (
+                              <div className="mt-2 flex items-center justify-between text-sm">
+                                <span className="text-green-600 flex items-center gap-1">
+                                  <CheckCircle className="w-4 h-4" />
+                                  Text entered ({doc.textContent.length} characters)
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newDocs = [...formData.documents];
+                                    newDocs[index] = {
+                                      ...newDocs[index],
+                                      textContent: '',
+                                      uploaded: false
+                                    };
+                                    setFormData(prev => ({ ...prev, documents: newDocs }));
+                                  }}
+                                  className="text-red-500 hover:text-red-700 text-xs"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : !doc.uploaded ? (
                           <label className="block">
                             <input
                               type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
+                              accept={
+                                doc.allowedFileType === 'pdf' ? '.pdf' :
+                                doc.allowedFileType === 'image' ? '.jpg,.jpeg,.png,.gif,.webp' :
+                                '.pdf,.jpg,.jpeg,.png'
+                              }
                               onChange={(e) => handleFileChange(index, e.target.files?.[0] || null)}
                               className="hidden"
                             />
                             <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-primary-400 hover:bg-primary-50 transition-colors cursor-pointer">
                               <Upload className="w-6 h-6 text-slate-400 mx-auto mb-2" />
                               <p className="text-sm text-slate-600 font-medium">Click to upload</p>
-                              <p className="text-xs text-slate-500 mt-1">PDF, JPG, PNG (max 5MB)</p>
+                              <p className="text-xs text-slate-500 mt-1">
+                                {doc.allowedFileType === 'pdf' ? 'PDF only (max 5MB)' :
+                                 doc.allowedFileType === 'image' ? 'JPG, PNG, GIF, WebP (max 5MB)' :
+                                 'PDF, JPG, PNG (max 5MB)'}
+                              </p>
                             </div>
                           </label>
                         ) : (

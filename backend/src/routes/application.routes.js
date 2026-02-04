@@ -220,13 +220,15 @@ router.post('/',
         });
       }
 
-      const { scholarshipId, personalStatement, additionalInfo, documentNames, documentTypes } = req.body;
+      const { scholarshipId, personalStatement, additionalInfo, documentNames, documentTypes, customFieldAnswers, textDocuments } = req.body;
       const uploadedFiles = req.files || [];
 
       console.log('📝 Application Creation Request:');
       console.log('📤 Files uploaded:', uploadedFiles.length);
       console.log('📋 Document names:', documentNames);
       console.log('📋 Document types:', documentTypes);
+      console.log('📋 Custom field answers:', customFieldAnswers);
+      console.log('📋 Text documents:', textDocuments);
       console.log('🔍 Uploaded files details:', JSON.stringify(uploadedFiles.map(f => ({
         fieldname: f.fieldname,
         originalname: f.originalname,
@@ -322,6 +324,26 @@ router.post('/',
         };
       });
 
+      // Process text documents (no file, just text content)
+      if (textDocuments) {
+        try {
+          const parsedTextDocs = JSON.parse(textDocuments);
+          if (Array.isArray(parsedTextDocs)) {
+            parsedTextDocs.forEach(textDoc => {
+              processedDocuments.push({
+                name: textDoc.name || 'Text Document',
+                documentType: textDoc.type || 'text_response',
+                textContent: textDoc.content,
+                isTextDocument: true,
+                uploadedAt: new Date()
+              });
+            });
+          }
+        } catch (e) {
+          console.error('❌ Error parsing text documents:', e);
+        }
+      }
+
       console.log('📄 Processed Documents:', processedDocuments);
       console.log('📄 Processed Documents Count:', processedDocuments.length);
 
@@ -350,6 +372,21 @@ router.post('/',
         hasCertificateOfRegistration,
         hasGradeReport,
         applicantSnapshot,
+        // Parse and store custom field answers
+        customFieldAnswers: (() => {
+          if (customFieldAnswers) {
+            try {
+              const parsed = JSON.parse(customFieldAnswers);
+              console.log('📋 Parsed custom field answers:', parsed);
+              // Store as plain object instead of Map for better serialization
+              return parsed;
+            } catch (e) {
+              console.error('❌ Error parsing customFieldAnswers:', e);
+              return {};
+            }
+          }
+          return {};
+        })(),
         eligibilityChecks: eligibilityResult.checks,
         passedAllEligibilityCriteria: eligibilityResult.passed,
         eligibilityPercentage: eligibilityResult.score,
@@ -376,6 +413,7 @@ router.post('/',
       console.log('💾 Application saved to database');
       console.log('💾 Saved documents count:', application.documents.length);
       console.log('💾 Saved documents:', application.documents);
+      console.log('💾 Saved customFieldAnswers:', application.customFieldAnswers);
 
       res.status(201).json({
         success: true,
@@ -745,6 +783,9 @@ router.get('/:id',
           message: 'Application not found'
         });
       }
+
+      console.log('📋 Application fetched:', application._id);
+      console.log('📋 customFieldAnswers in fetched application:', application.customFieldAnswers);
 
       // Build applicantSnapshot from populated applicant data if snapshot is empty/missing
       // This ensures existing applications display profile info correctly

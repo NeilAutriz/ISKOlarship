@@ -13,6 +13,20 @@ const { clearModelWeightsCache } = require('./logisticRegression.service');
 // Configuration
 // =============================================================================
 
+// STANDARDIZED SCORING CONSTANTS (synchronized across all services)
+const SCORING_CONFIG = {
+  MATCH: 1.0,           // Feature matches requirement
+  MISMATCH: 0.85,       // Feature doesn't match (small penalty)
+  NO_RESTRICTION: 0.95, // No requirement specified
+  UNKNOWN: 0.85,        // Value not provided by student
+  PROFILE_COMPLETE: 1.0,
+  PROFILE_INCOMPLETE: 0.9,
+  TIMING_DEFAULT: 0.9,
+  ELIGIBILITY_FLOOR: 0.7,
+  ELIGIBILITY_RANGE: 0.3,
+  CALIBRATION_OFFSET: 3.0
+};
+
 const TRAINING_CONFIG = {
   learningRate: 0.1,         // Increased for faster convergence
   epochs: 500,               // More epochs with early stopping
@@ -153,11 +167,11 @@ function normalizeGWA(gwa, requiredGWA = 3.0) {
 }
 
 /**
- * Check year level match
+ * Check year level match - STANDARDIZED SCORING
  */
 function checkYearLevelMatch(studentYearLevel, eligibleYearLevels) {
-  if (!eligibleYearLevels || eligibleYearLevels.length === 0) return 1.0;
-  if (!studentYearLevel) return 0.5;
+  if (!eligibleYearLevels || eligibleYearLevels.length === 0) return SCORING_CONFIG.NO_RESTRICTION;
+  if (!studentYearLevel) return SCORING_CONFIG.UNKNOWN;
   
   const normalized = studentYearLevel.toLowerCase().replace(/\s+/g, '');
   const isMatch = eligibleYearLevels.some(level => {
@@ -165,34 +179,34 @@ function checkYearLevelMatch(studentYearLevel, eligibleYearLevels) {
     return normalized === normalizedLevel || normalized.includes(normalizedLevel);
   });
   
-  return isMatch ? 1.0 : 0.0;
+  return isMatch ? SCORING_CONFIG.MATCH : SCORING_CONFIG.MISMATCH;
 }
 
 /**
- * Check income eligibility
+ * Check income eligibility - STANDARDIZED SCORING
  */
 function checkIncomeMatch(studentIncome, maxIncome, stBrackets) {
-  if (!maxIncome && (!stBrackets || stBrackets.length === 0)) return 0.8; // No requirement
+  if (!maxIncome && (!stBrackets || stBrackets.length === 0)) return SCORING_CONFIG.NO_RESTRICTION;
   
   // Income-based check
   if (maxIncome) {
-    if (!studentIncome) return 0.5;
+    if (!studentIncome) return SCORING_CONFIG.UNKNOWN;
     if (studentIncome <= maxIncome) {
-      // Lower income = higher score for need-based
-      return 1.0 - (studentIncome / maxIncome) * 0.5;
+      // Lower income = higher score for need-based (0.9 to 1.0 range)
+      return 0.9 + (1 - (studentIncome / maxIncome)) * 0.1;
     }
-    return 0.0;
+    return SCORING_CONFIG.MISMATCH; // Exceeds but still gets partial score
   }
   
-  return 0.8;
+  return SCORING_CONFIG.NO_RESTRICTION;
 }
 
 /**
- * Check ST Bracket match
+ * Check ST Bracket match - STANDARDIZED SCORING
  */
 function checkSTBracketMatch(studentBracket, eligibleBrackets) {
-  if (!eligibleBrackets || eligibleBrackets.length === 0) return 0.8;
-  if (!studentBracket) return 0.5;
+  if (!eligibleBrackets || eligibleBrackets.length === 0) return SCORING_CONFIG.NO_RESTRICTION;
+  if (!studentBracket) return SCORING_CONFIG.UNKNOWN;
   
   const normalized = studentBracket.toLowerCase().replace(/\s+/g, '');
   const isMatch = eligibleBrackets.some(bracket => {
@@ -200,26 +214,26 @@ function checkSTBracketMatch(studentBracket, eligibleBrackets) {
     return normalized === normalizedBracket || normalized.includes(normalizedBracket);
   });
   
-  // ST bracket importance scoring
+  // ST bracket importance scoring (only when matched)
   const bracketScores = {
     'fulldiscountwithstipend': 1.0,
-    'fulldiscount': 0.9,
-    'pd80': 0.7,
-    'pd60': 0.5,
-    'pd40': 0.3,
-    'pd20': 0.2,
-    'nodiscount': 0.1
+    'fulldiscount': 0.95,
+    'pd80': 0.9,
+    'pd60': 0.85,
+    'pd40': 0.85,
+    'pd20': 0.85,
+    'nodiscount': 0.85
   };
   
-  return isMatch ? (bracketScores[normalized] || 0.8) : 0.0;
+  return isMatch ? (bracketScores[normalized] || SCORING_CONFIG.MATCH) : SCORING_CONFIG.MISMATCH;
 }
 
 /**
- * Check college match
+ * Check college match - STANDARDIZED SCORING
  */
 function checkCollegeMatch(studentCollege, eligibleColleges) {
-  if (!eligibleColleges || eligibleColleges.length === 0) return 1.0;
-  if (!studentCollege) return 0.5;
+  if (!eligibleColleges || eligibleColleges.length === 0) return SCORING_CONFIG.NO_RESTRICTION;
+  if (!studentCollege) return SCORING_CONFIG.UNKNOWN;
   
   const normalized = studentCollege.toLowerCase();
   const isMatch = eligibleColleges.some(college => {
@@ -227,15 +241,15 @@ function checkCollegeMatch(studentCollege, eligibleColleges) {
     return normalized.includes(normalizedCollege) || normalizedCollege.includes(normalized);
   });
   
-  return isMatch ? 1.0 : 0.0;
+  return isMatch ? SCORING_CONFIG.MATCH : SCORING_CONFIG.MISMATCH;
 }
 
 /**
- * Check course/program match
+ * Check course/program match - STANDARDIZED SCORING
  */
 function checkCourseMatch(studentCourse, eligibleCourses) {
-  if (!eligibleCourses || eligibleCourses.length === 0) return 1.0;
-  if (!studentCourse) return 0.5;
+  if (!eligibleCourses || eligibleCourses.length === 0) return SCORING_CONFIG.NO_RESTRICTION;
+  if (!studentCourse) return SCORING_CONFIG.UNKNOWN;
   
   const normalized = studentCourse.toLowerCase();
   const isMatch = eligibleCourses.some(course => {
@@ -243,22 +257,22 @@ function checkCourseMatch(studentCourse, eligibleCourses) {
     return normalized.includes(normalizedCourse) || normalizedCourse.includes(normalized);
   });
   
-  return isMatch ? 1.0 : 0.0;
+  return isMatch ? SCORING_CONFIG.MATCH : SCORING_CONFIG.MISMATCH;
 }
 
 /**
- * Check citizenship match
+ * Check citizenship match - STANDARDIZED SCORING
  */
 function checkCitizenshipMatch(studentCitizenship, eligibleCitizenship) {
-  if (!eligibleCitizenship || eligibleCitizenship.length === 0) return 1.0;
-  if (!studentCitizenship) return 0.8;
+  if (!eligibleCitizenship || eligibleCitizenship.length === 0) return SCORING_CONFIG.NO_RESTRICTION;
+  if (!studentCitizenship) return SCORING_CONFIG.UNKNOWN;
   
   const normalized = studentCitizenship.toLowerCase();
   const isMatch = eligibleCitizenship.some(citizenship => 
     normalized === citizenship.toLowerCase()
   );
   
-  return isMatch ? 1.0 : 0.0;
+  return isMatch ? SCORING_CONFIG.MATCH : SCORING_CONFIG.MISMATCH;
 }
 
 /**
@@ -388,9 +402,9 @@ function extractFeaturesFromUserAndScholarship(user, scholarship) {
   const collegeMatch = checkCollegeMatch(profile.college, criteria.eligibleColleges);
   const courseMatch = checkCourseMatch(profile.course, criteria.eligibleCourses);
   const citizenshipMatch = checkCitizenshipMatch(profile.citizenship, criteria.eligibleCitizenship);
-  const documentCompleteness = 0.8; // Assume partial docs for predictions
-  const applicationTiming = 0.7; // Assume reasonable timing for predictions
-  const eligibilityScore = 0.7; // Will be calculated by eligibility service
+  const documentCompleteness = SCORING_CONFIG.PROFILE_INCOMPLETE; // 0.9 for predictions
+  const applicationTiming = SCORING_CONFIG.TIMING_DEFAULT; // 0.9 for predictions
+  const eligibilityScore = SCORING_CONFIG.ELIGIBILITY_FLOOR + (SCORING_CONFIG.ELIGIBILITY_RANGE * 0.5); // 0.85 default
   
   // Interaction features
   const academicStrength = gwaScore * yearLevelMatch;

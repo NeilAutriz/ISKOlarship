@@ -24,7 +24,19 @@ import {
   Trash2
 } from 'lucide-react';
 import { scholarshipApi, userApi } from '../../services/apiClient';
-import { UPLBCollege, UPLBCourses, AgricultureMajor } from '../../types';
+import { 
+  UPLBCollege, 
+  UPLBCourses, 
+  AgricultureMajor,
+  CustomCondition,
+  ConditionType,
+  RangeOperator,
+  BooleanOperator,
+  ListOperator,
+  ConditionCategory,
+  ConditionImportance,
+  STUDENT_PROFILE_FIELDS
+} from '../../types';
 import { 
   UPLBCollegeCode, 
   getCollegeOptions, 
@@ -45,6 +57,28 @@ const ScholarshipTypes = [
   'Private Scholarship',
   'Thesis/Research Grant'
 ];
+
+// Helper function to normalize scholarship type from old format to new format
+const normalizeScholarshipType = (type: string | undefined): string => {
+  if (!type) return ScholarshipTypes[0];
+  
+  // If it's already a valid full format, return it
+  if (ScholarshipTypes.includes(type)) return type;
+  
+  // Map old lowercase/short formats to new full formats
+  const typeMapping: Record<string, string> = {
+    'university': 'University Scholarship',
+    'college': 'College Scholarship',
+    'government': 'Government Scholarship',
+    'private': 'Private Scholarship',
+    'thesis_grant': 'Thesis/Research Grant',
+    'thesis': 'Thesis/Research Grant',
+    'research': 'Thesis/Research Grant',
+  };
+  
+  const normalizedType = type.toLowerCase().trim();
+  return typeMapping[normalizedType] || ScholarshipTypes[0];
+};
 
 // Year Levels
 const YearLevels = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
@@ -166,7 +200,9 @@ interface ScholarshipFormData {
     mustBeGraduating: boolean;
     additionalRequirements: Array<{ description: string; isRequired: boolean }>;
   };
-  requiredDocuments: Array<{ name: string; description: string; isRequired: boolean }>;
+  // Custom conditions for dynamic eligibility
+  customConditions: CustomCondition[];
+  requiredDocuments: Array<{ name: string; description: string; isRequired: boolean; fileType?: 'any' | 'pdf' | 'image' | 'text' }>;
   status: string;
 }
 
@@ -187,8 +223,8 @@ const initialFormData: ScholarshipFormData = {
   managingCollegeCode: '',
   managingAcademicUnitCode: '',
   eligibilityCriteria: {
-    minGWA: 0,
-    maxGWA: 5.0,
+    minGWA: 1.0,  // 1.0 = no minimum restriction (best possible)
+    maxGWA: 5.0,  // 5.0 = no maximum restriction (any grade allowed)
     eligibleClassifications: [],
     minUnitsEnrolled: 0,
     minUnitsPassed: 0,
@@ -210,6 +246,7 @@ const initialFormData: ScholarshipFormData = {
     mustBeGraduating: false,
     additionalRequirements: []
   },
+  customConditions: [],
   requiredDocuments: [],
   status: 'draft'
 };
@@ -242,7 +279,23 @@ const AddScholarship: React.FC = () => {
   
   // Custom inputs
   const [customRequirement, setCustomRequirement] = useState({ description: '', isRequired: true });
-  const [customDocument, setCustomDocument] = useState({ name: '', description: '', isRequired: true });
+  const [customDocument, setCustomDocument] = useState({ name: '', description: '', isRequired: true, fileType: 'any' as 'any' | 'pdf' | 'image' | 'text' });
+  
+  // Custom condition builder state
+  const [customConditionInput, setCustomConditionInput] = useState<Partial<CustomCondition>>({
+    name: '',
+    description: '',
+    conditionType: ConditionType.RANGE,
+    studentField: 'gwa',
+    operator: RangeOperator.LESS_THAN_OR_EQUAL,
+    value: 0,
+    category: ConditionCategory.ACADEMIC,
+    importance: ConditionImportance.REQUIRED,
+    isActive: true
+  });
+  const [showConditionBuilder, setShowConditionBuilder] = useState(false);
+  const [isCustomFieldMode, setIsCustomFieldMode] = useState(false);
+  const [customFieldName, setCustomFieldName] = useState('');
 
   const totalSteps = 5;
   const academicYears = generateAcademicYears();
@@ -320,12 +373,13 @@ const AddScholarship: React.FC = () => {
           };
           
           // Map required documents with proper defaults
-          const mapRequiredDocuments = (docs: any): Array<{ name: string; description: string; isRequired: boolean }> => {
+          const mapRequiredDocuments = (docs: any): Array<{ name: string; description: string; isRequired: boolean; fileType?: 'any' | 'pdf' | 'image' | 'text' }> => {
             if (!docs || !Array.isArray(docs)) return [];
             return docs.map((doc: any) => ({
               name: doc.name || '',
               description: doc.description || '',
-              isRequired: doc.isRequired !== undefined ? doc.isRequired : true
+              isRequired: doc.isRequired !== undefined ? doc.isRequired : true,
+              fileType: doc.fileType || 'any'
             }));
           };
           
@@ -333,7 +387,7 @@ const AddScholarship: React.FC = () => {
             name: scholarship.name || '',
             description: scholarship.description || '',
             sponsor: scholarship.sponsor || '',
-            type: scholarship.type || ScholarshipTypes[0],
+            type: normalizeScholarshipType(scholarship.type),
             totalGrant: scholarship.totalGrant || 0,
             awardDescription: scholarship.awardDescription || '',
             applicationDeadline: formatDateForInput(scholarship.applicationDeadline),
@@ -345,8 +399,8 @@ const AddScholarship: React.FC = () => {
             managingCollegeCode: scholarship.managingCollegeCode || scholarship.managingCollege || '',
             managingAcademicUnitCode: scholarship.managingAcademicUnitCode || scholarship.managingAcademicUnit || '',
             eligibilityCriteria: {
-              minGWA: scholarship.eligibilityCriteria?.minGWA || 0,
-              maxGWA: scholarship.eligibilityCriteria?.maxGWA || 5.0,
+              minGWA: scholarship.eligibilityCriteria?.minGWA || 1.0,  // 1.0 = no min restriction
+              maxGWA: scholarship.eligibilityCriteria?.maxGWA || 5.0,  // 5.0 = no max restriction
               eligibleClassifications: scholarship.eligibilityCriteria?.eligibleClassifications || [],
               minUnitsEnrolled: scholarship.eligibilityCriteria?.minUnitsEnrolled || 0,
               minUnitsPassed: scholarship.eligibilityCriteria?.minUnitsPassed || scholarship.eligibilityCriteria?.minimumUnitsPassed || 0,
@@ -375,6 +429,24 @@ const AddScholarship: React.FC = () => {
               mustBeGraduating: scholarship.eligibilityCriteria?.mustBeGraduating || false,
               additionalRequirements: mapAdditionalRequirements(scholarship.eligibilityCriteria?.additionalRequirements)
             },
+            // Load custom conditions (from eligibilityCriteria or top-level for backward compatibility)
+            customConditions: (() => {
+              const conditions = scholarship.eligibilityCriteria?.customConditions || scholarship.customConditions || [];
+              return Array.isArray(conditions) 
+                ? conditions.map((c: any) => ({
+                    id: c.id || `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    name: c.name || '',
+                    description: c.description || '',
+                    conditionType: c.conditionType || ConditionType.RANGE,
+                    studentField: c.studentField || 'gwa',
+                    operator: c.operator || RangeOperator.LESS_THAN_OR_EQUAL,
+                    value: c.value ?? 0,
+                    category: c.category || ConditionCategory.ACADEMIC,
+                    importance: c.importance || ConditionImportance.REQUIRED,
+                    isActive: c.isActive !== false
+                  }))
+                : [];
+            })(),
             requiredDocuments: mapRequiredDocuments(scholarship.requiredDocuments),
             status: scholarship.status || 'draft'
           });
@@ -487,7 +559,7 @@ const AddScholarship: React.FC = () => {
         ...prev,
         requiredDocuments: [...prev.requiredDocuments, customDocument]
       }));
-      setCustomDocument({ name: '', description: '', isRequired: true });
+      setCustomDocument({ name: '', description: '', isRequired: true, fileType: 'any' });
     }
   };
 
@@ -512,6 +584,305 @@ const AddScholarship: React.FC = () => {
     handleEligibilityChange('additionalRequirements',
       formData.eligibilityCriteria.additionalRequirements.filter((_, i) => i !== index)
     );
+  };
+
+  // ============================================================================
+  // Custom Condition Management
+  // ============================================================================
+  
+  // Get operators based on condition type
+  const getOperatorsForType = (type: ConditionType) => {
+    switch (type) {
+      case ConditionType.RANGE:
+        return [
+          { value: RangeOperator.LESS_THAN, label: 'Less than (<)' },
+          { value: RangeOperator.LESS_THAN_OR_EQUAL, label: 'Less than or equal (≤)' },
+          { value: RangeOperator.GREATER_THAN, label: 'Greater than (>)' },
+          { value: RangeOperator.GREATER_THAN_OR_EQUAL, label: 'Greater than or equal (≥)' },
+          { value: RangeOperator.EQUAL, label: 'Equal (=)' },
+          { value: RangeOperator.NOT_EQUAL, label: 'Not equal (≠)' },
+          { value: RangeOperator.BETWEEN, label: 'Between (inclusive)' },
+        ];
+      case ConditionType.BOOLEAN:
+        return [
+          { value: BooleanOperator.IS_TRUE, label: 'Must be TRUE (Yes)' },
+          { value: BooleanOperator.IS_FALSE, label: 'Must be FALSE (No)' },
+          { value: BooleanOperator.EXISTS, label: 'Must have a value' },
+          { value: BooleanOperator.NOT_EXISTS, label: 'Must not have a value' },
+        ];
+      case ConditionType.LIST:
+        return [
+          { value: ListOperator.IN, label: 'Must be one of the values' },
+          { value: ListOperator.NOT_IN, label: 'Must NOT be one of the values' },
+          { value: ListOperator.CONTAINS, label: 'Must contain value' },
+          { value: ListOperator.CONTAINS_ANY, label: 'Must contain any of values' },
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Get fields filtered by condition type (include custom option at the end)
+  const getFieldsForType = (type: ConditionType) => {
+    const typeFields = STUDENT_PROFILE_FIELDS.filter(f => f.type === type && f.value !== '__custom__');
+    const customOption = STUDENT_PROFILE_FIELDS.find(f => f.value === '__custom__');
+    // Always include the custom option at the end
+    return customOption ? [...typeFields, { ...customOption, type }] : typeFields;
+  };
+
+  // Handle TYPE selection change (first step)
+  const handleTypeChange = (type: ConditionType) => {
+    const fieldsForType = getFieldsForType(type);
+    const firstField = fieldsForType[0];
+    const operators = getOperatorsForType(type);
+    
+    // Reset custom field mode when changing type
+    setIsCustomFieldMode(false);
+    setCustomFieldName('');
+    
+    setCustomConditionInput(prev => ({
+      ...prev,
+      conditionType: type,
+      studentField: firstField?.value || '',
+      category: (firstField?.category as ConditionCategory) || ConditionCategory.CUSTOM,
+      operator: operators[0]?.value || RangeOperator.LESS_THAN_OR_EQUAL,
+      value: type === ConditionType.BOOLEAN ? true : type === ConditionType.LIST ? [] : 0
+    }));
+  };
+
+  // Handle FIELD selection change (second step)
+  const handleFieldChange = (fieldValue: string) => {
+    if (fieldValue === '__custom__') {
+      // Switch to custom field mode
+      setIsCustomFieldMode(true);
+      setCustomFieldName('');
+      setCustomConditionInput(prev => ({
+        ...prev,
+        studentField: '',
+        category: ConditionCategory.CUSTOM
+      }));
+    } else {
+      // Normal field selection
+      setIsCustomFieldMode(false);
+      setCustomFieldName('');
+      const field = STUDENT_PROFILE_FIELDS.find(f => f.value === fieldValue);
+      if (field) {
+        setCustomConditionInput(prev => ({
+          ...prev,
+          studentField: fieldValue,
+          category: field.category as ConditionCategory
+        }));
+      }
+    }
+  };
+
+  // Handle custom field name input
+  const handleCustomFieldNameChange = (name: string) => {
+    // Convert to camelCase and store in customFields path
+    const fieldKey = name.replace(/\s+/g, '').replace(/^./, c => c.toLowerCase());
+    setCustomFieldName(name);
+    setCustomConditionInput(prev => ({
+      ...prev,
+      studentField: `customFields.${fieldKey}`,
+      category: ConditionCategory.CUSTOM
+    }));
+  };
+
+  // Add custom condition
+  const addCustomCondition = () => {
+    if (!customConditionInput.name?.trim() || !customConditionInput.studentField) {
+      toast.error('Please provide a name and select a field for the condition');
+      return;
+    }
+    
+    const newCondition: CustomCondition = {
+      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: customConditionInput.name!.trim(),
+      description: customConditionInput.description?.trim() || '',
+      conditionType: customConditionInput.conditionType!,
+      studentField: customConditionInput.studentField!,
+      operator: customConditionInput.operator!,
+      value: customConditionInput.value!,
+      category: customConditionInput.category!,
+      // All custom conditions are always optional (nice to have)
+      importance: ConditionImportance.OPTIONAL,
+      isActive: customConditionInput.isActive !== false
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      customConditions: [...prev.customConditions, newCondition]
+    }));
+
+    // Reset the input
+    setCustomConditionInput({
+      name: '',
+      description: '',
+      conditionType: ConditionType.RANGE,
+      studentField: 'gwa',
+      operator: RangeOperator.LESS_THAN_OR_EQUAL,
+      value: 0,
+      category: ConditionCategory.ACADEMIC,
+      importance: ConditionImportance.REQUIRED,
+      isActive: true
+    });
+    setIsCustomFieldMode(false);
+    setCustomFieldName('');
+    setShowConditionBuilder(false);
+    toast.success('Custom condition added');
+  };
+
+  // Remove custom condition
+  const removeCustomCondition = (conditionId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customConditions: prev.customConditions.filter(c => c.id !== conditionId)
+    }));
+    toast.success('Condition removed');
+  };
+
+  // Toggle condition active status
+  const toggleConditionActive = (conditionId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      customConditions: prev.customConditions.map(c =>
+        c.id === conditionId ? { ...c, isActive: !c.isActive } : c
+      )
+    }));
+  };
+
+  // Format condition value for display
+  const formatConditionValue = (condition: CustomCondition): string => {
+    if (condition.conditionType === ConditionType.BOOLEAN) {
+      return condition.operator === BooleanOperator.IS_TRUE ? 'Yes' : 'No';
+    }
+    if (condition.conditionType === ConditionType.LIST && Array.isArray(condition.value)) {
+      return (condition.value as string[]).join(', ');
+    }
+    if (condition.operator === RangeOperator.BETWEEN && typeof condition.value === 'object') {
+      const range = condition.value as { min?: number; max?: number };
+      return `${range.min ?? '∞'} - ${range.max ?? '∞'}`;
+    }
+    return String(condition.value);
+  };
+
+  // Get readable field label
+  const getFieldLabel = (fieldValue: string): string => {
+    // Handle custom fields (stored as customFields.fieldName)
+    if (fieldValue?.startsWith('customFields.')) {
+      const customFieldKey = fieldValue.replace('customFields.', '');
+      // Convert camelCase to readable format
+      return '✏️ ' + customFieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).trim();
+    }
+    const field = STUDENT_PROFILE_FIELDS.find(f => f.value === fieldValue);
+    return field?.label || fieldValue;
+  };
+
+  // Get operator label for display
+  const getOperatorLabel = (operator: string): string => {
+    const allOperators = [
+      ...getOperatorsForType(ConditionType.RANGE),
+      ...getOperatorsForType(ConditionType.BOOLEAN),
+      ...getOperatorsForType(ConditionType.LIST)
+    ];
+    return allOperators.find(o => o.value === operator)?.label || operator;
+  };
+
+  // Preset condition templates for quick addition
+  const CONDITION_PRESETS = [
+    {
+      label: 'Maximum GWA Required',
+      icon: '📊',
+      template: {
+        name: 'Maximum GWA Requirement',
+        description: 'Student must have GWA less than or equal to specified value',
+        conditionType: ConditionType.RANGE,
+        studentField: 'gwa',
+        operator: RangeOperator.LESS_THAN_OR_EQUAL,
+        value: 2.0,
+        category: ConditionCategory.ACADEMIC,
+        importance: ConditionImportance.REQUIRED
+      }
+    },
+    {
+      label: 'Maximum Family Income',
+      icon: '💰',
+      template: {
+        name: 'Maximum Annual Family Income',
+        description: 'Family income must not exceed specified amount',
+        conditionType: ConditionType.RANGE,
+        studentField: 'annualFamilyIncome',
+        operator: RangeOperator.LESS_THAN_OR_EQUAL,
+        value: 500000,
+        category: ConditionCategory.FINANCIAL,
+        importance: ConditionImportance.REQUIRED
+      }
+    },
+    {
+      label: 'Filipino Citizen Only',
+      icon: '🇵🇭',
+      template: {
+        name: 'Filipino Citizenship Required',
+        description: 'Applicant must be a Filipino citizen',
+        conditionType: ConditionType.BOOLEAN,
+        studentField: 'isFilipino',
+        operator: BooleanOperator.IS_TRUE,
+        value: true,
+        category: ConditionCategory.DEMOGRAPHIC,
+        importance: ConditionImportance.REQUIRED
+      }
+    },
+    {
+      label: 'No Existing Scholarship',
+      icon: '🎓',
+      template: {
+        name: 'No Existing Scholarship',
+        description: 'Applicant must not have an existing scholarship',
+        conditionType: ConditionType.BOOLEAN,
+        studentField: 'hasExistingScholarship',
+        operator: BooleanOperator.IS_FALSE,
+        value: false,
+        category: ConditionCategory.FINANCIAL,
+        importance: ConditionImportance.REQUIRED
+      }
+    },
+    {
+      label: 'No Disciplinary Record',
+      icon: '✅',
+      template: {
+        name: 'No Disciplinary Record',
+        description: 'Applicant must have no disciplinary record',
+        conditionType: ConditionType.BOOLEAN,
+        studentField: 'hasDisciplinaryRecord',
+        operator: BooleanOperator.IS_FALSE,
+        value: false,
+        category: ConditionCategory.DEMOGRAPHIC,
+        importance: ConditionImportance.REQUIRED
+      }
+    },
+    {
+      label: 'Specific ST Bracket',
+      icon: '📋',
+      template: {
+        name: 'ST Bracket Requirement',
+        description: 'Applicant must have one of the specified ST brackets',
+        conditionType: ConditionType.LIST,
+        studentField: 'stBracket',
+        operator: ListOperator.IN,
+        value: ['FDS', 'FD'],
+        category: ConditionCategory.FINANCIAL,
+        importance: ConditionImportance.REQUIRED
+      }
+    }
+  ];
+
+  // Apply a preset condition
+  const applyConditionPreset = (preset: typeof CONDITION_PRESETS[0]) => {
+    setCustomConditionInput({
+      ...preset.template,
+      isActive: true
+    });
+    setShowConditionBuilder(true);
   };
 
   // ============================================================================
@@ -777,8 +1148,11 @@ const AddScholarship: React.FC = () => {
           mustNotHaveIncompleteGrade: formData.eligibilityCriteria.mustNotHaveIncompleteGrade,
           mustBeGraduating: formData.eligibilityCriteria.mustBeGraduating,
           
-          // Additional custom requirements
-          additionalRequirements: formData.eligibilityCriteria.additionalRequirements
+          // Additional custom requirements (text-based, manual verification)
+          additionalRequirements: formData.eligibilityCriteria.additionalRequirements,
+          
+          // Custom conditions for dynamic eligibility (auto-evaluated)
+          customConditions: formData.customConditions.filter(c => c.isActive)
         },
         
         // Required documents
@@ -1319,39 +1693,46 @@ const AddScholarship: React.FC = () => {
                     </h3>
 
                     <div className="space-y-4">
-                      {/* GWA Range */}
+                      {/* GWA Requirement - UPLB uses 1.0=highest, 5.0=lowest */}
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
+                        <p className="text-xs text-amber-800">
+                          <strong>UP Grading System:</strong> 1.0 = highest (excellent), 5.0 = lowest (failed). 
+                          Set the maximum GWA a student can have to be eligible (e.g., 2.0 means students must have 2.0 or better).
+                        </p>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Minimum GWA
+                            Required GWA (or better)
                           </label>
                           <input
                             type="number"
-                            value={formData.eligibilityCriteria.minGWA}
-                            onChange={(e) => handleEligibilityChange('minGWA', parseFloat(e.target.value) || 0)}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
-                            min="1.0"
-                            max="5.0"
-                            step="0.01"
-                            placeholder="1.00"
-                          />
-                          <p className="text-xs text-slate-500 mt-1">Leave as 0 if no requirement</p>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Maximum GWA (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.eligibilityCriteria.maxGWA}
+                            value={formData.eligibilityCriteria.maxGWA === 5.0 ? '' : formData.eligibilityCriteria.maxGWA}
                             onChange={(e) => handleEligibilityChange('maxGWA', parseFloat(e.target.value) || 5.0)}
                             className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                             min="1.0"
                             max="5.0"
                             step="0.01"
-                            placeholder="5.00"
+                            placeholder="e.g., 2.00 (no restriction if blank)"
                           />
+                          <p className="text-xs text-slate-500 mt-1">Leave blank if no GWA requirement</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Minimum GWA (for elite scholarships)
+                          </label>
+                          <input
+                            type="number"
+                            value={formData.eligibilityCriteria.minGWA === 0 || formData.eligibilityCriteria.minGWA === 1.0 ? '' : formData.eligibilityCriteria.minGWA}
+                            onChange={(e) => handleEligibilityChange('minGWA', parseFloat(e.target.value) || 1.0)}
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                            min="1.0"
+                            max="5.0"
+                            step="0.01"
+                            placeholder="e.g., 1.25 (rarely used)"
+                          />
+                          <p className="text-xs text-slate-500 mt-1">Only for Dean's List type scholarships</p>
                         </div>
                       </div>
 
@@ -1714,6 +2095,425 @@ const AddScholarship: React.FC = () => {
                       </button>
                     </div>
                   </div>
+
+                  {/* ============================================================ */}
+                  {/* Custom Conditions Builder */}
+                  {/* ============================================================ */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-indigo-600" />
+                          Custom Eligibility Conditions
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Create advanced conditions that are automatically evaluated
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowConditionBuilder(!showConditionBuilder)}
+                        className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        {showConditionBuilder ? 'Cancel' : 'Add Custom'}
+                      </button>
+                    </div>
+
+                    {/* Quick Presets - Only show if not in builder mode */}
+                    {!showConditionBuilder && (
+                      <div className="mb-4">
+                        <p className="text-xs font-medium text-slate-600 mb-2">Quick Add (click to customize):</p>
+                        <div className="flex flex-wrap gap-2">
+                          {CONDITION_PRESETS.map((preset, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => applyConditionPreset(preset)}
+                              className="px-3 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center gap-1.5"
+                            >
+                              <span>{preset.icon}</span>
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Existing Custom Conditions List */}
+                    {formData.customConditions.length > 0 && (
+                      <div className="space-y-2 mb-4">
+                        {formData.customConditions.map((condition) => (
+                          <div
+                            key={condition.id}
+                            className={`flex items-start gap-3 px-4 py-3 bg-white rounded-lg border-2 transition-all ${
+                              condition.isActive ? 'border-indigo-300' : 'border-slate-200 opacity-60'
+                            }`}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  condition.conditionType === ConditionType.RANGE
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : condition.conditionType === ConditionType.BOOLEAN
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  {condition.conditionType}
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium text-slate-800">{condition.name}</p>
+                              <p className="text-xs text-slate-500 mt-1">
+                                <span className="font-medium">{getFieldLabel(condition.studentField)}</span>
+                                {' '}{getOperatorLabel(condition.operator)}{' '}
+                                <span className="font-medium text-indigo-600">{formatConditionValue(condition)}</span>
+                              </p>
+                              {condition.description && (
+                                <p className="text-xs text-slate-400 mt-1">{condition.description}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => toggleConditionActive(condition.id)}
+                                className={`p-1.5 rounded transition-colors ${
+                                  condition.isActive
+                                    ? 'text-indigo-600 hover:bg-indigo-50'
+                                    : 'text-slate-400 hover:bg-slate-100'
+                                }`}
+                                title={condition.isActive ? 'Disable condition' : 'Enable condition'}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeCustomCondition(condition.id)}
+                                className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Condition Builder Form */}
+                    {showConditionBuilder && (
+                      <div className="bg-white rounded-lg p-4 border border-indigo-200 space-y-4">
+                        {/* Step indicator */}
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
+                          <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-semibold">1. Type</span>
+                          <ChevronRight className="w-3 h-3" />
+                          <span className="px-2 py-1 bg-slate-100 rounded">2. Field</span>
+                          <ChevronRight className="w-3 h-3" />
+                          <span className="px-2 py-1 bg-slate-100 rounded">3. Value</span>
+                          <ChevronRight className="w-3 h-3" />
+                          <span className="px-2 py-1 bg-slate-100 rounded">4. Operator</span>
+                        </div>
+
+                        {/* STEP 1: Condition Type Selection */}
+                        <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                          <label className="block text-sm font-semibold text-indigo-800 mb-2">
+                            Step 1: What type of condition?
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleTypeChange(ConditionType.RANGE)}
+                              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                                customConditionInput.conditionType === ConditionType.RANGE
+                                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                  : 'border-slate-200 bg-white hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="text-lg mb-1">📊</div>
+                              <div className="text-sm font-medium">Range</div>
+                              <div className="text-[10px] text-slate-500">Numbers (GWA, Income)</div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleTypeChange(ConditionType.BOOLEAN)}
+                              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                                customConditionInput.conditionType === ConditionType.BOOLEAN
+                                  ? 'border-green-500 bg-green-50 text-green-700'
+                                  : 'border-slate-200 bg-white hover:border-green-300'
+                              }`}
+                            >
+                              <div className="text-lg mb-1">✓✗</div>
+                              <div className="text-sm font-medium">Boolean</div>
+                              <div className="text-[10px] text-slate-500">Yes/No conditions</div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleTypeChange(ConditionType.LIST)}
+                              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                                customConditionInput.conditionType === ConditionType.LIST
+                                  ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                  : 'border-slate-200 bg-white hover:border-purple-300'
+                              }`}
+                            >
+                              <div className="text-lg mb-1">📋</div>
+                              <div className="text-sm font-medium">List</div>
+                              <div className="text-[10px] text-slate-500">College, Year Level</div>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* STEP 2: Field Selection */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              Step 2: Which field to check? *
+                            </label>
+                            <select
+                              value={isCustomFieldMode ? '__custom__' : (customConditionInput.studentField || '')}
+                              onChange={(e) => handleFieldChange(e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                            >
+                              <option value="" disabled>-- Select a field --</option>
+                              {getFieldsForType(customConditionInput.conditionType!).map(field => (
+                                <option key={field.value} value={field.value}>
+                                  {field.label}
+                                </option>
+                              ))}
+                            </select>
+                            
+                            {/* Custom Field Name Input - Enhanced */}
+                            {isCustomFieldMode && (
+                              <div className="mt-3 p-3 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                                    <span className="text-purple-600 text-xs">✏️</span>
+                                  </div>
+                                  <span className="text-sm font-semibold text-purple-800">Create Custom Field</span>
+                                </div>
+                                
+                                <div className="space-y-3">
+                                  {/* Field Name */}
+                                  <div>
+                                    <label className="block text-xs font-medium text-purple-700 mb-1">
+                                      Field Identifier *
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={customFieldName}
+                                      onChange={(e) => handleCustomFieldNameChange(e.target.value)}
+                                      placeholder="e.g., volunteerHours, communityService, athleteStatus"
+                                      className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-sm"
+                                    />
+                                    <p className="text-[10px] text-purple-600 mt-1">
+                                      💾 Stored as: <code className="bg-purple-100 px-1 rounded">customFields.{customFieldName.replace(/\s+/g, '').replace(/^./, c => c.toLowerCase()) || '...'}</code>
+                                    </p>
+                                  </div>
+
+                                  {/* Auto-set Condition Name based on field */}
+                                  {customFieldName && !customConditionInput.name && (
+                                    <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                                      💡 Tip: Set the <strong>Condition Name</strong> below to describe this requirement (e.g., "Minimum Volunteer Hours")
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                  <p className="text-xs text-amber-700">
+                                    <strong>⚠️ Note:</strong> Students will see this field when applying and must fill it in. 
+                                    Make sure to add a clear <strong>Description</strong> below so students understand what to enter.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {!isCustomFieldMode && (
+                              <p className="text-[10px] text-slate-400 mt-1">
+                                {getFieldsForType(customConditionInput.conditionType!).length - 1} predefined fields + custom option
+                              </p>
+                            )}
+                          </div>
+
+                          {/* STEP 3: Value Input */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              Step 3: What value? *
+                            </label>
+                            {customConditionInput.conditionType === ConditionType.RANGE && (
+                              customConditionInput.operator === RangeOperator.BETWEEN ? (
+                                <div className="flex gap-2">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={(customConditionInput.value as { min?: number; max?: number })?.min || ''}
+                                    onChange={(e) => setCustomConditionInput(prev => ({
+                                      ...prev,
+                                      value: { ...(prev.value as { min?: number; max?: number }), min: parseFloat(e.target.value) || 0 }
+                                    }))}
+                                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Min"
+                                  />
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={(customConditionInput.value as { min?: number; max?: number })?.max || ''}
+                                    onChange={(e) => setCustomConditionInput(prev => ({
+                                      ...prev,
+                                      value: { ...(prev.value as { min?: number; max?: number }), max: parseFloat(e.target.value) || 0 }
+                                    }))}
+                                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Max"
+                                  />
+                                </div>
+                              ) : (
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={customConditionInput.value as number || 0}
+                                  onChange={(e) => setCustomConditionInput(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                  placeholder="Enter numeric value"
+                                />
+                              )
+                            )}
+                            {customConditionInput.conditionType === ConditionType.BOOLEAN && (
+                              <div className="text-sm text-slate-600 px-3 py-2 bg-green-50 rounded-lg border border-green-200">
+                                ✓ Value is determined by the operator (Step 4)
+                              </div>
+                            )}
+                            {customConditionInput.conditionType === ConditionType.LIST && (
+                              <input
+                                type="text"
+                                value={Array.isArray(customConditionInput.value) ? (customConditionInput.value as string[]).join(', ') : ''}
+                                onChange={(e) => setCustomConditionInput(prev => ({
+                                  ...prev,
+                                  value: e.target.value.split(',').map(v => v.trim()).filter(Boolean)
+                                }))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Enter values separated by commas"
+                              />
+                            )}
+                          </div>
+
+                          {/* STEP 4: Operator Selection */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              Step 4: How to compare? *
+                            </label>
+                            <select
+                              value={customConditionInput.operator as string || ''}
+                              onChange={(e) => setCustomConditionInput(prev => ({ ...prev, operator: e.target.value as any }))}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                            >
+                              {getOperatorsForType(customConditionInput.conditionType!).map(op => (
+                                <option key={op.value} value={op.value}>
+                                  {op.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Condition Name */}
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              Condition Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={customConditionInput.name || ''}
+                              onChange={(e) => setCustomConditionInput(prev => ({ ...prev, name: e.target.value }))}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="e.g., Minimum GWA Requirement"
+                            />
+                          </div>
+
+                          {/* Description */}
+                          <div className={isCustomFieldMode ? 'p-3 bg-blue-50 border border-blue-200 rounded-lg' : ''}>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                              Description {isCustomFieldMode ? <span className="text-red-500">*</span> : '(Optional)'}
+                            </label>
+                            {isCustomFieldMode && (
+                              <p className="text-xs text-blue-600 mb-2">
+                                📝 Students will see this when filling the custom field. Be clear about what they should enter.
+                              </p>
+                            )}
+                            <textarea
+                              rows={isCustomFieldMode ? 2 : 1}
+                              value={customConditionInput.description || ''}
+                              onChange={(e) => setCustomConditionInput(prev => ({ ...prev, description: e.target.value }))}
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 resize-none ${
+                                isCustomFieldMode 
+                                  ? 'border-blue-300 bg-white' 
+                                  : 'border-slate-300'
+                              }`}
+                              placeholder={isCustomFieldMode 
+                                ? "e.g., Enter the total number of volunteer hours you've completed (minimum 20 hours required)" 
+                                : "Brief explanation for students"
+                              }
+                            />
+                            {isCustomFieldMode && !customConditionInput.description && (
+                              <p className="text-xs text-amber-600 mt-1">
+                                ⚠️ Adding a description is highly recommended for custom fields
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Preview & Add Button */}
+                        <div className="pt-3 border-t border-slate-200">
+                          {customConditionInput.studentField && customConditionInput.name?.trim() && (
+                            <div className="mb-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                              <p className="text-xs font-semibold text-slate-500 mb-1">Preview:</p>
+                              <p className="text-sm text-slate-700">
+                                <span className="font-medium">{customConditionInput.name}</span>: {getFieldLabel(customConditionInput.studentField)} {getOperatorLabel(customConditionInput.operator as string)} <span className="text-indigo-600 font-medium">{formatConditionValue(customConditionInput as CustomCondition)}</span>
+                              </p>
+                              {customConditionInput.description && (
+                                <p className="text-xs text-slate-500 mt-1 italic">
+                                  "{customConditionInput.description}"
+                                </p>
+                              )}
+                              {isCustomFieldMode && (
+                                <div className="mt-2 flex items-center gap-1">
+                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">
+                                    CUSTOM FIELD
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    Students will fill this during application
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowConditionBuilder(false)}
+                              className="px-4 py-2 rounded-lg font-medium text-slate-600 hover:bg-slate-100 transition-all"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={addCustomCondition}
+                              disabled={!customConditionInput.name?.trim() || !customConditionInput.studentField}
+                              className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${
+                                customConditionInput.name?.trim() && customConditionInput.studentField
+                                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                              }`}
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add Condition
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Empty state */}
+                    {formData.customConditions.length === 0 && !showConditionBuilder && (
+                      <div className="text-center py-4 text-slate-500 text-sm">
+                        No custom conditions added. Click "Add Custom" or use a Quick Add preset to create eligibility rules.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1786,7 +2586,20 @@ const AddScholarship: React.FC = () => {
                           <div key={index} className="flex items-start gap-2 px-4 py-3 bg-white rounded-lg border border-green-300">
                             <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-slate-800">{doc.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-slate-800">{doc.name}</p>
+                                {(doc as any).fileType && (doc as any).fileType !== 'any' && (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    (doc as any).fileType === 'pdf' ? 'bg-red-100 text-red-700' :
+                                    (doc as any).fileType === 'image' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-amber-100 text-amber-700'
+                                  }`}>
+                                    {(doc as any).fileType === 'pdf' ? '📄 PDF' :
+                                     (doc as any).fileType === 'image' ? '🖼️ Image' :
+                                     '📝 Text Input'}
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-slate-500 mt-1">{doc.description || 'No description'}</p>
                               <p className="text-xs text-green-600 mt-1 font-medium">
                                 {doc.isRequired ? 'Required' : 'Optional'}
@@ -1826,28 +2639,41 @@ const AddScholarship: React.FC = () => {
                         placeholder="Brief description of the document"
                       />
 
-                      <div className="flex gap-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        {/* File Type Selection */}
+                        <select
+                          value={customDocument.fileType}
+                          onChange={(e) => setCustomDocument({ ...customDocument, fileType: e.target.value as 'any' | 'pdf' | 'image' | 'text' })}
+                          className="px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                        >
+                          <option value="any">📎 Any File Type</option>
+                          <option value="pdf">📄 PDF Only</option>
+                          <option value="image">🖼️ Image Only (JPG, PNG)</option>
+                          <option value="text">📝 Text Input (No File)</option>
+                        </select>
+                        
+                        {/* Required/Optional */}
                         <select
                           value={customDocument.isRequired.toString()}
                           onChange={(e) => setCustomDocument({ ...customDocument, isRequired: e.target.value === 'true' })}
-                          className="flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                          className="px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
                         >
-                          <option value="true">Required Document</option>
-                          <option value="false">Optional Document</option>
+                          <option value="true">Required</option>
+                          <option value="false">Optional</option>
                         </select>
                         
                         <button
                           type="button"
                           onClick={addCustomDocument}
                           disabled={!customDocument.name.trim()}
-                          className={`px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all ${
+                          className={`px-6 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
                             customDocument.name.trim()
                               ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-lg'
                               : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                           }`}
                         >
                           <Plus className="w-5 h-5" />
-                          Add Document
+                          Add
                         </button>
                       </div>
                     </div>
@@ -2058,6 +2884,47 @@ const AddScholarship: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Custom Conditions Review */}
+                  {formData.customConditions.length > 0 && (
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-5 border border-indigo-200 shadow-sm">
+                      <h3 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-indigo-600" />
+                        Custom Conditions ({formData.customConditions.filter(c => c.isActive).length} active)
+                      </h3>
+                      <div className="bg-white rounded-lg p-4">
+                        <ul className="space-y-2">
+                          {formData.customConditions.map((condition) => (
+                            <li key={condition.id} className={`flex items-start gap-2 pb-2 border-b border-slate-100 last:border-0 last:pb-0 ${
+                              !condition.isActive ? 'opacity-50' : ''
+                            }`}>
+                              <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0 bg-indigo-500" />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium text-slate-800">{condition.name}</span>
+                                <span className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
+                                  condition.conditionType === ConditionType.RANGE
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : condition.conditionType === ConditionType.BOOLEAN
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  {condition.conditionType}
+                                </span>
+                                {!condition.isActive && (
+                                  <span className="ml-1 px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-500">
+                                    Disabled
+                                  </span>
+                                )}
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  {getFieldLabel(condition.studentField)} {getOperatorLabel(condition.operator)} <span className="font-medium">{formatConditionValue(condition)}</span>
+                                </p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Required Documents Review */}
                   <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-5 border border-amber-200 shadow-sm">
                     <h3 className="text-base font-bold text-slate-800 mb-3 flex items-center gap-2">
@@ -2071,12 +2938,25 @@ const AddScholarship: React.FC = () => {
                             <li key={index} className="flex items-start gap-2 pb-2 border-b border-slate-100 last:border-0 last:pb-0">
                               <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                               <div className="flex-1">
-                                <span className="text-sm font-medium text-slate-800">{doc.name}</span>
-                                <span className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
-                                  doc.isRequired ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {doc.isRequired ? 'Required' : 'Optional'}
-                                </span>
+                                <div className="flex items-center flex-wrap gap-2">
+                                  <span className="text-sm font-medium text-slate-800">{doc.name}</span>
+                                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                    doc.isRequired ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {doc.isRequired ? 'Required' : 'Optional'}
+                                  </span>
+                                  {(doc as any).fileType && (doc as any).fileType !== 'any' && (
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                      (doc as any).fileType === 'pdf' ? 'bg-red-50 text-red-600 border border-red-200' :
+                                      (doc as any).fileType === 'image' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+                                      'bg-amber-50 text-amber-600 border border-amber-200'
+                                    }`}>
+                                      {(doc as any).fileType === 'pdf' ? '📄 PDF only' :
+                                       (doc as any).fileType === 'image' ? '🖼️ Image only' :
+                                       '📝 Text Input'}
+                                    </span>
+                                  )}
+                                </div>
                                 {doc.description && (
                                   <p className="text-xs text-slate-500 mt-0.5">{doc.description}</p>
                                 )}

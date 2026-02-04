@@ -24,6 +24,20 @@ import { predictionApi, trainingApi } from './apiClient';
 // Fetched from trained models stored in the database
 // ============================================================================
 
+// STANDARDIZED SCORING CONSTANTS (synchronized with backend services)
+const SCORING = {
+  MATCH: 1.0,           // Feature matches requirement
+  MISMATCH: 0.85,       // Feature doesn't match (small penalty)
+  NO_RESTRICTION: 0.95, // No requirement specified
+  UNKNOWN: 0.85,        // Value not provided by student
+  PROFILE_COMPLETE: 1.0,
+  PROFILE_INCOMPLETE: 0.9,
+  TIMING_DEFAULT: 0.9,
+  ELIGIBILITY_FLOOR: 0.7,
+  ELIGIBILITY_RANGE: 0.3,
+  CALIBRATION_OFFSET: 3.0
+};
+
 interface ModelWeights {
   intercept: number;
   gwaScore: number;
@@ -48,7 +62,7 @@ const MIN_ACCURACY_THRESHOLD = 0.55;
 
 // Neutral fallback weights (only used when NO trained model exists)
 const NEUTRAL_FALLBACK_WEIGHTS: ModelWeights = {
-  intercept: 0.0,
+  intercept: SCORING.CALIBRATION_OFFSET, // Use standardized calibration offset
   eligibilityScore: 1.0,
   gwaScore: 1.0,
   incomeMatch: 1.0,
@@ -780,33 +794,33 @@ const predictWithDynamicWeights = (
   // Ensure eligibilityCriteria exists
   const criteria = scholarship.eligibilityCriteria || {} as any;
   
-  // Extract features - MUST match training.service.js scoring exactly
+  // Extract features - STANDARDIZED SCORING (synchronized with backend)
   const studentGwa = student.gwa ?? 2.5;
   const gwaNormalized = (5 - studentGwa) / 4; // 0-1, higher is better GWA
   
-  // Year level match - give partial score when not matching
+  // Year level match - STANDARDIZED SCORING
   const yearLevels = criteria.requiredYearLevels || criteria.eligibleClassifications || [];
   const yearLevelMatch = yearLevels.length > 0
-    ? (student.yearLevel && yearLevels.includes(student.yearLevel) ? 1.0 : 0.4)
-    : 1.0; // No requirement - full score
+    ? (student.yearLevel && yearLevels.includes(student.yearLevel) ? SCORING.MATCH : SCORING.MISMATCH)
+    : SCORING.NO_RESTRICTION;
     
-  // Income match - give partial score even when exceeding limit
+  // Income match - STANDARDIZED SCORING
   let incomeMatch: number;
   if (criteria.maxAnnualFamilyIncome) {
     const income = student.annualFamilyIncome ?? 0;
     if (income === 0) {
-      incomeMatch = 0.6; // Unknown income - slightly positive
+      incomeMatch = SCORING.UNKNOWN;
     } else if (income <= criteria.maxAnnualFamilyIncome) {
-      // Meets requirement - lower income = higher score
-      incomeMatch = 0.7 + (1 - (income / criteria.maxAnnualFamilyIncome)) * 0.3;
+      // Meets requirement - lower income = higher score (0.9 to 1.0 range)
+      incomeMatch = 0.9 + (1 - (income / criteria.maxAnnualFamilyIncome)) * 0.1;
     } else {
-      incomeMatch = 0.3; // Exceeds limit - partial score
+      incomeMatch = SCORING.MISMATCH;
     }
   } else {
-    incomeMatch = 0.85; // No requirement - good baseline
+    incomeMatch = SCORING.NO_RESTRICTION;
   }
   
-  // ST bracket match - give partial score when not matching
+  // ST bracket match - STANDARDIZED SCORING
   const stBrackets = criteria.requiredSTBrackets || criteria.eligibleSTBrackets || [];
   let stBracketMatch: number;
   if (stBrackets.length > 0) {
@@ -816,25 +830,32 @@ const predictWithDynamicWeights = (
       return normalizedBracket === nb || normalizedBracket.includes(nb);
     });
     if (isMatch) {
-      // Use bracket importance scoring
+      // Use standardized bracket scoring (all matches get high scores)
       const bracketScores: Record<string, number> = {
-        'fulldiscountwithstipend': 1.0, 'full discount with stipend': 1.0,
-        'fulldiscount': 0.9, 'full discount': 0.9,
-        'pd80': 0.7, '80% partial discount': 0.7,
-        'pd60': 0.5, '60% partial discount': 0.5,
-        'pd40': 0.3, '40% partial discount': 0.3,
-        'pd20': 0.2, '20% partial discount': 0.2,
-        'nodiscount': 0.1, 'no discount': 0.1
+        'fulldiscountwithstipend': SCORING.MATCH,
+        'full discount with stipend': SCORING.MATCH,
+        'fulldiscount': 0.95,
+        'full discount': 0.95,
+        'pd80': 0.9,
+        '80% partial discount': 0.9,
+        'pd60': SCORING.MISMATCH,
+        '60% partial discount': SCORING.MISMATCH,
+        'pd40': SCORING.MISMATCH,
+        '40% partial discount': SCORING.MISMATCH,
+        'pd20': SCORING.MISMATCH,
+        '20% partial discount': SCORING.MISMATCH,
+        'nodiscount': SCORING.MISMATCH,
+        'no discount': SCORING.MISMATCH
       };
-      stBracketMatch = bracketScores[normalizedBracket] || 0.85;
+      stBracketMatch = bracketScores[normalizedBracket] || SCORING.MATCH;
     } else {
-      stBracketMatch = 0.4; // Partial score for non-match
+      stBracketMatch = SCORING.MISMATCH;
     }
   } else {
-    stBracketMatch = 0.85; // No requirement - good baseline
+    stBracketMatch = SCORING.NO_RESTRICTION;
   }
     
-  // College match - give partial score when not matching
+  // College match - STANDARDIZED SCORING
   let collegeMatch: number;
   if (criteria.eligibleColleges && criteria.eligibleColleges.length > 0) {
     const normalizedCollege = (student.college || '').toLowerCase();
@@ -842,12 +863,12 @@ const predictWithDynamicWeights = (
       const nc = c.toLowerCase();
       return normalizedCollege.includes(nc) || nc.includes(normalizedCollege);
     });
-    collegeMatch = isMatch ? 1.0 : 0.35; // Partial score for non-match
+    collegeMatch = isMatch ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    collegeMatch = 1.0; // No requirement - full score
+    collegeMatch = SCORING.NO_RESTRICTION;
   }
     
-  // Course match - give partial score when not matching
+  // Course match - STANDARDIZED SCORING
   let courseMatch: number;
   if (criteria.eligibleCourses && criteria.eligibleCourses.length > 0) {
     const normalizedCourse = (student.course || '').toLowerCase();
@@ -855,31 +876,31 @@ const predictWithDynamicWeights = (
       const nc = c.toLowerCase();
       return normalizedCourse.includes(nc) || nc.includes(normalizedCourse);
     });
-    courseMatch = isMatch ? 1.0 : 0.35; // Partial score for non-match
+    courseMatch = isMatch ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    courseMatch = 1.0; // No requirement - full score
+    courseMatch = SCORING.NO_RESTRICTION;
   }
   
-  // Citizenship match - give partial score when not matching
+  // Citizenship match - STANDARDIZED SCORING
   let citizenshipMatch: number;
-  if (criteria.eligibleCitizenship && criteria.eligibleCitizenship.length > 0) {
+  const eligibleCitizenship = (criteria as any).eligibleCitizenship as string[] | undefined;
+  if (eligibleCitizenship && eligibleCitizenship.length > 0) {
     const normalizedCitizenship = (student.citizenship || '').toLowerCase();
-    const isMatch = criteria.eligibleCitizenship.some((c: string) => 
+    const isMatch = eligibleCitizenship.some((c: string) => 
       normalizedCitizenship === c.toLowerCase()
     );
-    citizenshipMatch = isMatch ? 1.0 : 0.4;
+    citizenshipMatch = isMatch ? SCORING.MATCH : SCORING.MISMATCH;
   } else if (criteria.isFilipinoOnly || criteria.filipinoOnly) {
-    citizenshipMatch = student.citizenship === 'Filipino' ? 1.0 : 0.4;
+    citizenshipMatch = student.citizenship === 'Filipino' ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    // No requirement - Filipino gets full, others get high score
-    citizenshipMatch = student.citizenship === 'Filipino' ? 1.0 : 0.85;
+    citizenshipMatch = SCORING.NO_RESTRICTION;
   }
     
-  // Document completeness - matching training defaults (0.8 for predictions)
-  const documentCompleteness = student.profileCompleted ? 1.0 : 0.8;
+  // Document completeness - STANDARDIZED SCORING
+  const documentCompleteness = student.profileCompleted ? SCORING.PROFILE_COMPLETE : SCORING.PROFILE_INCOMPLETE;
   
-  // Application timing - matching training default for predictions
-  const applicationTiming = 0.7;
+  // Application timing - STANDARDIZED SCORING
+  const applicationTiming = SCORING.TIMING_DEFAULT;
   
   // Calculate eligibility score (percentage of explicit criteria met)
   let matchedCriteria = 0;
@@ -895,21 +916,25 @@ const predictWithDynamicWeights = (
   }
   if (yearLevels.length > 0) {
     totalCriteria++;
-    if (yearLevelMatch === 1.0) matchedCriteria++;
+    if (yearLevelMatch === SCORING.MATCH) matchedCriteria++;
   }
-  if (criteria.eligibleColleges?.length > 0) {
+  if (criteria.eligibleColleges && criteria.eligibleColleges.length > 0) {
     totalCriteria++;
-    if (collegeMatch === 1.0) matchedCriteria++;
+    if (collegeMatch === SCORING.MATCH) matchedCriteria++;
   }
-  if (criteria.eligibleCourses?.length > 0) {
+  if (criteria.eligibleCourses && criteria.eligibleCourses.length > 0) {
     totalCriteria++;
-    if (courseMatch === 1.0) matchedCriteria++;
+    if (courseMatch === SCORING.MATCH) matchedCriteria++;
   }
   
-  const eligibilityScore = totalCriteria > 0 ? matchedCriteria / totalCriteria : 0.7;
+  // Eligibility score with STANDARDIZED high floor
+  const rawEligibility = totalCriteria > 0 ? matchedCriteria / totalCriteria : 1.0;
+  const eligibilityScore = SCORING.ELIGIBILITY_FLOOR + (rawEligibility * SCORING.ELIGIBILITY_RANGE);
   
   // Calculate z using base feature weights only (no interaction features needed)
+  // Add calibration offset for trained models (already in intercept for fallback)
   const z = weights.intercept +
+    (weights.intercept === SCORING.CALIBRATION_OFFSET ? 0 : SCORING.CALIBRATION_OFFSET) + // Add offset if not already included
     weights.gwaScore * gwaNormalized +
     weights.yearLevelMatch * yearLevelMatch +
     weights.incomeMatch * incomeMatch +

@@ -107,7 +107,7 @@ const AdminScholarships: React.FC = () => {
               applicants: s.filledSlots || s.currentApplicants || 0,
               deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A',
               status: s.status === 'open' || s.isActive ? 'active' : s.status === 'closed' ? 'closed' : 'draft',
-              type: s.type?.includes('grant') || s.type === 'thesis_grant' ? 'grant' : s.coverageType === 'full' ? 'full' : 'partial',
+              type: s.type?.toLowerCase().includes('grant') || s.type?.toLowerCase().includes('thesis') ? 'grant' : s.coverageType === 'full' ? 'full' : 'partial',
               scholarshipType: s.type, // Store original type for color scheme
               scholarshipLevel: s.scholarshipLevel,
               managingCollege: s.managingCollege,
@@ -194,33 +194,26 @@ const AdminScholarships: React.FC = () => {
       badge: string;
       border: string;
     }> = {
-      'university': { 
+      'university_scholarship': { 
         iconBg: 'bg-blue-50', 
         iconColor: 'text-blue-700',
         headerBg: 'bg-white',
         badge: 'bg-blue-600 text-white shadow-sm',
         border: 'border-l-blue-600'
       },
-      'government': { 
+      'government_scholarship': { 
         iconBg: 'bg-amber-50', 
         iconColor: 'text-amber-700',
         headerBg: 'bg-white',
         badge: 'bg-amber-600 text-white shadow-sm',
         border: 'border-l-amber-600'
       },
-      'thesis_grant': { 
+      'thesis_research_grant': { 
         iconBg: 'bg-emerald-50', 
         iconColor: 'text-emerald-700',
         headerBg: 'bg-white',
         badge: 'bg-emerald-600 text-white shadow-sm',
         border: 'border-l-emerald-600'
-      },
-      'private': { 
-        iconBg: 'bg-purple-50', 
-        iconColor: 'text-purple-700',
-        headerBg: 'bg-white',
-        badge: 'bg-purple-600 text-white shadow-sm',
-        border: 'border-l-purple-600'
       },
       'private_scholarship': { 
         iconBg: 'bg-purple-50', 
@@ -229,7 +222,7 @@ const AdminScholarships: React.FC = () => {
         badge: 'bg-purple-600 text-white shadow-sm',
         border: 'border-l-purple-600'
       },
-      'college': { 
+      'college_scholarship': { 
         iconBg: 'bg-teal-50', 
         iconColor: 'text-teal-700',
         headerBg: 'bg-white',

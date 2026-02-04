@@ -37,11 +37,11 @@ export enum YearLevel {
 }
 
 export enum ScholarshipType {
-  UNIVERSITY = 'university',
-  COLLEGE = 'college',
-  GOVERNMENT = 'government',
-  PRIVATE = 'private',
-  THESIS_GRANT = 'thesis_grant'
+  UNIVERSITY = 'University Scholarship',
+  COLLEGE = 'College Scholarship',
+  GOVERNMENT = 'Government Scholarship',
+  PRIVATE = 'Private Scholarship',
+  THESIS_GRANT = 'Thesis/Research Grant'
 }
 
 // New: Scholarship Level for admin scope management
@@ -60,6 +60,108 @@ export enum STBracket {
   PD40 = 'PD40',
   PD20 = 'PD20',
   NO_DISCOUNT = 'ND'
+}
+
+// ============================================================================
+// CUSTOM CONDITION TYPES
+// ============================================================================
+
+export enum ConditionType {
+  RANGE = 'range',
+  BOOLEAN = 'boolean',
+  LIST = 'list'
+}
+
+export enum RangeOperator {
+  LESS_THAN = 'lt',
+  LESS_THAN_OR_EQUAL = 'lte',
+  GREATER_THAN = 'gt',
+  GREATER_THAN_OR_EQUAL = 'gte',
+  EQUAL = 'eq',
+  NOT_EQUAL = 'neq',
+  BETWEEN = 'between',
+  BETWEEN_EXCLUSIVE = 'between_exclusive',
+  OUTSIDE = 'outside'
+}
+
+export enum BooleanOperator {
+  IS = 'is',
+  IS_NOT = 'is_not',
+  IS_TRUE = 'is_true',
+  IS_FALSE = 'is_false',
+  EXISTS = 'exists',
+  NOT_EXISTS = 'not_exists'
+}
+
+export enum ListOperator {
+  IN = 'in',
+  NOT_IN = 'not_in',
+  CONTAINS = 'contains',
+  NOT_CONTAINS = 'not_contains',
+  CONTAINS_ALL = 'contains_all',
+  CONTAINS_ANY = 'contains_any',
+  IS_EMPTY = 'is_empty',
+  IS_NOT_EMPTY = 'is_not_empty',
+  MATCHES_ANY = 'matches_any',
+  MATCHES_ALL = 'matches_all'
+}
+
+export enum ConditionCategory {
+  ACADEMIC = 'academic',
+  FINANCIAL = 'financial',
+  DEMOGRAPHIC = 'demographic',
+  ENROLLMENT = 'enrollment',
+  CUSTOM = 'custom'
+}
+
+export enum ConditionImportance {
+  REQUIRED = 'required',
+  PREFERRED = 'preferred',
+  OPTIONAL = 'optional'
+}
+
+/**
+ * Available student profile fields that can be used in custom conditions
+ * The last entry '__custom__' allows admins to type their own field names
+ */
+export const STUDENT_PROFILE_FIELDS = [
+  { value: 'gwa', label: 'GWA', type: 'range' as ConditionType, category: 'academic' },
+  { value: 'annualFamilyIncome', label: 'Annual Family Income', type: 'range' as ConditionType, category: 'financial' },
+  { value: 'unitsEnrolled', label: 'Units Enrolled', type: 'range' as ConditionType, category: 'academic' },
+  { value: 'householdSize', label: 'Household Size', type: 'range' as ConditionType, category: 'financial' },
+  { value: 'yearLevel', label: 'Year Level', type: 'list' as ConditionType, category: 'enrollment' },
+  { value: 'college', label: 'College', type: 'list' as ConditionType, category: 'enrollment' },
+  { value: 'course', label: 'Course/Program', type: 'list' as ConditionType, category: 'enrollment' },
+  { value: 'stBracket', label: 'ST Bracket', type: 'list' as ConditionType, category: 'financial' },
+  { value: 'citizenship', label: 'Citizenship', type: 'list' as ConditionType, category: 'demographic' },
+  { value: 'hometown', label: 'Province of Origin', type: 'list' as ConditionType, category: 'demographic' },
+  { value: 'isFilipino', label: 'Is Filipino Citizen', type: 'boolean' as ConditionType, category: 'demographic' },
+  { value: 'hasExistingScholarship', label: 'Has Existing Scholarship', type: 'boolean' as ConditionType, category: 'financial' },
+  { value: 'hasThesisGrant', label: 'Has Thesis Grant', type: 'boolean' as ConditionType, category: 'academic' },
+  { value: 'hasDisciplinaryRecord', label: 'Has Disciplinary Record', type: 'boolean' as ConditionType, category: 'demographic' },
+  { value: 'hasFailingGrade', label: 'Has Failing Grade', type: 'boolean' as ConditionType, category: 'academic' },
+  { value: 'hasGradeOf4', label: 'Has Grade of 4.0', type: 'boolean' as ConditionType, category: 'academic' },
+  { value: 'hasIncompleteGrade', label: 'Has Incomplete Grade', type: 'boolean' as ConditionType, category: 'academic' },
+  { value: 'isGraduating', label: 'Is Graduating', type: 'boolean' as ConditionType, category: 'academic' },
+  { value: 'hasThesisApproval', label: 'Has Thesis Approval', type: 'boolean' as ConditionType, category: 'academic' },
+  // Special option for admin-defined custom fields
+  { value: '__custom__', label: '✏️ Custom Field (type your own)', type: 'range' as ConditionType, category: 'custom', isCustomEntry: true }
+] as const;
+
+/**
+ * Custom condition for dynamic eligibility criteria
+ */
+export interface CustomCondition {
+  id: string;
+  name: string;
+  description?: string;
+  conditionType: ConditionType;
+  studentField: string;
+  operator: RangeOperator | BooleanOperator | ListOperator;
+  value: number | boolean | string | string[] | { min?: number; max?: number };
+  category: ConditionCategory;
+  importance: ConditionImportance;
+  isActive: boolean;
 }
 
 // ============================================================================
@@ -214,6 +316,10 @@ export interface StudentProfile extends BaseUser {
   hasDisciplinaryAction: boolean;
   disciplinaryDetails?: string;
   
+  // Custom Fields (for scholarship-specific requirements)
+  // Admin-defined fields that students can fill during application
+  customFields?: Record<string, string | number | boolean | string[]>;
+  
   // Profile Completion
   profileCompleted: boolean;
   lastUpdated: Date;
@@ -268,11 +374,13 @@ export interface EligibilityCriteria {
   requiredYearLevels?: YearLevel[];
   eligibleClassifications?: string[]; // API field name for year levels
   minUnitsEnrolled?: number;
+  minUnitsPassed?: number;
   eligibleColleges?: UPLBCollege[] | string[];
   eligibleCourses?: string[];
   eligibleMajors?: (AgricultureMajor | string)[];
   requiresApprovedThesis?: boolean;
-  requireThesisApproval?: boolean; // API field name
+  requiresApprovedThesisOutline?: boolean; // API field name
+  requireThesisApproval?: boolean; // Alternative API field name
   
   // Financial Requirements
   maxAnnualFamilyIncome?: number;
@@ -284,18 +392,30 @@ export interface EligibilityCriteria {
   // Location-based Requirements
   eligibleProvinces?: string[];
   
-  // Other Requirements
+  // Citizenship Requirements
+  eligibleCitizenship?: string[];
+  isFilipinoOnly?: boolean;
+  filipinoOnly?: boolean; // API field name
+  
+  // Status Requirements (Boolean checks)
   mustNotHaveOtherScholarship?: boolean;
   noExistingScholarship?: boolean; // API field name
   mustNotHaveThesisGrant?: boolean;
   noExistingThesisGrant?: boolean; // API field name
   mustNotHaveDisciplinaryAction?: boolean;
   noDisciplinaryRecord?: boolean; // API field name
-  isFilipinoOnly?: boolean;
-  filipinoOnly?: boolean; // API field name
   
-  // Custom requirements (free text)
+  // Academic Status Requirements
+  mustNotHaveFailingGrade?: boolean;
+  mustNotHaveGradeOf4?: boolean;
+  mustNotHaveIncompleteGrade?: boolean;
+  mustBeGraduating?: boolean;
+  
+  // Custom requirements (free text, manual verification)
   additionalRequirements?: string[];
+  
+  // Custom conditions (auto-evaluated)
+  customConditions?: CustomCondition[];
 }
 
 export interface Scholarship {
@@ -332,6 +452,10 @@ export interface Scholarship {
     noDisciplinaryRecord?: boolean;
     filipinoOnly?: boolean;
   };
+  
+  // Custom Conditions (for dynamic eligibility criteria)
+  customConditions?: CustomCondition[];
+  
   requirements: string[]; // Documents/requirements to submit (legacy)
   requiredDocuments?: Array<{
     name: string;

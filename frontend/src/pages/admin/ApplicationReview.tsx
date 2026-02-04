@@ -59,6 +59,9 @@ interface ApplicationDetails {
   // Financial Info
   annualFamilyIncome: number;
   stBracket: string;
+  householdSize?: number;
+  provinceOfOrigin?: string;
+  citizenship?: string;
   // Scholarship Info
   scholarshipId: string;
   scholarshipName: string;
@@ -70,6 +73,8 @@ interface ApplicationDetails {
   submittedDate: string;
   status: string;
   matchScore: number;
+  // Custom Field Answers (scholarship-specific)
+  customFieldAnswers?: Record<string, string | number | boolean>;
   // Prediction Data
   prediction?: {
     probability: number;
@@ -93,6 +98,8 @@ interface ApplicationDetails {
     mimeType?: string;
     url: string;
     uploadedAt: string;
+    textContent?: string;
+    isTextDocument?: boolean;
   }>;
   // Review Info
   reviewNotes?: string;
@@ -168,6 +175,9 @@ const ApplicationReview: React.FC = () => {
             // Financial Info
             annualFamilyIncome: profile.annualFamilyIncome || 0,
             stBracket: profile.stBracket || 'N/A',
+            householdSize: profile.householdSize,
+            provinceOfOrigin: profile.provinceOfOrigin || profile.province || undefined,
+            citizenship: profile.citizenship,
             // Scholarship Info
             scholarshipId: app.scholarship?._id || app.scholarship?.id || '',
             scholarshipName: app.scholarship?.name || 'Unknown Scholarship',
@@ -194,6 +204,15 @@ const ApplicationReview: React.FC = () => {
               confidence: app.prediction.confidence,
               featureContributions: app.prediction.featureContributions
             } : undefined,
+            // Custom Field Answers (scholarship-specific requirements)
+            customFieldAnswers: (() => {
+              const answers = app.customFieldAnswers && typeof app.customFieldAnswers === 'object' 
+                ? app.customFieldAnswers 
+                : {};
+              console.log('📋 Raw customFieldAnswers from API:', app.customFieldAnswers);
+              console.log('📋 Processed customFieldAnswers:', answers);
+              return answers;
+            })(),
             // Documents
             documents: (app.documents || []).map((doc: any) => ({
               _id: doc._id || doc.id,
@@ -203,7 +222,9 @@ const ApplicationReview: React.FC = () => {
               url: doc.url || doc.path || '',
               uploadedAt: doc.uploadedAt 
                 ? new Date(doc.uploadedAt).toLocaleDateString()
-                : 'N/A'
+                : 'N/A',
+              textContent: doc.textContent || '',
+              isTextDocument: doc.isTextDocument || false
             })),
             // Review Info
             reviewNotes: app.reviewNotes || app.notes || '',
@@ -752,6 +773,49 @@ const ApplicationReview: React.FC = () => {
               </div>
             )}
 
+            {/* Custom Field Answers (Scholarship-Specific) */}
+            {application.customFieldAnswers && Object.keys(application.customFieldAnswers).length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-purple-200 overflow-hidden">
+                <div className="px-6 py-4 bg-purple-50 border-b border-purple-200">
+                  <h2 className="text-lg font-semibold text-purple-800 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-purple-600" />
+                    Scholarship-Specific Answers
+                    <span className="px-2 py-0.5 bg-purple-200 text-purple-700 text-xs font-semibold rounded-full">
+                      Custom Fields
+                    </span>
+                  </h2>
+                  <p className="text-sm text-purple-600 mt-1">
+                    Answers provided by the applicant for this scholarship's custom requirements
+                  </p>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(application.customFieldAnswers).map(([key, value]) => {
+                      // Convert camelCase to readable label
+                      const label = key
+                        .replace(/([A-Z])/g, ' $1')
+                        .replace(/^./, str => str.toUpperCase())
+                        .trim();
+                      
+                      return (
+                        <div key={key} className="p-4 bg-purple-50/50 rounded-xl border border-purple-100">
+                          <div className="text-xs font-medium text-purple-600 mb-1">{label}</div>
+                          <div className="text-slate-800 font-semibold">
+                            {typeof value === 'boolean' 
+                              ? (value ? '✅ Yes' : '❌ No')
+                              : typeof value === 'number'
+                                ? value.toLocaleString()
+                                : String(value) || 'Not provided'
+                            }
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Documents */}
             {application.documents.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -767,7 +831,36 @@ const ApplicationReview: React.FC = () => {
                       const isPDF = doc.mimeType?.includes('pdf') || doc.name.toLowerCase().endsWith('.pdf');
                       const isImage = doc.mimeType?.startsWith('image/') || 
                         /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name);
+                      const isTextInput = doc.isTextDocument || doc.textContent;
                       
+                      // Text input document - show text content directly
+                      if (isTextInput) {
+                        return (
+                          <div 
+                            key={index}
+                            className="p-4 bg-amber-50 rounded-xl border border-amber-200"
+                          >
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-100">
+                                <FileText className="w-5 h-5 text-amber-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-800">{doc.name}</div>
+                                <div className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                                  📝 Text Response • {doc.uploadedAt}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 border border-amber-200">
+                              <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                                {doc.textContent || 'No content provided'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      // File document - show preview/download buttons
                       return (
                         <div 
                           key={index}

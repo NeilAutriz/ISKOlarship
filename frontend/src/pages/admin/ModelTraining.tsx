@@ -485,9 +485,9 @@ const ModelTraining: React.FC = () => {
                         <h3 className="font-semibold text-slate-900 pr-16 line-clamp-1">{scholarship.name}</h3>
                         <div className="flex items-center gap-2 mt-1.5">
                           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                            scholarship.scholarshipType === 'government' 
+                            scholarship.scholarshipType === 'Government Scholarship' 
                               ? 'bg-blue-100 text-blue-700'
-                              : scholarship.scholarshipType === 'private'
+                              : scholarship.scholarshipType === 'Private Scholarship'
                                 ? 'bg-purple-100 text-purple-700'
                                 : 'bg-amber-100 text-amber-700'
                           }`}>

@@ -378,7 +378,24 @@ const userSchema = new mongoose.Schema({
       },
       // Legacy field for backward compatibility (deprecated)
       url: String // Old base64 data - will be gradually phased out
-    }]
+    }],
+    
+    // =====================================================================
+    // Custom Fields (for scholarship-specific requirements)
+    // Admin can define custom fields, students fill them during application
+    // =====================================================================
+    customFields: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: new Map()
+      // Example structure:
+      // {
+      //   "volunteerHours": 50,
+      //   "hasCompletedCommunityService": true,
+      //   "languagesSpoken": ["English", "Filipino", "Japanese"],
+      //   "numberOfPublications": 3
+      // }
+    }
   },
   
   // =========================================================================

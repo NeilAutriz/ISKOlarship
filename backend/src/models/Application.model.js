@@ -47,6 +47,7 @@ const documentSchema = new mongoose.Schema({
       'personal_statement',
       'photo_id',
       'proof_of_enrollment',
+      'text_response',
       'other'
     ]
   },
@@ -55,6 +56,12 @@ const documentSchema = new mongoose.Schema({
   fileName: String,
   fileSize: Number,
   mimeType: String,
+  // For text-type documents (no file upload, just text content)
+  textContent: String,
+  isTextDocument: {
+    type: Boolean,
+    default: false
+  },
   uploadedAt: {
     type: Date,
     default: Date.now
@@ -299,6 +306,15 @@ const applicationSchema = new mongoose.Schema({
   additionalInfo: {
     type: String,
     maxlength: [2000, 'Additional info cannot exceed 2000 characters']
+  },
+
+  // =========================================================================
+  // Custom Field Answers (scholarship-specific requirements filled by student)
+  // =========================================================================
+  
+  customFieldAnswers: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   
   // =========================================================================

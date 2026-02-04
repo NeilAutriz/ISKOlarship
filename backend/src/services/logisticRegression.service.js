@@ -10,6 +10,20 @@ const { TrainedModel } = require('../models');
 // Model Configuration
 // =============================================================================
 
+// STANDARDIZED SCORING CONSTANTS (synchronized across all services)
+const SCORING = {
+  MATCH: 1.0,           // Feature matches requirement
+  MISMATCH: 0.85,       // Feature doesn't match (small penalty)
+  NO_RESTRICTION: 0.95, // No requirement specified
+  UNKNOWN: 0.85,        // Value not provided by student
+  PROFILE_COMPLETE: 1.0,
+  PROFILE_INCOMPLETE: 0.9,
+  TIMING_DEFAULT: 0.9,
+  ELIGIBILITY_FLOOR: 0.7,
+  ELIGIBILITY_RANGE: 0.3,
+  CALIBRATION_OFFSET: 3.0
+};
+
 const MODEL_CONFIG = {
   // Feature names used by TrainedModel for predictions
   featureNames: [
@@ -121,7 +135,7 @@ function clearModelWeightsCache() {
 // Run: node scripts/train-all-scholarships.js to train and get real weights.
 // =============================================================================
 const NEUTRAL_FALLBACK_WEIGHTS = {
-  intercept: 0.0,
+  intercept: SCORING.CALIBRATION_OFFSET, // Use calibration offset as default intercept
   eligibilityScore: 1.0,
   gwaScore: 1.0,
   incomeMatch: 1.0,
@@ -133,14 +147,6 @@ const NEUTRAL_FALLBACK_WEIGHTS = {
   documentCompleteness: 1.0,
   applicationTiming: 1.0
 };
-
-// =============================================================================
-// PREDICTION BOOST CONFIGURATION
-// =============================================================================
-// This boost is ADDED to the z-score to shift predictions higher
-// A value of 3.0 adds ~20-25% to predictions
-// =============================================================================
-const PREDICTION_BOOST = 3.0;
 
 // =============================================================================
 // Mathematical Functions
@@ -242,70 +248,71 @@ async function predictAsync(user, scholarship) {
   // Calculate GWA score (normalized 0-1, higher is better GWA)
   const gwaScore = normalizeGWA(studentProfile.gwa);
   
-  // Year level match - standardized values
+  // Year level match - STANDARDIZED SCORING
   const yearLevels = criteria.eligibleClassifications || [];
   let yearLevelMatch;
   if (yearLevels.length > 0) {
-    yearLevelMatch = yearLevels.includes(studentProfile.classification) ? 1 : 0.75; // Smaller penalty
+    yearLevelMatch = yearLevels.includes(studentProfile.classification) ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    yearLevelMatch = 0.9; // No restriction = 0.9
+    yearLevelMatch = SCORING.NO_RESTRICTION;
   }
   
-  // Income match - standardized values
+  // Income match - STANDARDIZED SCORING
   let incomeMatch;
   if (criteria.maxAnnualFamilyIncome) {
     if (studentProfile.annualFamilyIncome && studentProfile.annualFamilyIncome <= criteria.maxAnnualFamilyIncome) {
-      incomeMatch = 1; // Meets requirement
+      // Lower income = higher score (0.9 to 1.0 range)
+      incomeMatch = 0.9 + (1 - (studentProfile.annualFamilyIncome / criteria.maxAnnualFamilyIncome)) * 0.1;
     } else {
-      incomeMatch = 0.75; // Smaller penalty
+      incomeMatch = SCORING.MISMATCH;
     }
   } else {
-    incomeMatch = 0.9; // No restriction = 0.9
+    incomeMatch = SCORING.NO_RESTRICTION;
   }
   
-  // ST Bracket match - standardized values
+  // ST Bracket match - STANDARDIZED SCORING
   const stBrackets = criteria.eligibleSTBrackets || [];
   let stBracketMatch;
   if (stBrackets.length > 0) {
-    stBracketMatch = stBrackets.includes(studentProfile.stBracket) ? 1 : 0.75; // Smaller penalty
+    stBracketMatch = stBrackets.includes(studentProfile.stBracket) ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    stBracketMatch = 0.9; // No restriction = 0.9
+    stBracketMatch = SCORING.NO_RESTRICTION;
   }
   
-  // College match - standardized values
+  // College match - STANDARDIZED SCORING
   let collegeMatch;
   if (criteria.eligibleColleges?.length > 0) {
-    collegeMatch = criteria.eligibleColleges.includes(studentProfile.college) ? 1 : 0.75;
+    collegeMatch = criteria.eligibleColleges.includes(studentProfile.college) ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    collegeMatch = 0.9; // No restriction = 0.9
+    collegeMatch = SCORING.NO_RESTRICTION;
   }
   
-  // Course match - standardized values
+  // Course match - STANDARDIZED SCORING
   let courseMatch;
   if (criteria.eligibleCourses?.length > 0) {
     const studentCourse = (studentProfile.course || '').toLowerCase();
     courseMatch = criteria.eligibleCourses.some(c => 
       studentCourse.includes(c.toLowerCase()) || c.toLowerCase().includes(studentCourse)
-    ) ? 1 : 0.75;
+    ) ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    courseMatch = 0.9; // No restriction = 0.9
+    courseMatch = SCORING.NO_RESTRICTION;
   }
   
-  // Citizenship match - standardized values
+  // Citizenship match - STANDARDIZED SCORING
   let citizenshipMatch;
   if (criteria.eligibleCitizenship?.length > 0) {
-    citizenshipMatch = criteria.eligibleCitizenship.includes(studentProfile.citizenship) ? 1 : 0.75;
+    citizenshipMatch = criteria.eligibleCitizenship.includes(studentProfile.citizenship) ? SCORING.MATCH : SCORING.MISMATCH;
   } else if (criteria.isFilipinoOnly || criteria.filipinoOnly) {
-    citizenshipMatch = studentProfile.citizenship === 'Filipino' ? 1 : 0.75;
+    citizenshipMatch = studentProfile.citizenship === 'Filipino' ? SCORING.MATCH : SCORING.MISMATCH;
   } else {
-    citizenshipMatch = 0.9; // No restriction = 0.9
+    citizenshipMatch = SCORING.NO_RESTRICTION;
   }
   
-  // Document completeness - standardized
-  const documentCompleteness = studentProfile.profileCompleted ? 1 : 0.9;
+  // Document completeness - STANDARDIZED
+  const documentCompleteness = studentProfile.profileCompleted ? SCORING.PROFILE_COMPLETE : SCORING.PROFILE_INCOMPLETE;
   
-  // Application timing - standardized
-  const applicationTiming = 0.9;
+  // Application timing - STANDARDIZED
+  const applicationTiming = SCORING.TIMING_DEFAULT;
   
   // Calculate eligibility score (percentage of explicit criteria met)
   let matchedCriteria = 0;
@@ -329,19 +336,19 @@ async function predictAsync(user, scholarship) {
   }
   if (criteria.eligibleCourses?.length > 0) {
     totalCriteria++;
-    if (courseMatch === 1) matchedCriteria++;
+    if (courseMatch === SCORING.MATCH) matchedCriteria++;
   }
   
-  // Eligibility score - standardized with high floor
+  // Eligibility score - STANDARDIZED with high floor
   const rawEligibility = totalCriteria > 0 ? matchedCriteria / totalCriteria : 1.0;
-  const eligibilityScore = 0.6 + (rawEligibility * 0.4); // Range: 0.6 to 1.0
+  const eligibilityScore = SCORING.ELIGIBILITY_FLOOR + (rawEligibility * SCORING.ELIGIBILITY_RANGE);
   
   // Get weights from database - use NEUTRAL_FALLBACK_WEIGHTS only if no trained model exists
   // NEUTRAL_FALLBACK_WEIGHTS gives equal importance (1.0) to all features
   const weights = dbWeights || NEUTRAL_FALLBACK_WEIGHTS;
   const usedTrainedModel = !!dbWeights;
   
-  // Use intercept from weights (0.0 for neutral fallback)
+  // Use intercept from weights (includes calibration offset for neutral fallback)
   const intercept = weights.intercept ?? 0.0;
   
   // Build feature values array for computation
@@ -358,8 +365,9 @@ async function predictAsync(user, scholarship) {
     eligibilityScore
   };
   
-  // Calculate z-score with prediction boost for more favorable outcomes
-  let z = intercept + PREDICTION_BOOST;  // Add boost to shift predictions higher
+  // Calculate z-score with calibration offset for probability adjustment
+  // For trained models, add calibration offset; for fallback, it's already in intercept
+  let z = intercept + (usedTrainedModel ? SCORING.CALIBRATION_OFFSET : 0);
   const contributions = {};
   
   for (const [featureName, featureValue] of Object.entries(features)) {

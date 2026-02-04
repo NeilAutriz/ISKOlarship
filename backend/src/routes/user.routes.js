@@ -220,7 +220,8 @@ router.put('/profile',
           'existingScholarshipName',
           'hasThesisGrant',
           'hasDisciplinaryAction',
-          'profileCompleted'
+          'profileCompleted',
+          'customFields'  // Custom fields for scholarship-specific requirements
         ];
 
         // Update each field if present
@@ -294,6 +295,26 @@ router.put('/profile',
           }
         } else {
           console.log('⚠️ No documents field in studentData');
+        }
+        
+        // Handle customFields (merge with existing, don't replace)
+        if (studentData.customFields && typeof studentData.customFields === 'object') {
+          console.log('📝 Processing customFields update:', studentData.customFields);
+          
+          // Initialize customFields if doesn't exist
+          if (!req.user.studentProfile.customFields) {
+            req.user.studentProfile.customFields = new Map();
+          }
+          
+          // Merge new custom fields with existing ones
+          for (const [key, value] of Object.entries(studentData.customFields)) {
+            req.user.studentProfile.customFields.set(key, value);
+            console.log(`  ➕ Set customFields.${key} = ${value}`);
+          }
+          
+          // CRITICAL: Mark customFields as modified for Mongoose to save Map changes
+          req.user.markModified('studentProfile.customFields');
+          console.log('✅ Merged customFields, marked as modified');
         }
         
         // Mark profile as completed if we have essential fields

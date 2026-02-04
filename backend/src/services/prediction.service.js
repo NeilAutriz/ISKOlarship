@@ -51,8 +51,8 @@ const logisticRegression = require('./logisticRegression.service');
 // Import modular eligibility checking system
 const eligibilityModule = require('./eligibility');
 
-// Re-export normalizers for backward compatibility
-const { normalizeSTBracket, stBracketsMatch } = require('./eligibility/normalizers');
+// Import normalizers from the utils module
+const { normalizeSTBracket, stBracketsMatch } = require('./eligibility/utils');
 
 // =============================================================================
 // Model Version and State
