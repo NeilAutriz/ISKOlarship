@@ -66,6 +66,7 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
     probability: number; 
     eligible: boolean;
     eligibilityDetails?: EligibilityCheckResult[];
+    modelType?: 'scholarship_specific' | 'global' | 'none' | 'unknown';
   }>>(new Map());
   const [predictionsLoading, setPredictionsLoading] = useState(false);
 
@@ -112,6 +113,7 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
       return [id, {
         ...r,
         predictionScore: apiPred?.probability ?? r.compatibilityScore,
+        predictionModelType: apiPred?.modelType,
         isEligible: finalEligible,
         eligibilityDetails: finalEligibilityDetails
       }];
@@ -134,6 +136,7 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
             probability: number; 
             eligible: boolean;
             eligibilityDetails?: EligibilityCheckResult[];
+            modelType?: 'scholarship_specific' | 'global' | 'none' | 'unknown';
           }>();
           response.data.forEach((pred: any) => {
             if (pred.scholarshipId) {
@@ -149,7 +152,8 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
               predictionsMap.set(pred.scholarshipId, {
                 probability: pred.probability?.probability ?? pred.probability?.probabilityPercentage ?? 0,
                 eligible: pred.eligibility?.passed ?? false,
-                eligibilityDetails
+                eligibilityDetails,
+                modelType: pred.probability?.modelType || 'unknown'
               });
             }
           });

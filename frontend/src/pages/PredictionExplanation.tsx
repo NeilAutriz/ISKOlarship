@@ -22,7 +22,9 @@ import {
   BookOpen,
   XCircle,
   HelpCircle,
-  Lightbulb
+  Lightbulb,
+  Database,
+  Globe2
 } from 'lucide-react';
 import { PredictionFactor, PredictionResult } from '../types';
 import { getPredictionForScholarship, getPredictionForApplication } from '../services/api';
@@ -205,16 +207,48 @@ const PredictionExplanation: React.FC = () => {
         {/* Hero Section - Your Result */}
         <div className="bg-white rounded-3xl shadow-lg overflow-hidden mb-8">
           <div className="bg-gradient-to-r from-primary-600 via-blue-600 to-indigo-600 px-8 py-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
-                <Brain className="w-7 h-7 text-white" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <Brain className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    {applicantName ? `${applicantName}'s Prediction` : 'Your Success Prediction'}
+                  </h2>
+                  <p className="text-white/80">Based on machine learning analysis of {applicantName ? 'their' : 'your'} profile</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">
-                  {applicantName ? `${applicantName}'s Prediction` : 'Your Success Prediction'}
-                </h2>
-                <p className="text-white/80">Based on machine learning analysis of {applicantName ? 'their' : 'your'} profile</p>
-              </div>
+              {/* Model Type Tag */}
+              {prediction.modelType && prediction.modelType !== 'none' && prediction.modelType !== 'unknown' && (
+                <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
+                  prediction.modelType === 'scholarship_specific' 
+                    ? 'bg-indigo-500/30 border border-indigo-300/50' 
+                    : 'bg-sky-500/30 border border-sky-300/50'
+                }`}
+                title={prediction.modelType === 'scholarship_specific' 
+                  ? 'Model trained specifically on this scholarship\'s historical data' 
+                  : 'Model trained on aggregated data from all scholarships'}
+                >
+                  {prediction.modelType === 'scholarship_specific' ? (
+                    <>
+                      <Database className="w-5 h-5 text-white" />
+                      <div className="text-left">
+                        <div className="text-xs font-bold text-white uppercase tracking-wide">Local Data</div>
+                        <div className="text-[10px] text-white/70">Scholarship-specific model</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Globe2 className="w-5 h-5 text-white" />
+                      <div className="text-left">
+                        <div className="text-xs font-bold text-white uppercase tracking-wide">Global Data</div>
+                        <div className="text-[10px] text-white/70">Platform-wide model</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           

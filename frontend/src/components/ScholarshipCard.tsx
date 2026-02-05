@@ -20,7 +20,9 @@ import {
   Calendar,
   Sparkles,
   Building2,
-  FileText
+  FileText,
+  Database,
+  Globe2
 } from 'lucide-react';
 import { Scholarship, MatchResult, ScholarshipType } from '../types';
 
@@ -469,6 +471,26 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                   }`} />
                 </div>
                 <span className="text-xs font-semibold text-slate-600">ML Prediction</span>
+                {/* Model Type Tag */}
+                {matchResult.predictionModelType && matchResult.predictionModelType !== 'none' && (
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${
+                    matchResult.predictionModelType === 'scholarship_specific' 
+                      ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
+                      : 'bg-sky-100 text-sky-700 border border-sky-200'
+                  }`}>
+                    {matchResult.predictionModelType === 'scholarship_specific' ? (
+                      <>
+                        <Database className="w-2.5 h-2.5" />
+                        Local
+                      </>
+                    ) : (
+                      <>
+                        <Globe2 className="w-2.5 h-2.5" />
+                        Global
+                      </>
+                    )}
+                  </span>
+                )}
               </div>
               <span className={`text-base font-bold ${
                 matchResult.predictionScore >= 0.7 ? 'text-green-600' :

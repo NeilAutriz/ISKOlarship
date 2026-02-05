@@ -25,10 +25,10 @@ import {
   Bell
 } from 'lucide-react';
 import { AuthContext } from '../../App';
-import { scholarshipApi, applicationApi } from '../../services/apiClient';
+import { scholarshipApi, applicationApi, predictionApi } from '../../services/apiClient';
 import { matchStudentToScholarships } from '../../services/filterEngine';
 import ScholarshipCard from '../../components/ScholarshipCard';
-import { Scholarship, MatchResult, isStudentProfile } from '../../types';
+import { Scholarship, MatchResult, isStudentProfile, EligibilityCheckResult } from '../../types';
 
 const StudentDashboard: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -39,6 +39,10 @@ const StudentDashboard: React.FC = () => {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [userApplications, setUserApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiPredictions, setApiPredictions] = useState<Map<string, { 
+    probability: number; 
+    modelType?: 'scholarship_specific' | 'global' | 'none' | 'unknown';
+  }>>(new Map());
   
   useEffect(() => {
     let isMounted = true;
@@ -78,9 +82,54 @@ const StudentDashboard: React.FC = () => {
     };
   }, [studentUser?.studentNumber]);
 
+  // Fetch API predictions to get modelType
+  useEffect(() => {
+    if (!studentUser || scholarships.length === 0) return;
+    
+    const fetchPredictions = async () => {
+      try {
+        const scholarshipIds = scholarships.map(s => s.id || (s as any)._id).filter(Boolean);
+        if (scholarshipIds.length === 0) return;
+        
+        const response = await predictionApi.getBatchPredictions(scholarshipIds);
+        if (response.success && response.data) {
+          const predictionsMap = new Map<string, { 
+            probability: number; 
+            modelType?: 'scholarship_specific' | 'global' | 'none' | 'unknown';
+          }>();
+          response.data.forEach((pred: any) => {
+            if (pred.scholarshipId) {
+              predictionsMap.set(pred.scholarshipId, {
+                probability: pred.probability?.probability ?? pred.probability?.probabilityPercentage ?? 0,
+                modelType: pred.probability?.modelType || 'unknown'
+              });
+            }
+          });
+          setApiPredictions(predictionsMap);
+        }
+      } catch (error) {
+        console.error('Failed to fetch predictions:', error);
+      }
+    };
+    
+    fetchPredictions();
+  }, [studentUser, scholarships]);
+
   if (!studentUser) return null;
 
-  const matchResults = useMemo(() => matchStudentToScholarships(studentUser, scholarships), [studentUser, scholarships]);
+  const matchResults = useMemo(() => {
+    const results = matchStudentToScholarships(studentUser, scholarships);
+    // Merge with API predictions to include modelType
+    return results.map(r => {
+      const id = r.scholarship.id || (r.scholarship as any)._id;
+      const apiPred = apiPredictions.get(id);
+      return {
+        ...r,
+        predictionScore: apiPred?.probability ?? r.compatibilityScore,
+        predictionModelType: apiPred?.modelType
+      };
+    });
+  }, [studentUser, scholarships, apiPredictions]);
 
   const stats = useMemo(() => {
     const eligible = matchResults.filter((r: MatchResult) => r.isEligible);

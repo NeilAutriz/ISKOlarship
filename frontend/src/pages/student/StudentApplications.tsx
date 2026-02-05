@@ -23,7 +23,9 @@ import {
   User,
   GraduationCap,
   Award,
-  ChevronRight
+  ChevronRight,
+  Database,
+  Globe2
 } from 'lucide-react';
 import { applicationApi } from '../../services/apiClient';
 
@@ -507,9 +509,35 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
             {/* Prediction Score */}
             {application.prediction && (
               <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-4 border border-amber-200">
-                <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-600" />
-                  Success Prediction
+                <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Award className="w-4 h-4 text-amber-600" />
+                    Success Prediction
+                  </span>
+                  {/* Model Type Tag */}
+                  {application.prediction.modelType && application.prediction.modelType !== 'none' && application.prediction.modelType !== 'unknown' && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${
+                      application.prediction.modelType === 'scholarship_specific' 
+                        ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
+                        : 'bg-sky-100 text-sky-700 border border-sky-200'
+                    }`}
+                    title={application.prediction.modelType === 'scholarship_specific' 
+                      ? 'Uses scholarship-specific training data' 
+                      : 'Uses aggregated global training data'}
+                    >
+                      {application.prediction.modelType === 'scholarship_specific' ? (
+                        <>
+                          <Database className="w-2.5 h-2.5" />
+                          Local
+                        </>
+                      ) : (
+                        <>
+                          <Globe2 className="w-2.5 h-2.5" />
+                          Global
+                        </>
+                      )}
+                    </span>
+                  )}
                 </h3>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">

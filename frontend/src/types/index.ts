@@ -529,6 +529,7 @@ export interface MatchResult {
   eligibilityDetails: EligibilityCheckResult[];
   predictionScore?: number; // 0-100, from logistic regression
   predictionFactors?: PredictionFactor[];
+  predictionModelType?: 'scholarship_specific' | 'global' | 'none' | 'unknown'; // Type of ML model used
 }
 
 export interface EligibilityCheckResult {
@@ -732,6 +733,8 @@ export interface PredictionResult {
   features?: Record<string, number>;
   modelVersion?: string;
   trainedModel?: boolean;
+  modelType?: 'scholarship_specific' | 'global' | 'none' | 'unknown'; // Type of model used
+  modelDescription?: string; // Human-readable description of model used
   recommendation?: string;
   previousApprovals?: number;
   previousRejections?: number;

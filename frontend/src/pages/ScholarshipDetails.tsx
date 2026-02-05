@@ -33,7 +33,9 @@ import {
   Percent,
   RefreshCw,
   Calculator,
-  Lightbulb
+  Lightbulb,
+  Database,
+  Globe2
 } from 'lucide-react';
 import { AuthContext } from '../App';
 import { fetchScholarshipDetails, fetchScholarships, getPredictionForScholarship } from '../services/api';
@@ -282,12 +284,19 @@ const ScholarshipDetails: React.FC = () => {
   };
 
   // Helper to get eligibility status from matchResult for a specific criterion
+  // Supports multiple search patterns separated by '|'
   const getEligibilityStatus = (criterionPattern: string): boolean | null => {
     if (!criterionPattern || !matchResult || !matchResult.eligibilityDetails || !Array.isArray(matchResult.eligibilityDetails)) return null;
-    const pattern = criterionPattern.toLowerCase();
-    const detail = matchResult.eligibilityDetails.find(d => 
-      d && d.criterion && typeof d.criterion === 'string' && d.criterion.toLowerCase().includes(pattern)
-    );
+    
+    // Support multiple patterns separated by '|'
+    const patterns = criterionPattern.toLowerCase().split('|').map(p => p.trim());
+    
+    const detail = matchResult.eligibilityDetails.find(d => {
+      if (!d || !d.criterion || typeof d.criterion !== 'string') return false;
+      const criterion = d.criterion.toLowerCase();
+      return patterns.some(pattern => criterion.includes(pattern));
+    });
+    
     return detail ? detail.passed : null;
   };
 
@@ -620,21 +629,30 @@ const ScholarshipDetails: React.FC = () => {
 
                 {/* No Existing Scholarship - CRITICAL for exclusivity */}
                 {scholarship.eligibilityCriteria?.mustNotHaveOtherScholarship && (() => {
-                  const scholarshipStatus = getEligibilityStatus('no existing scholarship');
+                  // Search for "no other scholarship" or related patterns
+                  const scholarshipStatus = getEligibilityStatus('no other scholarship|existing scholarship');
+                  // Determine styling: true = passed (green), false = failed (red), null = unknown (slate)
+                  const isPassed = scholarshipStatus === true;
+                  const isFailed = scholarshipStatus === false;
+                  
                   return (
                     <div className={`p-4 rounded-xl border ${
                       matchResult
-                        ? scholarshipStatus
+                        ? isPassed
                           ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
+                          : isFailed
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-slate-50 border-slate-200'
                         : 'bg-slate-50 border-slate-200'
                     }`}>
                       <div className="flex items-center gap-3">
                         <AlertCircle className={`w-5 h-5 ${
                           matchResult
-                            ? scholarshipStatus
+                            ? isPassed
                               ? 'text-green-600'
-                              : 'text-red-600'
+                              : isFailed
+                                ? 'text-red-600'
+                                : 'text-slate-400'
                             : 'text-slate-400'
                         }`} />
                         <div>
@@ -643,10 +661,11 @@ const ScholarshipDetails: React.FC = () => {
                             No existing scholarship
                           </div>
                         </div>
-                        {matchResult && (
-                          scholarshipStatus
-                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                        {matchResult && isPassed && (
+                          <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                        )}
+                        {matchResult && isFailed && (
+                          <XCircle className="w-5 h-5 text-red-600 ml-auto" />
                         )}
                       </div>
                     </div>
@@ -762,12 +781,38 @@ const ScholarshipDetails: React.FC = () => {
                       AI-powered analysis based on your profile
                     </p>
                   </div>
-                  {prediction.trainedModel && (
-                    <span className="text-[10px] px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full font-semibold flex items-center gap-1 border border-primary-100">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      ML
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Model Type Tag */}
+                    {prediction.modelType && prediction.modelType !== 'none' && prediction.modelType !== 'unknown' && (
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                        prediction.modelType === 'scholarship_specific' 
+                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                          : 'bg-sky-50 text-sky-700 border border-sky-200'
+                      }`}
+                      title={prediction.modelType === 'scholarship_specific' 
+                        ? 'Prediction uses data specific to this scholarship' 
+                        : 'Prediction uses aggregated data from all scholarships'}
+                      >
+                        {prediction.modelType === 'scholarship_specific' ? (
+                          <>
+                            <Database className="w-3 h-3" />
+                            Local Data
+                          </>
+                        ) : (
+                          <>
+                            <Globe2 className="w-3 h-3" />
+                            Global Data
+                          </>
+                        )}
+                      </span>
+                    )}
+                    {prediction.trainedModel && (
+                      <span className="text-[10px] px-2 py-0.5 bg-primary-50 text-primary-700 rounded-full font-semibold flex items-center gap-1 border border-primary-100">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        ML
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Main Probability Display */}
