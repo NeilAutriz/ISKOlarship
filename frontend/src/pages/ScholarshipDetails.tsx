@@ -39,18 +39,21 @@ import {
 } from 'lucide-react';
 import { AuthContext } from '../App';
 import { fetchScholarshipDetails, fetchScholarships, getPredictionForScholarship } from '../services/api';
+import { applicationApi } from '../services/apiClient';
 import { matchStudentToScholarships } from '../services/filterEngine';
 import { predictScholarshipSuccess } from '../services/logisticRegression';
-import { 
-  Scholarship, 
-  MatchResult, 
-  EligibilityCheckResult, 
-  isStudentProfile, 
-  PredictionResult, 
+import {
+  Scholarship,
+  MatchResult,
+  EligibilityCheckResult,
+  isStudentProfile,
+  PredictionResult,
   PredictionFactor,
   CustomCondition,
   ConditionType,
   ConditionImportance,
+  Application,
+  ApplicationStatus,
   STUDENT_PROFILE_FIELDS
 } from '../types';
 
@@ -92,6 +95,43 @@ const ScholarshipDetails: React.FC = () => {
   const [similarScholarships, setSimilarScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // State for existing application check
+  const [existingApplication, setExistingApplication] = useState<Application | null>(null);
+
+  // Fetch existing application for this scholarship (if student is logged in)
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkExistingApplication = async () => {
+      if (!studentUser || !id) {
+        if (isMounted) setExistingApplication(null);
+        return;
+      }
+
+      try {
+        const response = await applicationApi.getMyApplications(undefined, 1, 100);
+        if (isMounted && response.success && response.data?.applications) {
+          const match = response.data.applications.find((app: Application) => {
+            const appScholarshipId = typeof app.scholarship === 'string'
+              ? app.scholarship
+              : (app.scholarship as Scholarship)?._id || (app.scholarship as Scholarship)?.id;
+            return appScholarshipId === id || app.scholarshipId === id;
+          });
+          setExistingApplication(match || null);
+        }
+      } catch {
+        // Silently fail — Apply button stays visible as fallback
+        if (isMounted) setExistingApplication(null);
+      }
+    };
+
+    checkExistingApplication();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [studentUser, id]);
 
   // Fetch scholarship from API - updates mock data if API succeeds
   useEffect(() => {
@@ -971,21 +1011,70 @@ const ScholarshipDetails: React.FC = () => {
               {/* Action Buttons */}
               <div className="space-y-3">
                 {user ? (
-                  matchResult?.isEligible ? (
-                    <Link
-                      to={`/apply/${scholarship.id}`}
-                      className="btn-primary w-full flex items-center justify-center gap-2"
-                    >
-                      <FileText className="w-5 h-5" />
-                      Apply Now
-                    </Link>
+                  existingApplication ? (
+                    // Student has an existing application for this scholarship
+                    existingApplication.status === ApplicationStatus.APPROVED ? (
+                      <div className="w-full flex flex-col items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-center">
+                        <div className="flex items-center gap-2 text-green-700 font-semibold">
+                          <CheckCircle className="w-5 h-5" />
+                          Scholarship Approved
+                        </div>
+                        <p className="text-xs text-green-600">You have already been approved for this scholarship.</p>
+                      </div>
+                    ) : existingApplication.status === ApplicationStatus.REJECTED ? (
+                      matchResult?.isEligible ? (
+                        <Link
+                          to={`/apply/${scholarship.id}`}
+                          className="btn-primary w-full flex items-center justify-center gap-2"
+                        >
+                          <FileText className="w-5 h-5" />
+                          Apply Again
+                        </Link>
+                      ) : (
+                        <button disabled className="btn w-full bg-slate-100 text-slate-400 cursor-not-allowed">
+                          Not Eligible
+                        </button>
+                      )
+                    ) : existingApplication.status === ApplicationStatus.DRAFT ? (
+                      <Link
+                        to={`/apply/${scholarship.id}`}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-all"
+                      >
+                        <FileText className="w-5 h-5" />
+                        Continue Application
+                      </Link>
+                    ) : (
+                      <div className="w-full flex flex-col items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-center">
+                        <div className="flex items-center gap-2 text-blue-700 font-semibold">
+                          <Clock className="w-5 h-5" />
+                          Application {existingApplication.status === ApplicationStatus.SUBMITTED ? 'Submitted' : 'Under Review'}
+                        </div>
+                        <Link
+                          to="/my-applications"
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          View your application
+                        </Link>
+                      </div>
+                    )
                   ) : (
-                    <button disabled className="btn w-full bg-slate-100 text-slate-400 cursor-not-allowed">
-                      Not Eligible
-                    </button>
+                    // No existing application
+                    matchResult?.isEligible ? (
+                      <Link
+                        to={`/apply/${scholarship.id}`}
+                        className="btn-primary w-full flex items-center justify-center gap-2"
+                      >
+                        <FileText className="w-5 h-5" />
+                        Apply Now
+                      </Link>
+                    ) : (
+                      <button disabled className="btn w-full bg-slate-100 text-slate-400 cursor-not-allowed">
+                        Not Eligible
+                      </button>
+                    )
                   )
                 ) : (
-                  <button 
+                  <button
                     onClick={openAuthModal}
                     className="btn-primary w-full flex items-center justify-center gap-2"
                   >

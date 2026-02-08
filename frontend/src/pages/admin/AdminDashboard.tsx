@@ -3,7 +3,7 @@
 // Overview and management of scholarship platform
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Shield,
@@ -23,6 +23,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { statisticsApi, scholarshipApi, applicationApi } from '../../services/apiClient';
+import { getPredictionForApplication } from '../../services/api';
 
 interface Application {
   id: string;
@@ -47,6 +48,8 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [recentApplications, setRecentApplications] = useState<Application[]>([]);
   const [topScholarships, setTopScholarships] = useState<ScholarshipSummary[]>([]);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const hasFetchedPredictions = useRef(false);
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalScholarships: 0,
@@ -88,7 +91,7 @@ const AdminDashboard: React.FC = () => {
               scholarshipName: app.scholarship?.name || 'Unknown Scholarship',
               status: app.status || 'pending',
               submittedDate: app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : 'N/A',
-              matchScore: app.eligibilityScore || 0
+              matchScore: 0 // Placeholder - will be updated with fresh ML predictions
             })));
           }
         } catch (err) {
@@ -124,6 +127,45 @@ const AdminDashboard: React.FC = () => {
       isMounted = false;
     };
   }, []);
+
+  // Fetch fresh ML predictions for recent applications
+  useEffect(() => {
+    if (recentApplications.length === 0 || hasFetchedPredictions.current) return;
+    hasFetchedPredictions.current = true;
+
+    let isMounted = true;
+
+    const fetchPredictions = async () => {
+      setLoadingPredictions(true);
+      try {
+        const results = await Promise.allSettled(
+          recentApplications.map(app => getPredictionForApplication(app.id))
+        );
+
+        if (!isMounted) return;
+
+        setRecentApplications(prev => prev.map((app, idx) => {
+          const result = results[idx];
+          if (result.status === 'fulfilled' && result.value) {
+            const pred = result.value;
+            return {
+              ...app,
+              matchScore: pred.probabilityPercentage ?? Math.round((pred.probability || 0) * 100)
+            };
+          }
+          return app;
+        }));
+      } catch (err) {
+        console.warn('Could not fetch ML predictions:', err);
+      } finally {
+        if (isMounted) setLoadingPredictions(false);
+      }
+    };
+
+    fetchPredictions();
+
+    return () => { isMounted = false; };
+  }, [recentApplications.length]);
 
   if (loading) {
     return (
@@ -265,7 +307,13 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right hidden md:block">
-                            <div className="text-sm font-medium text-primary-600">Match: {app.matchScore}%</div>
+                            {loadingPredictions ? (
+                              <div className="text-sm font-medium text-slate-400 flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" /> Loading...
+                              </div>
+                            ) : (
+                              <div className="text-sm font-medium text-primary-600">ML Prediction: {app.matchScore}%</div>
+                            )}
                             <div className="text-xs text-slate-500">{app.submittedDate}</div>
                           </div>
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${

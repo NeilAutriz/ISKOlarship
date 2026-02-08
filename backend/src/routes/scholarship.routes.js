@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, query, param, validationResult } = require('express-validator');
-const { Scholarship, ScholarshipType, ScholarshipLevel, ScholarshipStatus } = require('../models');
+const { Scholarship, ScholarshipType, ScholarshipLevel, ScholarshipStatus, Application, TrainedModel } = require('../models');
 const { authMiddleware, optionalAuth, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
 const { 
   attachAdminScope, 
@@ -713,7 +713,7 @@ router.put('/:id',
 
 /**
  * @route   DELETE /api/scholarships/:id
- * @desc    Delete scholarship (soft delete)
+ * @desc    Permanently delete scholarship and related data
  * @access  Admin (with scope check)
  */
 router.delete('/:id',
@@ -745,26 +745,21 @@ router.delete('/:id',
         });
       }
 
-      const scholarship = await Scholarship.findByIdAndUpdate(
-        req.params.id,
-        { 
-          isActive: false,
-          status: ScholarshipStatus.ARCHIVED,
-          lastModifiedBy: req.user._id
-        },
-        { new: true }
+      // Delete related applications
+      await Application.deleteMany({ scholarship: req.params.id });
+
+      // Unlink related trained models (set scholarshipId to null)
+      await TrainedModel.updateMany(
+        { scholarshipId: req.params.id },
+        { $set: { scholarshipId: null } }
       );
 
-      if (!scholarship) {
-        return res.status(404).json({
-          success: false,
-          message: 'Scholarship not found'
-        });
-      }
+      // Permanently delete the scholarship
+      await Scholarship.findByIdAndDelete(req.params.id);
 
       res.json({
         success: true,
-        message: 'Scholarship archived successfully'
+        message: 'Scholarship deleted successfully'
       });
     } catch (error) {
       next(error);

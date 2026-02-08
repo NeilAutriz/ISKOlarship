@@ -12,11 +12,11 @@ import {
   List
 } from 'lucide-react';
 import { AuthContext } from '../App';
-import { scholarshipApi } from '../services/apiClient';
+import { scholarshipApi, applicationApi } from '../services/apiClient';
 import ScholarshipList from '../components/ScholarshipList';
 import HorizontalFilterBar from '../components/HorizontalFilterBar';
 import SearchBar from '../components/SearchBar';
-import { FilterCriteria, Scholarship, isStudentProfile } from '../types';
+import { FilterCriteria, Scholarship, Application, ApplicationStatus, isStudentProfile } from '../types';
 
 const Scholarships: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -39,6 +39,46 @@ const Scholarships: React.FC = () => {
     showEligibleOnly: false
   });
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Track student's existing application statuses per scholarship
+  const [applicationStatuses, setApplicationStatuses] = useState<Map<string, ApplicationStatus>>(new Map());
+
+  // Fetch student's applications to build status map
+  useEffect(() => {
+    if (!studentUser) {
+      setApplicationStatuses(new Map());
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchApplicationStatuses = async () => {
+      try {
+        const response = await applicationApi.getMyApplications(undefined, 1, 100);
+        if (isMounted && response.success && response.data?.applications) {
+          const statusMap = new Map<string, ApplicationStatus>();
+          response.data.applications.forEach((app: Application) => {
+            const scholarshipId = typeof app.scholarship === 'string'
+              ? app.scholarship
+              : (app.scholarship as Scholarship)?._id || (app.scholarship as Scholarship)?.id;
+            const id = scholarshipId || app.scholarshipId;
+            if (id) {
+              statusMap.set(id, app.status);
+            }
+          });
+          setApplicationStatuses(statusMap);
+        }
+      } catch {
+        // Silently fail — cards just won't show application badges
+      }
+    };
+
+    fetchApplicationStatuses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [studentUser]);
 
   // Fetch scholarships from API
   useEffect(() => {
@@ -272,6 +312,7 @@ const Scholarships: React.FC = () => {
               showViewToggle={false}
               viewMode={viewMode}
               showEligibleOnly={filters.showEligibleOnly}
+              applicationStatuses={applicationStatuses}
               title={undefined}
               emptyMessage={
                 filters.searchQuery

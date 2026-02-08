@@ -28,7 +28,7 @@ import { AuthContext } from '../../App';
 import { scholarshipApi, applicationApi, predictionApi } from '../../services/apiClient';
 import { matchStudentToScholarships } from '../../services/filterEngine';
 import ScholarshipCard from '../../components/ScholarshipCard';
-import { Scholarship, MatchResult, isStudentProfile, EligibilityCheckResult } from '../../types';
+import { Scholarship, MatchResult, isStudentProfile, EligibilityCheckResult, ApplicationStatus } from '../../types';
 
 const StudentDashboard: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -175,6 +175,18 @@ const StudentDashboard: React.FC = () => {
     }
   }, [matchResults, activeTab, userApplications]);
 
+  // Build application status map from user applications
+  const applicationStatuses = useMemo(() => {
+    const statusMap = new Map<string, ApplicationStatus>();
+    userApplications.forEach((app: any) => {
+      const scholarshipId = app.scholarship?._id || app.scholarship?.id || app.scholarshipId;
+      if (scholarshipId && app.status) {
+        statusMap.set(scholarshipId, app.status as ApplicationStatus);
+      }
+    });
+    return statusMap;
+  }, [userApplications]);
+
   const formatCurrency = (amount: number | undefined | null): string => {
     if (amount === undefined || amount === null) return 'N/A';
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
@@ -221,7 +233,7 @@ const StudentDashboard: React.FC = () => {
                 <p className="text-primary-100 flex items-center gap-2 flex-wrap">
                   <span className="flex items-center gap-1"><GraduationCap className="w-4 h-4" />{studentUser.college}</span>
                   <span className="text-primary-200">•</span>
-                  <span>{studentUser.yearLevel}</span>
+                  <span>{studentUser.classification || studentUser.yearLevel}</span>
                   {studentUser.gwa !== undefined && studentUser.gwa !== null && (
                     <>
                       <span className="text-primary-200">•</span>
@@ -324,9 +336,18 @@ const StudentDashboard: React.FC = () => {
 
             {displayedScholarships.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-5">
-                {displayedScholarships.map(({ scholarship, matchResult }: { scholarship: Scholarship | undefined; matchResult: MatchResult }) => (
-                  scholarship && <ScholarshipCard key={(scholarship as any)._id || scholarship.id} scholarship={scholarship} matchResult={matchResult} showPrediction={true} />
-                ))}
+                {displayedScholarships.map(({ scholarship, matchResult }: { scholarship: Scholarship | undefined; matchResult: MatchResult }) => {
+                  const scholarshipId = (scholarship as any)?._id || scholarship?.id;
+                  return scholarship && (
+                    <ScholarshipCard
+                      key={scholarshipId}
+                      scholarship={scholarship}
+                      matchResult={matchResult}
+                      showPrediction={true}
+                      applicationStatus={applicationStatuses.get(scholarshipId) || null}
+                    />
+                  );
+                })}
               </div>
             ) : (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
@@ -357,7 +378,7 @@ const StudentDashboard: React.FC = () => {
                   { icon: GraduationCap, label: 'College', value: studentUser.college },
                   { icon: BookOpen, label: 'Course', value: studentUser.course },
                   { icon: TrendingUp, label: 'GWA', value: studentUser.gwa !== undefined && studentUser.gwa !== null ? studentUser.gwa.toFixed(4) : 'N/A' },
-                  { icon: Calendar, label: 'Year Level', value: studentUser.yearLevel },
+                  { icon: Calendar, label: 'Year Level', value: studentUser.classification || studentUser.yearLevel },
                   { icon: DollarSign, label: 'Annual Income', value: formatCurrency(studentUser.annualFamilyIncome) },
                 ].map((item, index) => (
                   <div key={index} className="flex items-center gap-3">

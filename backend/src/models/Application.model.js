@@ -276,6 +276,15 @@ const applicationSchema = new mongoose.Schema({
     studentNumber: String,
     firstName: String,
     lastName: String,
+    contactNumber: String,
+    homeAddress: {
+      street: String,
+      barangay: String,
+      city: String,
+      province: String,
+      zipCode: String,
+      fullAddress: String
+    },
     gwa: Number,
     classification: String,
     college: String,

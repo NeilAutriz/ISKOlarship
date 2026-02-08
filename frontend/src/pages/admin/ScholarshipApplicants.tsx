@@ -3,7 +3,7 @@
 // View and manage applicants for a specific scholarship
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Search,
@@ -22,9 +22,11 @@ import {
   DollarSign,
   FileText,
   TrendingUp,
-  Building2
+  Building2,
+  Sparkles
 } from 'lucide-react';
 import { applicationApi, scholarshipApi } from '../../services/apiClient';
+import { getPredictionForApplication } from '../../services/api';
 
 interface ApplicationData {
   id: string;
@@ -63,6 +65,8 @@ const ScholarshipApplicants: React.FC = () => {
   const [scholarship, setScholarship] = useState<ScholarshipData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const hasFetchedPredictions = useRef(false);
 
   // Fetch scholarship and its applications
   useEffect(() => {
@@ -127,7 +131,7 @@ const ScholarshipApplicants: React.FC = () => {
             familyIncome: app.applicant?.studentProfile?.annualFamilyIncome || app.applicantSnapshot?.annualFamilyIncome || 0,
             submittedDate: app.submittedAt ? new Date(app.submittedAt).toISOString().split('T')[0] : 'N/A',
             status: app.status || 'pending',
-            matchScore: app.eligibilityPercentage || app.eligibilityScore || 0,
+            matchScore: 0, // Placeholder - will be updated with fresh ML predictions
             canManage: app.canManage
           })));
         } else if (isMounted) {
@@ -149,6 +153,45 @@ const ScholarshipApplicants: React.FC = () => {
       isMounted = false;
     };
   }, [scholarshipId]);
+
+  // Fetch fresh ML predictions for each loaded application
+  useEffect(() => {
+    if (applications.length === 0 || hasFetchedPredictions.current) return;
+    hasFetchedPredictions.current = true;
+
+    let isMounted = true;
+
+    const fetchPredictions = async () => {
+      setLoadingPredictions(true);
+      try {
+        const results = await Promise.allSettled(
+          applications.map(app => getPredictionForApplication(app.id))
+        );
+
+        if (!isMounted) return;
+
+        setApplications(prev => prev.map((app, idx) => {
+          const result = results[idx];
+          if (result.status === 'fulfilled' && result.value) {
+            const pred = result.value;
+            return {
+              ...app,
+              matchScore: pred.probabilityPercentage ?? Math.round((pred.probability || 0) * 100)
+            };
+          }
+          return app;
+        }));
+      } catch (err) {
+        console.warn('Could not fetch ML predictions:', err);
+      } finally {
+        if (isMounted) setLoadingPredictions(false);
+      }
+    };
+
+    fetchPredictions();
+
+    return () => { isMounted = false; };
+  }, [applications.length]);
 
   // Calculate stats
   const stats = {
@@ -189,8 +232,8 @@ const ScholarshipApplicants: React.FC = () => {
   };
 
   const getMatchScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 bg-green-100';
-    if (score >= 60) return 'text-yellow-600 bg-yellow-100';
+    if (score >= 70) return 'text-green-600 bg-green-100';
+    if (score >= 40) return 'text-amber-600 bg-amber-100';
     return 'text-red-600 bg-red-100';
   };
 
@@ -412,7 +455,7 @@ const ScholarshipApplicants: React.FC = () => {
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Applicant</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Course & Year</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">GWA</th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Match Score</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">ML Prediction</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Submitted</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
                     <th className="text-center px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Action</th>
@@ -440,10 +483,17 @@ const ScholarshipApplicants: React.FC = () => {
                         <span className="font-semibold text-slate-800">{app.gwa.toFixed(2)}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${getMatchScoreColor(app.matchScore)}`}>
-                          <TrendingUp className="w-3 h-3" />
-                          {app.matchScore}%
-                        </span>
+                        {loadingPredictions ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-500 bg-slate-100">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Loading...
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${getMatchScoreColor(app.matchScore)}`}>
+                            <Sparkles className="w-3 h-3" />
+                            {app.matchScore}%
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1.5 text-sm text-slate-600">

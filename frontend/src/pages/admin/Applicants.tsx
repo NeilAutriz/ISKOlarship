@@ -3,7 +3,7 @@
 // Review and process scholarship applications
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Search,
@@ -28,9 +28,11 @@ import {
   FileText,
   Users,
   BarChart3,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { applicationApi, scholarshipApi } from '../../services/apiClient';
+import { getPredictionForApplication } from '../../services/api';
 
 interface ApplicationData {
   id: string;
@@ -62,6 +64,8 @@ const Applicants: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [applications, setApplications] = useState<ApplicationData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const hasFetchedPredictions = useRef(false);
   const [adminScope, setAdminScope] = useState<{ level: string; description: string } | null>(null);
   const [scholarshipFilter, setScholarshipFilter] = useState<{ id: string; name: string } | null>(null);
 
@@ -127,7 +131,7 @@ const Applicants: React.FC = () => {
             scholarshipType: app.scholarship?.type || 'Regular',
             submittedDate: app.submittedAt ? new Date(app.submittedAt).toISOString().split('T')[0] : 'N/A',
             status: app.status || 'pending',
-            matchScore: app.eligibilityPercentage || app.eligibilityScore || 0,
+            matchScore: 0, // Placeholder - will be updated with fresh ML predictions
           })));
         } else if (isMounted) {
           setApplications([]);
@@ -145,6 +149,45 @@ const Applicants: React.FC = () => {
     fetchApplications();
     return () => { isMounted = false; };
   }, [scholarshipIdFilter]);
+
+  // Fetch fresh ML predictions for each loaded application
+  useEffect(() => {
+    if (applications.length === 0 || hasFetchedPredictions.current) return;
+    hasFetchedPredictions.current = true;
+
+    let isMounted = true;
+
+    const fetchPredictions = async () => {
+      setLoadingPredictions(true);
+      try {
+        const results = await Promise.allSettled(
+          applications.map(app => getPredictionForApplication(app.id))
+        );
+
+        if (!isMounted) return;
+
+        setApplications(prev => prev.map((app, idx) => {
+          const result = results[idx];
+          if (result.status === 'fulfilled' && result.value) {
+            const pred = result.value;
+            return {
+              ...app,
+              matchScore: pred.probabilityPercentage ?? Math.round((pred.probability || 0) * 100)
+            };
+          }
+          return app;
+        }));
+      } catch (err) {
+        console.warn('Could not fetch ML predictions:', err);
+      } finally {
+        if (isMounted) setLoadingPredictions(false);
+      }
+    };
+
+    fetchPredictions();
+
+    return () => { isMounted = false; };
+  }, [applications.length]);
 
   const clearScholarshipFilter = () => {
     setSearchParams({});
@@ -221,8 +264,8 @@ const Applicants: React.FC = () => {
 
   const getMatchScoreDisplay = (score: number) => {
     let colorClass = 'text-slate-600 bg-slate-100';
-    if (score >= 80) colorClass = 'text-green-700 bg-green-100';
-    else if (score >= 60) colorClass = 'text-amber-700 bg-amber-100';
+    if (score >= 70) colorClass = 'text-green-700 bg-green-100';
+    else if (score >= 40) colorClass = 'text-amber-700 bg-amber-100';
     else if (score > 0) colorClass = 'text-red-700 bg-red-100';
     
     return (
@@ -578,9 +621,15 @@ const Applicants: React.FC = () => {
 
                   <div className="flex items-center justify-between text-sm mb-4 pt-3 border-t border-slate-100">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-600">Match Score:</span>
-                      {getMatchScoreDisplay(app.matchScore)}
+                      <Sparkles className="w-4 h-4 text-primary-500" />
+                      <span className="text-slate-600">ML Prediction:</span>
+                      {loadingPredictions ? (
+                        <span className="px-2 py-0.5 text-xs font-bold rounded text-slate-500 bg-slate-100">
+                          <Loader2 className="w-3 h-3 animate-spin inline mr-1" />Loading...
+                        </span>
+                      ) : (
+                        getMatchScoreDisplay(app.matchScore)
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500">
                       <Calendar className="w-4 h-4" />
@@ -613,7 +662,7 @@ const Applicants: React.FC = () => {
                     <th className="px-5 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Scholarship</th>
                     <th className="px-5 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Course</th>
                     <th className="px-5 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">GWA</th>
-                    <th className="px-5 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Match</th>
+                    <th className="px-5 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">ML Prediction</th>
                     <th className="px-5 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
                     <th className="px-5 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Submitted</th>
                     <th className="px-5 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Action</th>
@@ -649,7 +698,13 @@ const Applicants: React.FC = () => {
                         <span className="font-bold text-slate-800">{app.gwa.toFixed(2)}</span>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        {getMatchScoreDisplay(app.matchScore)}
+                        {loadingPredictions ? (
+                          <span className="px-2 py-0.5 text-xs font-bold rounded text-slate-500 bg-slate-100">
+                            <Loader2 className="w-3 h-3 animate-spin inline mr-1" />...
+                          </span>
+                        ) : (
+                          getMatchScoreDisplay(app.matchScore)
+                        )}
                       </td>
                       <td className="px-5 py-4 text-center">
                         {getStatusBadge(app.status)}

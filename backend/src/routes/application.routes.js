@@ -103,6 +103,8 @@ router.get('/my', authMiddleware, async (req, res, next) => {
           studentNumber: storedSnapshot.studentNumber || userProfile.studentNumber,
           firstName: userProfile.firstName || req.user.firstName,
           lastName: userProfile.lastName || req.user.lastName,
+          contactNumber: userProfile.contactNumber,
+          homeAddress: userProfile.homeAddress || {},
           gwa: userProfile.gwa,
           classification: userProfile.classification,
           college: userProfile.college,
@@ -278,7 +280,11 @@ router.post('/',
         studentNumber: profile.studentNumber,
         firstName: profile.firstName || req.user.firstName,
         lastName: profile.lastName || req.user.lastName,
-        
+
+        // Contact Info
+        contactNumber: profile.contactNumber,
+        homeAddress: profile.homeAddress || {},
+
         // Academic Info (flat fields from User.model.js)
         gwa: profile.gwa,
         classification: profile.classification,
@@ -287,16 +293,16 @@ router.post('/',
         major: profile.major,
         unitsEnrolled: profile.unitsEnrolled,
         unitsPassed: profile.unitsPassed,
-        
+
         // Financial Info (flat fields from User.model.js)
         annualFamilyIncome: profile.annualFamilyIncome,
         stBracket: profile.stBracket,
         householdSize: profile.householdSize,
-        
+
         // Personal Info (flat fields from User.model.js)
         provinceOfOrigin: profile.provinceOfOrigin,
         citizenship: profile.citizenship,
-        
+
         // Scholarship/Status Info (flat fields from User.model.js)
         hasExistingScholarship: profile.hasExistingScholarship,
         hasThesisGrant: profile.hasThesisGrant,
@@ -799,7 +805,11 @@ router.get('/:id',
           studentNumber: storedSnapshot.studentNumber || profile.studentNumber,
           firstName: profile.firstName || application.applicant.firstName,
           lastName: profile.lastName || application.applicant.lastName,
-          
+
+          // Contact Info
+          contactNumber: profile.contactNumber,
+          homeAddress: profile.homeAddress || {},
+
           // Academic Info
           gwa: profile.gwa,
           classification: profile.classification,
@@ -808,16 +818,16 @@ router.get('/:id',
           major: profile.major,
           unitsEnrolled: profile.unitsEnrolled,
           unitsPassed: profile.unitsPassed,
-          
+
           // Financial Info
           annualFamilyIncome: profile.annualFamilyIncome,
           stBracket: profile.stBracket,
           householdSize: profile.householdSize,
-          
+
           // Personal Info
           provinceOfOrigin: profile.provinceOfOrigin,
           citizenship: profile.citizenship,
-          
+
           // Status flags
           hasExistingScholarship: profile.hasExistingScholarship,
           hasThesisGrant: profile.hasThesisGrant,

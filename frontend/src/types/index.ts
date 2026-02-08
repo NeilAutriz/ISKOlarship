@@ -297,6 +297,7 @@ export interface StudentProfile extends BaseUser {
   course: string;
   major?: AgricultureMajor | string;
   yearLevel: YearLevel;
+  classification?: string; // Backend uses 'classification', frontend uses 'yearLevel'
   gwa: number; // General Weighted Average (1.0 - 5.0, 1.0 being highest)
   unitsEnrolled: number;
   expectedGraduationDate: Date;

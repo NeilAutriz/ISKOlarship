@@ -24,13 +24,14 @@ import {
   Database,
   Globe2
 } from 'lucide-react';
-import { Scholarship, MatchResult, ScholarshipType } from '../types';
+import { Scholarship, MatchResult, ScholarshipType, ApplicationStatus } from '../types';
 
 interface ScholarshipCardProps {
   scholarship: Scholarship;
   matchResult?: MatchResult;
   showPrediction?: boolean;
   variant?: 'default' | 'compact' | 'detailed';
+  applicationStatus?: ApplicationStatus | null;
 }
 
 // Color schemes for different scholarship types - Clean design with good contrast
@@ -139,7 +140,8 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
   scholarship,
   matchResult,
   showPrediction = true,
-  variant = 'default'
+  variant = 'default',
+  applicationStatus
 }) => {
   // Get color scheme based on type
   const getColorScheme = () => {
@@ -320,6 +322,23 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                 <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white shadow-sm">
                   <Clock className="w-3.5 h-3.5" />
                   {daysUntil} days left
+                </span>
+              )}
+              {applicationStatus && (
+                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 ${
+                  applicationStatus === ApplicationStatus.APPROVED
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : applicationStatus === ApplicationStatus.REJECTED
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : applicationStatus === ApplicationStatus.DRAFT
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}>
+                  <CheckCircle className="w-4 h-4" />
+                  {applicationStatus === ApplicationStatus.APPROVED ? 'Approved' :
+                   applicationStatus === ApplicationStatus.REJECTED ? 'Rejected' :
+                   applicationStatus === ApplicationStatus.DRAFT ? 'Draft' :
+                   'Applied'}
                 </span>
               )}
             </div>

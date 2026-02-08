@@ -19,7 +19,7 @@ import {
   Loader2
 } from 'lucide-react';
 import ScholarshipCard from './ScholarshipCard';
-import { Scholarship, MatchResult, ScholarshipType, StudentProfile, EligibilityCheckResult } from '../types';
+import { Scholarship, MatchResult, ScholarshipType, StudentProfile, EligibilityCheckResult, ApplicationStatus } from '../types';
 import { matchStudentToScholarships, sortScholarships } from '../services/filterEngine';
 import { predictionApi } from '../services/apiClient';
 
@@ -33,6 +33,7 @@ interface ScholarshipListProps {
   emptyMessage?: string;
   loading?: boolean;
   showEligibleOnly?: boolean; // Allow parent to control eligibility filter
+  applicationStatuses?: Map<string, ApplicationStatus>; // scholarship ID -> application status
 }
 
 type ViewMode = 'grid' | 'list';
@@ -47,7 +48,8 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   title,
   emptyMessage = 'No scholarships found matching your criteria.',
   loading = false,
-  showEligibleOnly: externalShowEligibleOnly
+  showEligibleOnly: externalShowEligibleOnly,
+  applicationStatuses
 }) => {
   // State
   const [internalViewMode, setInternalViewMode] = useState<ViewMode>('grid');
@@ -485,6 +487,7 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
                 matchResult={matchResults.get(scholarshipId)}
                 showPrediction={!!studentProfile}
                 variant={viewMode === 'list' ? 'compact' : 'default'}
+                applicationStatus={applicationStatuses?.get(scholarshipId) || null}
               />
             );
           })}

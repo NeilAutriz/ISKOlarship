@@ -160,10 +160,12 @@ const ApplicationReview: React.FC = () => {
                 ? `${applicant.firstName} ${applicant.lastName}`.trim()
                 : 'Unknown Applicant',
             applicantEmail: applicant.email || profile.email || 'N/A',
-            applicantPhone: profile.phoneNumber || profile.phone || 'N/A',
-            applicantAddress: profile.address 
-              ? `${profile.address.barangay || ''}, ${profile.address.city || ''}, ${profile.address.province || ''}`.replace(/, ,/g, ',').replace(/^, |, $/g, '')
-              : 'N/A',
+            applicantPhone: profile.contactNumber || profile.phoneNumber || profile.phone || 'N/A',
+            applicantAddress: profile.homeAddress
+              ? (profile.homeAddress.fullAddress || `${profile.homeAddress.street || ''}, ${profile.homeAddress.barangay || ''}, ${profile.homeAddress.city || ''}, ${profile.homeAddress.province || ''}`.replace(/, ,/g, ',').replace(/^, |, $/g, '').replace(/^,\s*|,\s*$/g, ''))
+              : profile.address
+                ? `${profile.address.barangay || ''}, ${profile.address.city || ''}, ${profile.address.province || ''}`.replace(/, ,/g, ',').replace(/^, |, $/g, '')
+                : 'N/A',
             // Academic Info
             studentNumber: profile.studentNumber || profile.studentId || 'N/A',
             college: profile.college || 'N/A',
@@ -196,7 +198,9 @@ const ApplicationReview: React.FC = () => {
                 })
               : 'N/A',
             status: app.status || 'pending',
-            matchScore: app.eligibilityPercentage || app.eligibilityScore || 0,
+            matchScore: app.prediction?.probability != null
+              ? Math.round(app.prediction.probability * 100)
+              : app.eligibilityPercentage || app.eligibilityScore || 0,
             // Prediction Data
             prediction: app.prediction ? {
               probability: app.prediction.probability || 0,

@@ -27,6 +27,7 @@ import {
   Shield,
   Info
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { scholarshipApi } from '../../services/apiClient';
 
 interface Scholarship {
@@ -64,6 +65,8 @@ const AdminScholarships: React.FC = () => {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
   const [adminScope, setAdminScope] = useState<AdminScope | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Scholarship | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch scholarships and admin scope from API
   useEffect(() => {
@@ -249,6 +252,46 @@ const AdminScholarships: React.FC = () => {
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
+  };
+
+  // Handle delete scholarship (soft delete / archive)
+  const handleDeleteScholarship = async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+    try {
+      const response = await scholarshipApi.delete(deleteTarget.id);
+
+      if (response.success) {
+        toast.success(`"${deleteTarget.name}" has been deleted successfully.`, {
+          position: 'top-right',
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
+        });
+
+        // Remove from the list
+        setScholarships(prev => prev.filter(s => s.id !== deleteTarget.id));
+      } else {
+        throw new Error((response as any).message || 'Failed to delete scholarship');
+      }
+    } catch (err: any) {
+      console.error('Failed to delete scholarship:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to delete scholarship. Please try again.', {
+        position: 'top-right',
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+      setShowDropdown(null);
+    }
   };
 
   return (
@@ -490,7 +533,13 @@ const AdminScholarships: React.FC = () => {
                           </button>
                           {showDropdown === scholarship.id && (
                             <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl border border-slate-200 shadow-lg py-2 z-10">
-                              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all">
+                              <button
+                                onClick={() => {
+                                  setDeleteTarget(scholarship);
+                                  setShowDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-all"
+                              >
                                 <Trash2 className="w-4 h-4" />Delete Scholarship
                               </button>
                             </div>
@@ -614,6 +663,61 @@ const AdminScholarships: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !deleting && setDeleteTarget(null)}
+          />
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Delete Scholarship</h3>
+                <p className="text-sm text-slate-500">This action is permanent and cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-2">
+              Are you sure you want to permanently delete <span className="font-semibold text-slate-900">"{deleteTarget.name}"</span>?
+            </p>
+            <p className="text-xs text-slate-500 mb-6">
+              The scholarship and all associated applications will be permanently removed from the database. This action cannot be reversed.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteScholarship}
+                disabled={deleting}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-all disabled:opacity-50 shadow-sm"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Scholarship
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

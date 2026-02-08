@@ -104,11 +104,12 @@ const ApplyScholarship: React.FC = () => {
         const scholarshipData = scholarshipResponse.data;
         if (isMounted) setScholarship(scholarshipData);
 
-        // Fetch student profile
-        const userStr = localStorage.getItem('user');
-        if (userStr && isMounted) {
-          const user = JSON.parse(userStr);
-          setStudentProfile(user.studentProfile || user);
+        // Fetch student profile from API (not localStorage which may be stale/empty)
+        const profileResponse = await userApi.getProfile();
+        let fetchedProfile: any = null;
+        if (isMounted && profileResponse.success && profileResponse.data) {
+          fetchedProfile = profileResponse.data;
+          setStudentProfile(fetchedProfile.studentProfile || fetchedProfile);
         }
 
         // Initialize document uploads dynamically based on scholarship requirements
@@ -221,11 +222,9 @@ const ApplyScholarship: React.FC = () => {
           
           setCustomFieldRequirements(customFields);
           
-          // Initialize custom field values from existing student profile
-          const userStr = localStorage.getItem('user');
-          if (userStr) {
-            const user = JSON.parse(userStr);
-            const existingCustomFields = user.studentProfile?.customFields || {};
+          // Initialize custom field values from fetched student profile
+          if (fetchedProfile) {
+            const existingCustomFields = (fetchedProfile.studentProfile || fetchedProfile)?.customFields || {};
             const initialValues: Record<string, string | number | boolean> = {};
             customFields.forEach(field => {
               if (existingCustomFields[field.fieldName] !== undefined) {
@@ -373,18 +372,6 @@ const ApplyScholarship: React.FC = () => {
               customFields: customFieldValues
             }
           });
-          
-          // Update local storage with new custom fields
-          const userStr = localStorage.getItem('user');
-          if (userStr) {
-            const user = JSON.parse(userStr);
-            user.studentProfile = user.studentProfile || {};
-            user.studentProfile.customFields = {
-              ...user.studentProfile.customFields,
-              ...customFieldValues
-            };
-            localStorage.setItem('user', JSON.stringify(user));
-          }
         } catch (err) {
           console.warn('⚠️ Could not save custom fields to profile:', err);
           // Continue with application submission even if profile update fails
@@ -652,7 +639,7 @@ const ApplyScholarship: React.FC = () => {
                         <div>
                           <label className="text-sm font-semibold text-slate-700 mb-2 block">Year Level</label>
                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                            <p className="text-slate-900">{studentProfile.yearLevel || 'Not provided'}</p>
+                            <p className="text-slate-900">{studentProfile.classification || studentProfile.yearLevel || 'Not provided'}</p>
                           </div>
                         </div>
                       </div>
@@ -669,7 +656,7 @@ const ApplyScholarship: React.FC = () => {
                           <label className="text-sm font-semibold text-slate-700 mb-2 block">Annual Family Income</label>
                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                             <p className="text-slate-900">
-                              {studentProfile.annualFamilyIncome 
+                              {studentProfile.annualFamilyIncome
                                 ? `₱${studentProfile.annualFamilyIncome.toLocaleString()}`
                                 : 'Not provided'}
                             </p>
@@ -679,6 +666,31 @@ const ApplyScholarship: React.FC = () => {
                           <label className="text-sm font-semibold text-slate-700 mb-2 block">ST Bracket</label>
                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                             <p className="text-slate-900">{studentProfile.stBracket || 'Not provided'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-semibold text-slate-700 mb-2 block">Contact Number</label>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                            <p className="text-slate-900">{studentProfile.contactNumber || 'Not provided'}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-semibold text-slate-700 mb-2 block">Home Address</label>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                            <p className="text-slate-900 text-sm">
+                              {studentProfile.homeAddress?.fullAddress
+                                || [
+                                    studentProfile.homeAddress?.street || studentProfile.address?.street,
+                                    studentProfile.homeAddress?.barangay || studentProfile.address?.barangay,
+                                    studentProfile.homeAddress?.city || studentProfile.address?.city,
+                                    studentProfile.homeAddress?.province || studentProfile.address?.province,
+                                    studentProfile.homeAddress?.zipCode || studentProfile.address?.zipCode
+                                  ].filter(Boolean).join(', ')
+                                || 'Not provided'}
+                            </p>
                           </div>
                         </div>
                       </div>

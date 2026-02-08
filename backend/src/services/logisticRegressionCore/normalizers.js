@@ -103,13 +103,11 @@ function normalizeSTBracket(stBracket) {
  * Prevents overconfident predictions
  * 
  * @param {number} probability - Prediction probability (0-1)
- * @returns {'high'|'moderate'|'medium'|'low'} Confidence level
+ * @returns {'high'|'medium'|'low'} Confidence level
  */
 function calculateConfidence(probability) {
   const distance = Math.abs(probability - 0.5);
-  // More conservative confidence bounds
-  if (distance >= 0.30) return 'high';       // 80%+ or 20%- 
-  if (distance >= 0.20) return 'moderate';   // 70%+ or 30%-
+  if (distance >= 0.30) return 'high';       // 80%+ or 20%-
   if (distance >= 0.10) return 'medium';     // 60%+ or 40%-
   return 'low';                              // 50-60% or 40-50%
 }
