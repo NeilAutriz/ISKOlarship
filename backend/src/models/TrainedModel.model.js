@@ -276,22 +276,19 @@ trainedModelSchema.statics.activateModel = async function(modelId) {
  */
 trainedModelSchema.methods.predict = function(features) {
   const weights = this.weights;
-  
+
   // Compute z = w·x + b
   let z = this.bias;
-  
+
   for (const [feature, value] of Object.entries(features)) {
     if (weights[feature] !== undefined) {
       z += weights[feature] * value;
     }
   }
-  
-  // Sigmoid with bounds
-  if (z > 20) return 0.95;
-  if (z < -20) return 0.05;
-  
-  const rawProb = 1 / (1 + Math.exp(-z));
-  return Math.max(0.05, Math.min(0.95, rawProb));
+
+  // Pure sigmoid — no artificial output capping
+  const clipped = Math.max(-500, Math.min(500, z));
+  return 1 / (1 + Math.exp(-clipped));
 };
 
 /**

@@ -23,7 +23,7 @@ function extractFeatures(user, scholarship) {
   const criteria = scholarship.eligibilityCriteria || {};
   
   // Calculate GWA score (normalized 0-1, higher is better GWA)
-  const gwaScore = normalizeGWA(studentProfile.gwa);
+  const gwaScore = normalizeGWA(studentProfile.gwa, criteria.maxGWA || criteria.minGWA || 3.0);
   
   // Year level match - STANDARDIZED SCORING
   const yearLevels = criteria.eligibleClassifications || [];
@@ -38,8 +38,9 @@ function extractFeatures(user, scholarship) {
   let incomeMatch;
   if (criteria.maxAnnualFamilyIncome) {
     if (studentProfile.annualFamilyIncome && studentProfile.annualFamilyIncome <= criteria.maxAnnualFamilyIncome) {
-      // Lower income = higher score (0.9 to 1.0 range)
-      incomeMatch = 0.9 + (1 - (studentProfile.annualFamilyIncome / criteria.maxAnnualFamilyIncome)) * 0.1;
+      // Lower income = higher score for need-based (gradient within match range)
+      const ratio = studentProfile.annualFamilyIncome / criteria.maxAnnualFamilyIncome;
+      incomeMatch = SCORING.MATCH + (1 - ratio) * (1.0 - SCORING.MATCH);
     } else {
       incomeMatch = SCORING.MISMATCH;
     }
@@ -143,9 +144,8 @@ function calculateEligibilityScore(user, scholarship, courseMatchScore) {
     if (courseMatchScore === SCORING.MATCH) matchedCriteria++;
   }
   
-  // Eligibility score - STANDARDIZED with high floor
-  const rawEligibility = totalCriteria > 0 ? matchedCriteria / totalCriteria : 1.0;
-  const eligibilityScore = SCORING.ELIGIBILITY_FLOOR + (rawEligibility * SCORING.ELIGIBILITY_RANGE);
+  // Eligibility score - raw proportion of criteria matched (0-1)
+  const eligibilityScore = totalCriteria > 0 ? matchedCriteria / totalCriteria : 0.5;
   
   return {
     eligibilityScore,
@@ -167,15 +167,15 @@ function getSimplifiedFeatures(user, scholarship) {
   const criteria = scholarship.eligibilityCriteria || {};
   
   return {
-    gwaScore: normalizeGWA(studentProfile.gwa),
-    yearLevelMatch: 1.0,
+    gwaScore: normalizeGWA(studentProfile.gwa, criteria.maxGWA || criteria.minGWA || 3.0),
+    yearLevelMatch: SCORING.NO_RESTRICTION,
     incomeMatch: normalizeIncome(studentProfile.annualFamilyIncome, criteria.maxAnnualFamilyIncome || 500000),
     stBracketMatch: require('./normalizers').normalizeSTBracket(studentProfile.stBracket),
-    collegeMatch: 1.0,
-    courseMatch: 1.0,
-    citizenshipMatch: studentProfile.citizenship === 'Filipino' ? 1.0 : 0.85,
-    documentCompleteness: studentProfile.profileCompleted ? 1.0 : 0.8,
-    eligibilityScore: 0.8
+    collegeMatch: SCORING.NO_RESTRICTION,
+    courseMatch: SCORING.NO_RESTRICTION,
+    citizenshipMatch: studentProfile.citizenship === 'Filipino' ? SCORING.MATCH : SCORING.MISMATCH,
+    documentCompleteness: studentProfile.profileCompleted ? SCORING.PROFILE_COMPLETE : SCORING.PROFILE_INCOMPLETE,
+    eligibilityScore: 0.5 // Neutral default when criteria unknown
   };
 }
 

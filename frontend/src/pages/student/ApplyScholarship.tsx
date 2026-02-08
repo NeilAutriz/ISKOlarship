@@ -686,36 +686,36 @@ const ApplyScholarship: React.FC = () => {
             {isEditMode ? 'Back to My Applications' : 'Back to Scholarship'}
           </Link>
 
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <Award className="w-8 h-8 text-primary-600" />
-                <h1 className="text-3xl font-bold text-slate-900">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <Award className="w-7 h-7 text-primary-600 flex-shrink-0" />
+                <h1 className="text-2xl font-bold text-slate-900 truncate">
                   {isEditMode ? 'Edit Application' : scholarship.name}
                 </h1>
               </div>
-              <p className="text-slate-600">
-                {isEditMode ? `Editing application for ${scholarship.name}` : scholarship.sponsor}
-              </p>
-              <div className="mt-3">
-                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${getTypeColor(scholarship.type)}`}>
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-slate-600 text-sm">
+                  {isEditMode ? `Editing application for ${scholarship.name}` : scholarship.sponsor}
+                </p>
+                <span className={`inline-block px-3 py-0.5 rounded-full text-xs font-medium border ${getTypeColor(scholarship.type)}`}>
                   {scholarship.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* Progress Bar */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-slate-700">Application Progress</span>
-              <span className="text-sm font-medium text-primary-600">Step {currentStep} of {totalSteps}</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
-              <div
-                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+            {/* Step Progress - right side */}
+            <div className="flex-shrink-0 w-48">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-slate-500">Progress</span>
+                <span className="text-sm font-bold text-primary-600">Step {currentStep}/{totalSteps}</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2">
+                <div
+                  className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>

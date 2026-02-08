@@ -360,13 +360,11 @@ export const predictWithDynamicWeights = (
     if (courseMatch === SCORING.MATCH) matchedCriteria++;
   }
   
-  // Eligibility score with STANDARDIZED high floor
-  const rawEligibility = totalCriteria > 0 ? matchedCriteria / totalCriteria : 1.0;
-  const eligibilityScore = SCORING.ELIGIBILITY_FLOOR + (rawEligibility * SCORING.ELIGIBILITY_RANGE);
-  
-  // Calculate z using base feature weights
+  // Eligibility score - raw proportion of criteria matched
+  const eligibilityScore = totalCriteria > 0 ? matchedCriteria / totalCriteria : 0.5;
+
+  // Calculate z using base feature weights (model intercept handles calibration)
   const z = weights.intercept +
-    (weights.intercept === SCORING.CALIBRATION_OFFSET ? 0 : SCORING.CALIBRATION_OFFSET) +
     weights.gwaScore * gwaNormalized +
     weights.yearLevelMatch * yearLevelMatch +
     weights.incomeMatch * incomeMatch +
@@ -377,7 +375,9 @@ export const predictWithDynamicWeights = (
     weights.documentCompleteness * documentCompleteness +
     weights.eligibilityScore * eligibilityScore;
   
-  const probability = sigmoid(z);
+  // Temperature scaling to spread predictions (matches backend PREDICTION_TEMPERATURE)
+  const PREDICTION_TEMPERATURE = 2.0;
+  const probability = sigmoid(z / PREDICTION_TEMPERATURE);
   const percentageScore = Math.round(probability * 100);
   
   // Extract features for factor generation

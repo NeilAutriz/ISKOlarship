@@ -3,7 +3,6 @@
 // Core async prediction using trained models from database
 // =============================================================================
 
-const { SCORING } = require('./constants');
 const { loadModelWeights } = require('./modelCache');
 const { sigmoid, calculateConfidence } = require('./normalizers');
 const { extractFeatures, calculateEligibilityScore } = require('./features');
@@ -55,6 +54,7 @@ async function predictAsync(user, scholarship) {
   const { eligibilityScore, matchedCriteria, totalCriteria } = eligibilityResult;
   
   // Build feature values object for computation
+  // 10 base features + 5 interaction features (must match training)
   const features = {
     gwaScore,
     yearLevelMatch,
@@ -65,7 +65,13 @@ async function predictAsync(user, scholarship) {
     citizenshipMatch,
     documentCompleteness,
     applicationTiming,
-    eligibilityScore
+    eligibilityScore,
+    // Interaction features (same formulas as trainingService/featureExtraction.js)
+    academicStrength: gwaScore * yearLevelMatch,
+    financialNeed: incomeMatch * stBracketMatch,
+    programFit: collegeMatch * courseMatch,
+    applicationQuality: documentCompleteness * applicationTiming,
+    overallFit: eligibilityScore * (gwaScore * yearLevelMatch)
   };
   
   // Use weights from database (guaranteed to exist)
@@ -74,8 +80,8 @@ async function predictAsync(user, scholarship) {
   // Use intercept from weights
   const intercept = weights.intercept ?? 0.0;
   
-  // Calculate z-score with calibration offset for probability adjustment
-  let z = intercept + SCORING.CALIBRATION_OFFSET;
+  // Calculate z-score using model's learned intercept (bias)
+  let z = intercept;
   const contributions = {};
   
   for (const [featureName, featureValue] of Object.entries(features)) {
@@ -89,11 +95,13 @@ async function predictAsync(user, scholarship) {
     };
   }
   
-  // Apply sigmoid (natural bounds without additional capping)
-  const rawProbability = sigmoid(z);
-  
-  // Apply favorable bounds (15% - 95%)
-  const probability = Math.max(0.15, Math.min(0.95, rawProbability));
+  // Apply sigmoid with temperature scaling to spread predictions.
+  // For eligible students, features cluster in [0.50, 0.85] (never MISMATCH),
+  // causing z-scores to saturate the sigmoid. Temperature > 1 softens the
+  // sigmoid curve, preserving rank order while creating visible differentiation
+  // between scholarships with different model weights and criteria.
+  const PREDICTION_TEMPERATURE = 2.0;
+  const probability = sigmoid(z / PREDICTION_TEMPERATURE);
   
   // Generate human-readable factors
   const studentProfile = user.studentProfile || {};

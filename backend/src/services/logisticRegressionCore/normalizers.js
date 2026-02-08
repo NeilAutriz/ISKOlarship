@@ -3,26 +3,14 @@
 // Mathematical functions for normalizing input features
 // =============================================================================
 
-// =============================================================================
-// Mathematical Functions
-// =============================================================================
-
 /**
- * Sigmoid activation function with favorable bounds
- * Returns probability between 0.15 and 0.95 for more optimistic predictions
- * 
- * @param {number} z - Input value (z-score from linear combination)
- * @returns {number} Probability between 0.15 and 0.95
+ * Sigmoid activation function with numerical stability
+ * @param {number} z - Input value
+ * @returns {number} Output between 0 and 1
  */
 function sigmoid(z) {
-  // Prevent overflow/underflow
-  if (z > 20) return 0.95;   // Cap at 95% confidence
-  if (z < -20) return 0.15;  // Floor at 15% confidence (higher floor)
-  
-  const rawProb = 1 / (1 + Math.exp(-z));
-  
-  // Bound the output to favorable range (15%-95%)
-  return Math.max(0.15, Math.min(0.95, rawProb));
+  const clipped = Math.max(-500, Math.min(500, z));
+  return 1 / (1 + Math.exp(-clipped));
 }
 
 // =============================================================================
@@ -31,15 +19,23 @@ function sigmoid(z) {
 
 /**
  * Normalize GWA (1.0 is best, 5.0 is worst)
- * Output: 0.5-1.0 scale where 1 is best (higher floor)
- * 
+ * Output: 0.0-1.0 scale where 1 is best
+ * Matches training normalization formula for consistency
+ *
  * @param {number} gwa - Grade Weighted Average (1.0-5.0 scale)
- * @returns {number} Normalized score (0.5-1.0)
+ * @param {number} requiredGWA - Required GWA threshold (default: 3.0)
+ * @returns {number} Normalized score (0.0-1.0)
  */
-function normalizeGWA(gwa) {
-  if (!gwa || gwa < 1 || gwa > 5) return 0.75; // Higher neutral if missing
-  // Linear transformation with higher floor: 1.0 -> 1.0, 5.0 -> 0.5
-  return Math.max(0.5, Math.min(1, 0.5 + (5 - gwa) / 8));
+function normalizeGWA(gwa, requiredGWA = 3.0) {
+  if (!gwa || gwa < 1 || gwa > 5) return 0.5;
+  // Linear transformation: 1.0 -> 1.0, 5.0 -> 0.0
+  const normalized = (5 - gwa) / 4;
+  // Bonus for meeting/exceeding requirement
+  if (requiredGWA && gwa <= requiredGWA) {
+    const bonus = (requiredGWA - gwa) / requiredGWA * 0.2;
+    return Math.min(1, normalized + bonus);
+  }
+  return normalized;
 }
 
 /**

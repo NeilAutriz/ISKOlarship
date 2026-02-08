@@ -9,16 +9,16 @@
 // ============================================================================
 
 export const SCORING = {
-  MATCH: 1.0,           // Feature matches requirement
-  MISMATCH: 0.85,       // Feature doesn't match (small penalty)
-  NO_RESTRICTION: 0.95, // No requirement specified
-  UNKNOWN: 0.85,        // Value not provided by student
-  PROFILE_COMPLETE: 1.0,
-  PROFILE_INCOMPLETE: 0.9,
-  TIMING_DEFAULT: 0.9,
-  ELIGIBILITY_FLOOR: 0.7,
-  ELIGIBILITY_RANGE: 0.3,
-  CALIBRATION_OFFSET: 3.0
+  MATCH: 0.85,           // Feature matches requirement (synced with backend)
+  MISMATCH: 0.15,        // Feature doesn't match (synced with backend)
+  NO_RESTRICTION: 0.50,  // No requirement specified (synced with backend)
+  UNKNOWN: 0.50,         // Value not provided by student (synced with backend)
+  PROFILE_COMPLETE: 0.80,
+  PROFILE_INCOMPLETE: 0.40,
+  TIMING_DEFAULT: 0.50,
+  ELIGIBILITY_FLOOR: 0.0,
+  ELIGIBILITY_RANGE: 1.0,
+  CALIBRATION_OFFSET: 0.0
 } as const;
 
 // ============================================================================

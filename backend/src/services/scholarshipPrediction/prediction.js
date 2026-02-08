@@ -60,13 +60,17 @@ async function predictApprovalProbability(user, scholarship) {
   const previousApprovals = previousApps.filter(a => a.status === 'approved').length;
   const previousRejections = previousApps.filter(a => a.status === 'rejected').length;
 
-  // Adjust probability slightly based on history (but keep within bounds)
+  // Adjust probability slightly based on history (diminishing returns)
   let adjustedProbability = prediction.probability;
   if (previousApprovals > 0) {
-    adjustedProbability = Math.min(0.90, adjustedProbability + 0.02 * previousApprovals);
+    // Diminishing bonus: asymptotically approaches 0.05 max boost
+    const historyBonus = 0.05 * (1 - Math.exp(-0.3 * previousApprovals));
+    adjustedProbability = Math.min(0.95, adjustedProbability + historyBonus);
   }
   if (previousRejections > 0) {
-    adjustedProbability = Math.max(0.10, adjustedProbability - 0.01 * previousRejections);
+    // Diminishing penalty: asymptotically approaches 0.05 max reduction
+    const historyPenalty = 0.05 * (1 - Math.exp(-0.3 * previousRejections));
+    adjustedProbability = Math.max(0.05, adjustedProbability - historyPenalty);
   }
 
   // Get eligibility check results for detailed factor analysis
@@ -75,16 +79,26 @@ async function predictApprovalProbability(user, scholarship) {
   // Analyze factors in favor and areas to consider
   const detailedFactors = analyzeDetailedFactors(user, scholarship, eligibility, prediction);
 
-  // Ensure factors array contains only flat objects with string/number values
-  const sanitizedFactors = (prediction.factors || []).map(f => ({
-    factor: String(f.factor || ''),
-    contribution: Number(f.contribution) || 0,
-    rawContribution: Number(f.rawContribution) || 0,
-    description: String(f.description || ''),
-    met: Boolean(f.met),
-    value: Number(f.value) || 0,
-    weight: Number(f.weight) || 0
-  }));
+  // Ensure factors array contains sanitized objects, preserving subFactors for grouped display
+  const sanitizedFactors = (prediction.factors || []).map(f => {
+    const sanitized = {
+      factor: String(f.factor || ''),
+      contribution: Number(f.contribution) || 0,
+      rawContribution: Number(f.rawContribution) || 0,
+      description: String(f.description || ''),
+      met: Boolean(f.met)
+    };
+    // Preserve subFactors array for grouped expand/collapse display
+    if (Array.isArray(f.subFactors) && f.subFactors.length > 0) {
+      sanitized.subFactors = f.subFactors.map(sf => ({
+        name: String(sf.name || ''),
+        value: Number(sf.value) || 0,
+        weight: Number(sf.weight) || 0,
+        contribution: Number(sf.contribution) || 0
+      }));
+    }
+    return sanitized;
+  });
 
   return {
     probability: Math.round(adjustedProbability * 100) / 100,

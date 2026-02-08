@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { applicationApi } from '../../services/apiClient';
 
-type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected';
+type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn';
 
 interface Application {
   id: string;
@@ -62,6 +62,10 @@ const StudentApplications: React.FC = () => {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawingAppId, setWithdrawingAppId] = useState<string | null>(null);
+  const [withdrawReason, setWithdrawReason] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
 
   // Fetch applications from API
   useEffect(() => {
@@ -146,20 +150,40 @@ const StudentApplications: React.FC = () => {
     }
   };
 
+  // Handle application withdrawal
+  const handleWithdraw = async () => {
+    if (!withdrawingAppId) return;
+    try {
+      setWithdrawing(true);
+      await applicationApi.withdraw(withdrawingAppId, withdrawReason || undefined);
+      setApplications(prev => prev.map(app =>
+        app.id === withdrawingAppId ? { ...app, status: 'withdrawn' as ApplicationStatus } : app
+      ));
+      setShowWithdrawModal(false);
+      setWithdrawingAppId(null);
+      setWithdrawReason('');
+    } catch (error) {
+      console.error('Failed to withdraw application:', error);
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
   const stats = useMemo(() => {
     const total = applications.length;
     const inProgress = applications.filter(a => a.status === 'submitted' || a.status === 'under_review').length;
     const approved = applications.filter(a => a.status === 'approved').length;
     const drafts = applications.filter(a => a.status === 'draft').length;
     const rejected = applications.filter(a => a.status === 'rejected').length;
-    return { total, inProgress, approved, drafts, rejected };
+    const withdrawn = applications.filter(a => a.status === 'withdrawn').length;
+    return { total, inProgress, approved, drafts, rejected, withdrawn };
   }, [applications]);
 
   const filteredApplications = useMemo(() => {
     switch (activeTab) {
       case 'drafts': return applications.filter(a => a.status === 'draft');
       case 'in_progress': return applications.filter(a => a.status === 'submitted' || a.status === 'under_review');
-      case 'completed': return applications.filter(a => a.status === 'approved' || a.status === 'rejected');
+      case 'completed': return applications.filter(a => a.status === 'approved' || a.status === 'rejected' || a.status === 'withdrawn');
       default: return applications;
     }
   }, [activeTab, applications]);
@@ -170,7 +194,8 @@ const StudentApplications: React.FC = () => {
       submitted: { bg: 'bg-blue-100', text: 'text-blue-700', icon: Clock, iconColor: 'text-blue-500', label: 'Submitted' },
       under_review: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, iconColor: 'text-amber-500', label: 'Under Review' },
       approved: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle, iconColor: 'text-green-500', label: 'Approved' },
-      rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle, iconColor: 'text-red-500', label: 'Rejected' }
+      rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle, iconColor: 'text-red-500', label: 'Rejected' },
+      withdrawn: { bg: 'bg-orange-100', text: 'text-orange-700', icon: XCircle, iconColor: 'text-orange-500', label: 'Withdrawn' }
     };
     return configs[status];
   };
@@ -274,7 +299,7 @@ const StudentApplications: React.FC = () => {
               { id: 'all', label: 'All Applications', count: stats.total },
               { id: 'drafts', label: 'Drafts', count: stats.drafts },
               { id: 'in_progress', label: 'In Progress', count: stats.inProgress },
-              { id: 'completed', label: 'Completed', count: stats.approved + stats.rejected },
+              { id: 'completed', label: 'Completed', count: stats.approved + stats.rejected + stats.withdrawn },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -336,6 +361,12 @@ const StudentApplications: React.FC = () => {
                   bg: 'bg-gradient-to-r from-red-50 via-red-50/50 to-white',
                   accent: 'bg-gradient-to-r from-red-400 via-red-500 to-red-600',
                   iconBg: 'bg-gradient-to-br from-red-400 to-red-600'
+                },
+                withdrawn: {
+                  border: 'border-l-orange-500',
+                  bg: 'bg-gradient-to-r from-orange-50 via-orange-50/50 to-white',
+                  accent: 'bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600',
+                  iconBg: 'bg-gradient-to-br from-orange-400 to-orange-600'
                 }
               }[application.status];
               
@@ -413,6 +444,18 @@ const StudentApplications: React.FC = () => {
                         <CheckCircle className="w-4 h-4" />Congratulations!
                       </span>
                     )}
+                    {!['approved', 'rejected', 'withdrawn'].includes(application.status) && (
+                      <button
+                        onClick={() => {
+                          setWithdrawingAppId(application.id);
+                          setShowWithdrawModal(true);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 border-2 border-red-200 text-red-600 font-semibold rounded-xl text-sm hover:bg-red-50 hover:border-red-300 transition-all"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Withdraw
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -437,6 +480,47 @@ const StudentApplications: React.FC = () => {
           onClose={() => setPreviewDocument(null)}
         />
       )}
+
+      {/* Withdrawal Confirmation Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+            <div className="px-6 py-4 bg-orange-50 border-b border-orange-100">
+              <h3 className="text-lg font-semibold text-orange-800 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                Withdraw Application
+              </h3>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-600 mb-4">
+                Are you sure you want to withdraw this application? This action cannot be undone.
+              </p>
+              <textarea
+                value={withdrawReason}
+                onChange={(e) => setWithdrawReason(e.target.value)}
+                placeholder="Reason for withdrawal (optional)..."
+                className="w-full h-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+              />
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => { setShowWithdrawModal(false); setWithdrawingAppId(null); setWithdrawReason(''); }}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={withdrawing}
+                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white font-medium rounded-xl hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {withdrawing ? <Loader2 className="w-5 h-5 animate-spin" /> : <XCircle className="w-5 h-5" />}
+                  Withdraw
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -454,7 +538,8 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
     submitted: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Submitted' },
     under_review: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Under Review' },
     approved: { bg: 'bg-green-100', text: 'text-green-700', label: 'Approved' },
-    rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected' }
+    rejected: { bg: 'bg-red-100', text: 'text-red-700', label: 'Rejected' },
+    withdrawn: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Withdrawn' }
   }[application.status];
 
   return (

@@ -4,12 +4,12 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Brain, 
-  Zap, 
-  RefreshCw, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Brain,
+  Zap,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Activity,
   BarChart3,
@@ -19,7 +19,9 @@ import {
   Loader2,
   Play,
   Trash2,
-  Star
+  Star,
+  Globe,
+  Info
 } from 'lucide-react';
 import { trainingApi } from '../../services/apiClient';
 
@@ -84,7 +86,12 @@ const ModelTraining: React.FC = () => {
     citizenshipMatch: 'Citizenship',
     documentCompleteness: 'Documents',
     applicationTiming: 'Timing',
-    eligibilityScore: 'Overall Eligibility'
+    eligibilityScore: 'Overall Eligibility',
+    academicStrength: 'GWA & Year Level Effect',
+    financialNeed: 'Income & Bracket Effect',
+    programFit: 'College & Course Effect',
+    applicationQuality: 'Completeness & Timing Effect',
+    overallFit: 'Overall Fit Effect'
   };
 
   // Load data
@@ -127,7 +134,9 @@ const ModelTraining: React.FC = () => {
         await loadData();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to train global model');
+      setError(err.code === 'ECONNABORTED'
+        ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
+        : err.response?.data?.message || 'Failed to train global model');
     } finally {
       setTraining(false);
       setTrainingTarget(null);
@@ -148,7 +157,9 @@ const ModelTraining: React.FC = () => {
         await loadData();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to train model');
+      setError(err.code === 'ECONNABORTED'
+        ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
+        : err.response?.data?.message || 'Failed to train model');
     } finally {
       setTraining(false);
       setTrainingTarget(null);
@@ -170,7 +181,9 @@ const ModelTraining: React.FC = () => {
         await loadData();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to train models');
+      setError(err.code === 'ECONNABORTED'
+        ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
+        : err.response?.data?.message || 'Failed to train models');
     } finally {
       setTraining(false);
       setTrainingTarget(null);
@@ -211,6 +224,9 @@ const ModelTraining: React.FC = () => {
       </div>
     );
   }
+
+  // Find the active global model for fallback display
+  const activeGlobalModel = models.find(m => m.modelType === 'global' && m.isActive);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -594,6 +610,36 @@ const ModelTraining: React.FC = () => {
                               />
                             </div>
                           </div>
+
+                          {/* Global Model Fallback Info */}
+                          {activeGlobalModel && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Globe className="w-3.5 h-3.5 text-blue-600" />
+                                <span className="text-xs font-semibold text-blue-700">Using Global Model</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                                <div className="bg-white/70 rounded px-2 py-1 text-center">
+                                  <p className="text-[10px] text-slate-500">Accuracy</p>
+                                  <p className="text-xs font-bold text-primary-600">
+                                    {(activeGlobalModel.metrics.accuracy * 100).toFixed(1)}%
+                                  </p>
+                                </div>
+                                <div className="bg-white/70 rounded px-2 py-1 text-center">
+                                  <p className="text-[10px] text-slate-500">F1 Score</p>
+                                  <p className="text-xs font-bold text-purple-600">
+                                    {(activeGlobalModel.metrics.f1Score * 100).toFixed(1)}%
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-1.5">
+                                <Info className="w-3 h-3 text-blue-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-[11px] text-blue-600 leading-tight">
+                                  Predictions for this scholarship currently use the global model trained on all scholarship data.
+                                </p>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Action or Status */}
                           {scholarship.isTrainable ? (

@@ -68,10 +68,11 @@ function checkIncomeMatch(studentIncome, maxIncome, stBrackets) {
   if (maxIncome) {
     if (!studentIncome) return SCORING_CONFIG.UNKNOWN;
     if (studentIncome <= maxIncome) {
-      // Lower income = higher score for need-based (0.9 to 1.0 range)
-      return 0.9 + (1 - (studentIncome / maxIncome)) * 0.1;
+      // Lower income = higher score for need-based (gradient within match range)
+      const ratio = studentIncome / maxIncome;
+      return SCORING_CONFIG.MATCH + (1 - ratio) * (1.0 - SCORING_CONFIG.MATCH);
     }
-    return SCORING_CONFIG.MISMATCH; // Exceeds but still gets partial score
+    return SCORING_CONFIG.MISMATCH; // Exceeds income limit
   }
   
   return SCORING_CONFIG.NO_RESTRICTION;
@@ -312,9 +313,9 @@ function extractFeaturesFromUserAndScholarship(user, scholarship) {
   const collegeMatch = checkCollegeMatch(profile.college, criteria.eligibleColleges);
   const courseMatch = checkCourseMatch(profile.course, criteria.eligibleCourses);
   const citizenshipMatch = checkCitizenshipMatch(profile.citizenship, criteria.eligibleCitizenship);
-  const documentCompleteness = SCORING_CONFIG.PROFILE_INCOMPLETE; // 0.9 for predictions
-  const applicationTiming = SCORING_CONFIG.TIMING_DEFAULT; // 0.9 for predictions
-  const eligibilityScore = SCORING_CONFIG.ELIGIBILITY_FLOOR + (SCORING_CONFIG.ELIGIBILITY_RANGE * 0.5); // 0.85 default
+  const documentCompleteness = SCORING_CONFIG.PROFILE_INCOMPLETE; // 0.5 for predictions
+  const applicationTiming = SCORING_CONFIG.TIMING_DEFAULT; // 0.5 for predictions
+  const eligibilityScore = 0.5; // 0.5 default (neutral)
   
   // Interaction features
   const academicStrength = gwaScore * yearLevelMatch;

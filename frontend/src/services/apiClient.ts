@@ -1037,7 +1037,7 @@ export const trainingApi = {
     return response.data;
   },
 
-  // Train global model (admin)
+  // Train global model (admin) - extended timeout for K-fold cross-validation
   trainGlobalModel: async () => {
     const response = await api.post<ApiResponse<{
       modelId: string;
@@ -1045,7 +1045,7 @@ export const trainingApi = {
       bias: number;
       metrics: any;
       featureImportance: Record<string, number>;
-    }>>('/training/train');
+    }>>('/training/train', {}, { timeout: 300000 });
     // Clear local cache so predictions use the new model
     if (response.data.success) {
       const { clearModelWeightsCache } = await import('./logisticRegression');
@@ -1054,14 +1054,14 @@ export const trainingApi = {
     return response.data;
   },
 
-  // Train specific scholarship model (admin)
+  // Train specific scholarship model (admin) - extended timeout for K-fold cross-validation
   trainScholarshipModel: async (scholarshipId: string) => {
     const response = await api.post<ApiResponse<{
       modelId: string;
       scholarshipName: string;
       metrics: any;
       featureImportance: Record<string, number>;
-    }>>(`/training/train/${scholarshipId}`);
+    }>>(`/training/train/${scholarshipId}`, {}, { timeout: 300000 });
     // Clear local cache so predictions use the new model
     if (response.data.success) {
       const { clearModelWeightsCache } = await import('./logisticRegression');
@@ -1070,7 +1070,7 @@ export const trainingApi = {
     return response.data;
   },
 
-  // Train all scholarship models (admin)
+  // Train all scholarship models (admin) - extended timeout for batch training
   trainAllModels: async () => {
     const response = await api.post<ApiResponse<{
       results: Array<{
@@ -1085,7 +1085,7 @@ export const trainingApi = {
         failed: number;
         total: number;
       };
-    }>>('/training/train-all');
+    }>>('/training/train-all', {}, { timeout: 600000 });
     // Clear local cache so predictions use the new model
     if (response.data.success) {
       const { clearModelWeightsCache } = await import('./logisticRegression');

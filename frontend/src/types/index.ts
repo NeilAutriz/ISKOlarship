@@ -541,14 +541,22 @@ export interface EligibilityCheckResult {
   importance: 'required' | 'preferred';
 }
 
+export interface PredictionSubFactor {
+  name: string;
+  value: number;
+  weight: number;
+  contribution: number;
+}
+
 export interface PredictionFactor {
   factor: string;
   contribution: number; // Normalized contribution (0-1 representing % of total impact)
   description: string;
-  rawContribution?: number; // Actual weighted contribution value
-  value?: number; // Feature value (0-1)
-  weight?: number; // Model weight for this feature
-  met?: boolean; // Whether the criterion is met (for positive/negative display)
+  rawContribution?: number; // Net weighted contribution for the group
+  met?: boolean; // Whether the net contribution is positive
+  value?: number; // Feature value (used by client-side fallback factor generation)
+  weight?: number; // Feature weight (used by client-side fallback factor generation)
+  subFactors?: PredictionSubFactor[]; // Individual feature breakdowns within the group
 }
 
 // ============================================================================

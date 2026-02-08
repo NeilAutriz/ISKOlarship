@@ -142,13 +142,13 @@ async function trainModel(samples, config = {}) {
         const gradient = weightGradients[feature] * batchScale + regularization * weights[feature];
         weights[feature] -= currentLR * gradient;
         
-        // Clip weights to prevent extreme values that cause prediction spikes
-        // Reasonable range for logistic regression weights: [-5, 5]
-        weights[feature] = Math.max(-5, Math.min(5, weights[feature]));
+        // Clip weights to prevent extreme values
+        // Range [-10, 10] allows strong feature importance while preventing overflow
+        weights[feature] = Math.max(-10, Math.min(10, weights[feature]));
       }
       bias -= currentLR * biasGradient * batchScale;
-      // Clip bias as well
-      bias = Math.max(-3, Math.min(3, bias));
+      // Clip bias to prevent extreme values
+      bias = Math.max(-10, Math.min(10, bias));
       
       epochLoss += batchLoss;
       sampleCount += batch.length;

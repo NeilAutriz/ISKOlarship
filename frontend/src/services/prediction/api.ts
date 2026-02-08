@@ -27,7 +27,10 @@ export const getApiPrediction = async (
         factors: data.factors?.map((f: any) => ({
           factor: f.factor || f.name,
           contribution: f.contribution || 0,
-          description: f.description || ''
+          rawContribution: f.rawContribution || 0,
+          description: f.description || '',
+          met: f.met,
+          subFactors: f.subFactors
         })) || [],
         trainedModel: data.trainedModel || false,
         confidence: data.confidence || 'medium',

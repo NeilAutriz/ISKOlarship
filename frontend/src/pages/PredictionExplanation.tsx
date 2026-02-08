@@ -24,7 +24,9 @@ import {
   HelpCircle,
   Lightbulb,
   Database,
-  Globe2
+  Globe2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { PredictionFactor, PredictionResult } from '../types';
 import { getPredictionForScholarship, getPredictionForApplication } from '../services/api';
@@ -49,6 +51,7 @@ const PredictionExplanation: React.FC = () => {
   const [applicantName, setApplicantName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedFactors, setExpandedFactors] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const state = location.state as LocationState;
@@ -122,9 +125,23 @@ const PredictionExplanation: React.FC = () => {
     if (name.includes('gwa') || name.includes('academic')) return <GraduationCap className="w-5 h-5" />;
     if (name.includes('year level')) return <BookOpen className="w-5 h-5" />;
     if (name.includes('income') || name.includes('financial') || name.includes('st bracket')) return <DollarSign className="w-5 h-5" />;
-    if (name.includes('college') || name.includes('course') || name.includes('major')) return <Building2 className="w-5 h-5" />;
+    if (name.includes('college') || name.includes('course') || name.includes('major') || name.includes('program')) return <Building2 className="w-5 h-5" />;
     if (name.includes('citizenship') || name.includes('profile')) return <User className="w-5 h-5" />;
+    if (name.includes('quality') || name.includes('application') || name.includes('document') || name.includes('timing')) return <BarChart2 className="w-5 h-5" />;
     return <BarChart2 className="w-5 h-5" />;
+  };
+
+  // Toggle expanded state for a factor row
+  const toggleFactorExpansion = (index: number) => {
+    setExpandedFactors(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
 
   // Render impact icon
@@ -322,7 +339,7 @@ const PredictionExplanation: React.FC = () => {
               <div className="absolute -top-3 -left-3 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg">1</div>
               <div className="pt-2">
                 <h4 className="font-bold text-slate-900 mb-2">Profile Analysis</h4>
-                <p className="text-sm text-slate-600">We extracted {factors.length} key factors from your profile (GWA, income, year level, etc.)</p>
+                <p className="text-sm text-slate-600">Your profile is analyzed across 5 key areas: academics, finances, program fit, application quality, and eligibility</p>
               </div>
             </div>
             
@@ -362,7 +379,7 @@ const PredictionExplanation: React.FC = () => {
               <Calculator className="w-6 h-6 text-white" />
               <h2 className="text-xl font-bold text-white">Detailed Calculation Breakdown</h2>
             </div>
-            <p className="text-slate-300 mt-1">Weight × Your Score = Contribution to final prediction</p>
+            <p className="text-slate-300 mt-1">Net contribution of each factor group to your prediction. Click to expand details.</p>
           </div>
 
           <div className="overflow-x-auto">
@@ -370,78 +387,96 @@ const PredictionExplanation: React.FC = () => {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">Factor</th>
-                  <th className="text-center px-4 py-4 text-sm font-semibold text-slate-600">Your Score</th>
-                  <th className="text-center px-4 py-4 text-sm font-semibold text-slate-600">×</th>
-                  <th className="text-center px-4 py-4 text-sm font-semibold text-slate-600">Weight</th>
-                  <th className="text-center px-4 py-4 text-sm font-semibold text-slate-600">=</th>
-                  <th className="text-center px-4 py-4 text-sm font-semibold text-slate-600">Contribution</th>
+                  <th className="text-center px-4 py-4 text-sm font-semibold text-slate-600">Net Contribution</th>
+                  <th className="text-left px-4 py-4 text-sm font-semibold text-slate-600">Details</th>
                   <th className="text-center px-4 py-4 text-sm font-semibold text-slate-600">Impact</th>
                 </tr>
               </thead>
               <tbody>
                 {factors.map((factor, index) => {
                   const impact = getFactorImpact(factor);
-                  const value = factor.value || 0;
-                  const weight = factor.weight || 0;
-                  const contribution = factor.rawContribution || (value * weight);
-                  
+                  const netContribution = factor.rawContribution || 0;
+                  const isExpanded = expandedFactors.has(index);
+                  const hasSubFactors = factor.subFactors && factor.subFactors.length > 0;
+
                   return (
-                    <tr 
-                      key={index} 
-                      className={`border-b border-slate-100 ${
-                        impact === 'positive' ? 'bg-green-50/50' :
-                        impact === 'negative' ? 'bg-red-50/50' : 'bg-white'
-                      }`}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            impact === 'positive' ? 'bg-green-100 text-green-600' :
-                            impact === 'negative' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'
+                    <React.Fragment key={index}>
+                      {/* Group summary row */}
+                      <tr
+                        className={`border-b border-slate-100 cursor-pointer transition-colors ${
+                          impact === 'positive' ? 'bg-green-50/50 hover:bg-green-50' :
+                          impact === 'negative' ? 'bg-red-50/50 hover:bg-red-50' : 'bg-white hover:bg-slate-50'
+                        }`}
+                        onClick={() => hasSubFactors && toggleFactorExpansion(index)}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                              impact === 'positive' ? 'bg-green-100 text-green-600' :
+                              impact === 'negative' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {getFactorIcon(factor.factor || '')}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-slate-900">{factor.factor}</p>
+                                {hasSubFactors && (
+                                  isExpanded
+                                    ? <ChevronUp className="w-4 h-4 text-slate-400" />
+                                    : <ChevronDown className="w-4 h-4 text-slate-400" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`font-mono text-lg font-bold px-3 py-1 rounded-lg ${
+                            netContribution > 0.01 ? 'bg-green-100 text-green-700' :
+                            netContribution < -0.01 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
                           }`}>
-                            {getFactorIcon(factor.factor || '')}
-                          </div>
-                          <div>
-                            <p className="font-medium text-slate-900">{factor.factor}</p>
-                            {factor.description && (
-                              <p className="text-xs text-slate-500 max-w-xs truncate">{factor.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        <span className="font-mono text-lg font-semibold text-slate-900">
-                          {value.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-center text-slate-400 font-bold">×</td>
-                      <td className="px-4 py-4 text-center">
-                        <span className={`font-mono text-lg font-semibold ${
-                          weight > 0 ? 'text-blue-600' : weight < 0 ? 'text-orange-600' : 'text-slate-500'
-                        }`}>
-                          {weight >= 0 ? '+' : ''}{weight.toFixed(3)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-center text-slate-400 font-bold">=</td>
-                      <td className="px-4 py-4 text-center">
-                        <span className={`font-mono text-lg font-bold px-3 py-1 rounded-lg ${
-                          contribution > 0 ? 'bg-green-100 text-green-700' :
-                          contribution < 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {contribution >= 0 ? '+' : ''}{contribution.toFixed(3)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        {renderImpactIcon(impact, 'w-6 h-6')}
-                      </td>
-                    </tr>
+                            {netContribution >= 0 ? '+' : ''}{netContribution.toFixed(3)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          {factor.description && (
+                            <p className="text-sm text-slate-600 max-w-sm">{factor.description}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          {renderImpactIcon(impact, 'w-6 h-6')}
+                        </td>
+                      </tr>
+
+                      {/* Expanded sub-factor rows */}
+                      {isExpanded && hasSubFactors && factor.subFactors!.map((sf, sfIndex) => (
+                        <tr key={`${index}-${sfIndex}`} className="bg-slate-50/80 border-b border-slate-100">
+                          <td className="pl-16 pr-6 py-3">
+                            <span className="text-sm text-slate-700">{sf.name}</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`font-mono text-sm ${
+                              sf.contribution > 0 ? 'text-green-600' :
+                              sf.contribution < 0 ? 'text-red-600' : 'text-slate-500'
+                            }`}>
+                              {sf.contribution >= 0 ? '+' : ''}{sf.contribution.toFixed(3)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs text-slate-500 font-mono">
+                              {sf.value.toFixed(2)} x {sf.weight >= 0 ? '+' : ''}{sf.weight.toFixed(3)}
+                            </span>
+                          </td>
+                          <td></td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
               <tfoot>
                 {/* Intercept row */}
                 <tr className="bg-slate-100 border-t-2 border-slate-300">
-                  <td colSpan={5} className="px-6 py-3 text-right font-medium text-slate-600">
+                  <td className="px-6 py-3 text-right font-medium text-slate-600">
                     Model Intercept (baseline):
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -449,11 +484,11 @@ const PredictionExplanation: React.FC = () => {
                       {prediction.intercept !== undefined ? (prediction.intercept >= 0 ? '+' : '') + prediction.intercept.toFixed(3) : '-2.500'}
                     </span>
                   </td>
-                  <td></td>
+                  <td colSpan={2}></td>
                 </tr>
                 {/* Sum of contributions row */}
                 <tr className="bg-slate-200">
-                  <td colSpan={5} className="px-6 py-3 text-right font-medium text-slate-600">
+                  <td className="px-6 py-3 text-right font-medium text-slate-600">
                     + Sum of Contributions:
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -461,11 +496,11 @@ const PredictionExplanation: React.FC = () => {
                       {totalWeightedSum >= 0 ? '+' : ''}{totalWeightedSum.toFixed(3)}
                     </span>
                   </td>
-                  <td></td>
+                  <td colSpan={2}></td>
                 </tr>
                 {/* Combined z-score row */}
                 <tr className="bg-slate-900 text-white">
-                  <td colSpan={5} className="px-6 py-4 text-right font-semibold">
+                  <td className="px-6 py-4 text-right font-semibold">
                     = Combined Score (z-score):
                   </td>
                   <td className="px-4 py-4 text-center">
@@ -473,7 +508,7 @@ const PredictionExplanation: React.FC = () => {
                       {zScore !== undefined ? zScore.toFixed(3) : (totalWeightedSum + (prediction.intercept || -2.5)).toFixed(3)}
                     </span>
                   </td>
-                  <td></td>
+                  <td colSpan={2}></td>
                 </tr>
               </tfoot>
             </table>
