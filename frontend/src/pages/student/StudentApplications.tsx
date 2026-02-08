@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import {
   FileText,
   Clock,
   CheckCircle,
@@ -25,7 +25,8 @@ import {
   Award,
   ChevronRight,
   Database,
-  Globe2
+  Globe2,
+  Edit3
 } from 'lucide-react';
 import { applicationApi } from '../../services/apiClient';
 
@@ -384,6 +385,15 @@ const StudentApplications: React.FC = () => {
                     <div className="flex items-center gap-3">
                       {application.status === 'draft' && (
                         <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105">Continue Application</button>
+                      )}
+                      {(application.status === 'submitted' || application.status === 'under_review') && (
+                        <Link
+                          to={`/applications/${application.id}/edit`}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white font-bold rounded-xl text-sm hover:bg-amber-600 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          Edit Application
+                        </Link>
                       )}
                       <button 
                         onClick={() => handleViewDetails(application.id)}

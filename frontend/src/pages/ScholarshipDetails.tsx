@@ -57,29 +57,25 @@ import {
   STUDENT_PROFILE_FIELDS
 } from '../types';
 
-// UPLB HD Background Images for scholarship headers
+// HD UPLB Background Images for scholarship headers
 const UPLB_BACKGROUND_IMAGES = [
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTNNZcCKU_PnkRSsJVAKABHG2rC0MYHJF5jFQ&s',
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTB4xDHTenrtBAXmTIcanGT_D8KrQ3T1dBDyQ&s',
-  'https://our.uplb.edu.ph/wp-content/uploads/2020/03/59_big.jpg',
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxhwlb2uQ1O4C88fZRqueSWYVAKizshz3nyw&s',
-  'https://thumbs.dreamstime.com/b/laguna-philippines-april-people-jog-pili-drive-uplb-mount-makiling-as-backdrop-los-banos-inside-campus-morning-320638266.jpg',
-  'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4gNKJQnOM6Ctezm6d8eriqu2DCfcwgXwIkA&s',
-  'https://the-post-cdn.sgp1.digitaloceanspaces.com/2023/02/UPLB_thumbnail.jpg',
+  'https://international.uplb.edu.ph/wp-content/uploads/2022/02/M40A9936-min-scaled.jpg',
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/UPLB_Academic_Heritage_Monument%2C_June_2023.jpg/2560px-UPLB_Academic_Heritage_Monument%2C_June_2023.jpg',
+  'https://upload.wikimedia.org/wikipedia/commons/6/66/Freedom_Park%2C_UPLB%2C_June_2023.jpg',
+  'https://uplb.edu.ph/wp-content/uploads/2023/12/UPLB-receives-Environmental-Compliance-Certificate-from-DENR.webp',
+  'https://uplb.edu.ph/wp-content/uploads/2021/12/UPLB-gains-20-new-HEI-partners-for-2021-II.jpg',
 ];
 
-// Get a consistent random background based on scholarship ID
+// Deterministic image selection based on scholarship ID
 const getScholarshipBackground = (scholarshipId: string | undefined): string => {
   if (!scholarshipId) return UPLB_BACKGROUND_IMAGES[0];
-  // Use a simple hash of the ID to get a consistent index
   let hash = 0;
   for (let i = 0; i < scholarshipId.length; i++) {
     const char = scholarshipId.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+    hash = hash & hash;
   }
-  const index = Math.abs(hash) % UPLB_BACKGROUND_IMAGES.length;
-  return UPLB_BACKGROUND_IMAGES[index];
+  return UPLB_BACKGROUND_IMAGES[Math.abs(hash) % UPLB_BACKGROUND_IMAGES.length];
 };
 
 const ScholarshipDetails: React.FC = () => {
@@ -393,18 +389,15 @@ const ScholarshipDetails: React.FC = () => {
 
   const daysUntil = scholarship.applicationDeadline ? getDaysUntil(scholarship.applicationDeadline) : null;
 
-  // Get consistent background image for this scholarship
-  const backgroundImage = getScholarshipBackground(id);
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header with UPLB Background Image */}
       <div 
         className="relative bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${backgroundImage})` }}
+        style={{ backgroundImage: `url(${getScholarshipBackground(id)})` }}
       >
         {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-900/85 to-primary-800/80 backdrop-blur-[1px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-700/90 via-primary-600/85 to-primary-800/90" />
         <div className="relative container-app py-6">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-sm text-white/90 mb-6">

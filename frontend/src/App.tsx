@@ -839,6 +839,11 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
               <ApplyScholarship />
             </ProtectedRoute>
           } />
+          <Route path="/applications/:applicationId/edit" element={
+            <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
+              <ApplyScholarship />
+            </ProtectedRoute>
+          } />
           <Route path="/my-applications" element={
             <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
               <StudentApplications />

@@ -604,8 +604,11 @@ export const applicationApi = {
     return response.data;
   },
 
-  update: async (id: string, updates: { personalStatement?: string; additionalInfo?: string }) => {
-    const response = await api.put<ApiResponse<Application>>(`/applications/${id}`, updates);
+  update: async (id: string, data: FormData | { personalStatement?: string; additionalInfo?: string }) => {
+    const config = data instanceof FormData ? {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    } : {};
+    const response = await api.put<ApiResponse<Application>>(`/applications/${id}`, data, config);
     return response.data;
   },
 

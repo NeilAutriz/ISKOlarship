@@ -38,6 +38,9 @@ interface DocumentUpload {
   previewUrl?: string; // Preview URL for local files
   allowedFileType?: 'any' | 'pdf' | 'image' | 'text'; // File type restriction from scholarship
   textContent?: string; // For text-type documents (no file upload needed)
+  existingDocId?: string; // Server document ID (edit mode)
+  existingFileName?: string; // Original file name from server
+  existingFileSize?: number; // Original file size from server
 }
 
 interface ApplicationFormData {
@@ -51,7 +54,8 @@ interface ApplicationFormData {
 // ============================================================================
 
 const ApplyScholarship: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id, applicationId } = useParams<{ id: string; applicationId: string }>();
+  const isEditMode = !!applicationId;
   const navigate = useNavigate();
 
   // State
@@ -87,20 +91,49 @@ const ApplyScholarship: React.FC = () => {
     description?: string;
   }>>([]);
 
+  // Edit mode state
+  const [existingApplication, setExistingApplication] = useState<any>(null);
+  // Resolved scholarship ID: from URL param (create mode) or from loaded application (edit mode)
+  const [resolvedScholarshipId, setResolvedScholarshipId] = useState<string | null>(id || null);
+
   // Fetch scholarship and student profile
   useEffect(() => {
     let isMounted = true; // Track if component is mounted
-    
+
     const fetchData = async () => {
       try {
         if (isMounted) setLoading(true);
-        
+
+        let scholarshipId = id; // From URL param (create mode)
+        let applicationData: any = null;
+
+        // In edit mode, first load the existing application
+        if (isEditMode && applicationId) {
+          const appResponse = await applicationApi.getById(applicationId);
+          if (!appResponse.success || !appResponse.data) {
+            throw new Error('Failed to load application');
+          }
+          applicationData = appResponse.data;
+          if (isMounted) setExistingApplication(applicationData);
+
+          // Extract scholarship ID from the loaded application
+          scholarshipId = typeof applicationData.scholarship === 'string'
+            ? applicationData.scholarship
+            : applicationData.scholarship?._id || applicationData.scholarship?.id;
+
+          if (isMounted) setResolvedScholarshipId(scholarshipId || null);
+        }
+
+        if (!scholarshipId) {
+          throw new Error('Scholarship ID is missing');
+        }
+
         // Fetch scholarship
-        const scholarshipResponse = await scholarshipApi.getById(id!);
+        const scholarshipResponse = await scholarshipApi.getById(scholarshipId);
         if (!scholarshipResponse.success) {
           throw new Error('Failed to load scholarship');
         }
-        
+
         const scholarshipData = scholarshipResponse.data;
         if (isMounted) setScholarship(scholarshipData);
 
@@ -114,7 +147,7 @@ const ApplyScholarship: React.FC = () => {
 
         // Initialize document uploads dynamically based on scholarship requirements
         const requiredDocs: DocumentUpload[] = [];
-        
+
         // Check if scholarship has custom required documents
         if (scholarshipData.requiredDocuments && scholarshipData.requiredDocuments.length > 0) {
           console.log('📄 Scholarship required documents:', scholarshipData.requiredDocuments);
@@ -124,7 +157,7 @@ const ApplyScholarship: React.FC = () => {
             // Map document name to type
             let docType = 'other';
             const docNameLower = doc.name.toLowerCase();
-            
+
             if (docNameLower.includes('transcript')) docType = 'transcript';
             else if (docNameLower.includes('registration') || docNameLower.includes('certificate of registration')) docType = 'certificate_of_registration';
             else if (docNameLower.includes('income') || docNameLower.includes('itr')) docType = 'income_certificate';
@@ -133,7 +166,7 @@ const ApplyScholarship: React.FC = () => {
             else if (docNameLower.includes('grade')) docType = 'grade_report';
             else if (docNameLower.includes('barangay') || docNameLower.includes('indigency')) docType = 'barangay_certificate';
             else if (docNameLower.includes('id')) docType = 'photo_id';
-            
+
             requiredDocs.push({
               file: null,
               type: docType,
@@ -193,8 +226,39 @@ const ApplyScholarship: React.FC = () => {
           });
         }
 
+        // In edit mode: match existing application documents to required doc slots
+        if (isEditMode && applicationData?.documents) {
+          const existingDocs = applicationData.documents || [];
+          requiredDocs.forEach((reqDoc, idx) => {
+            // Find matching existing doc by type or name
+            const match = existingDocs.find((ed: any) => {
+              const typeMatch = ed.documentType === reqDoc.type || ed.type === reqDoc.type;
+              const nameMatch = ed.name?.toLowerCase() === reqDoc.name.toLowerCase();
+              return typeMatch || nameMatch;
+            });
+            if (match) {
+              requiredDocs[idx].uploaded = true;
+              requiredDocs[idx].existingDocId = match._id;
+              requiredDocs[idx].existingFileName = match.fileName || match.name;
+              requiredDocs[idx].existingFileSize = match.fileSize;
+              // For text documents, restore textContent
+              if (match.isTextDocument && match.textContent) {
+                requiredDocs[idx].textContent = match.textContent;
+              }
+            }
+          });
+        }
+
         if (isMounted) {
-          setFormData(prev => ({ ...prev, documents: requiredDocs }));
+          setFormData(prev => ({
+            ...prev,
+            documents: requiredDocs,
+            // Pre-fill text fields in edit mode
+            ...(isEditMode && applicationData ? {
+              personalStatement: applicationData.personalStatement || '',
+              additionalInfo: applicationData.additionalInfo || '',
+            } : {})
+          }));
         }
 
         // Extract custom field requirements from customConditions
@@ -210,7 +274,7 @@ const ApplyScholarship: React.FC = () => {
                 .replace(/([A-Z])/g, ' $1')
                 .replace(/^./, (str) => str.toUpperCase())
                 .trim();
-              
+
               return {
                 fieldName,
                 displayName: cond.name || displayName,
@@ -219,11 +283,33 @@ const ApplyScholarship: React.FC = () => {
                 description: cond.description
               };
             });
-          
+
           setCustomFieldRequirements(customFields);
-          
-          // Initialize custom field values from fetched student profile
-          if (fetchedProfile) {
+
+          // In edit mode: pre-fill custom field values from application's customFieldAnswers
+          if (isEditMode && applicationData?.customFieldAnswers) {
+            const savedAnswers = applicationData.customFieldAnswers;
+            const initialValues: Record<string, string | number | boolean> = {};
+            customFields.forEach(field => {
+              if (savedAnswers[field.fieldName] !== undefined) {
+                initialValues[field.fieldName] = savedAnswers[field.fieldName];
+              }
+            });
+            if (Object.keys(initialValues).length > 0) {
+              setCustomFieldValues(initialValues);
+            } else if (fetchedProfile) {
+              // Fallback to profile custom fields
+              const existingCustomFields = (fetchedProfile.studentProfile || fetchedProfile)?.customFields || {};
+              const profileValues: Record<string, string | number | boolean> = {};
+              customFields.forEach(field => {
+                if (existingCustomFields[field.fieldName] !== undefined) {
+                  profileValues[field.fieldName] = existingCustomFields[field.fieldName];
+                }
+              });
+              setCustomFieldValues(profileValues);
+            }
+          } else if (fetchedProfile) {
+            // Create mode: initialize from profile
             const existingCustomFields = (fetchedProfile.studentProfile || fetchedProfile)?.customFields || {};
             const initialValues: Record<string, string | number | boolean> = {};
             customFields.forEach(field => {
@@ -234,7 +320,7 @@ const ApplyScholarship: React.FC = () => {
             setCustomFieldValues(initialValues);
           }
         }
-        
+
       } catch (err: any) {
         if (isMounted) {
           setError(err.message || 'Failed to load application form');
@@ -244,15 +330,15 @@ const ApplyScholarship: React.FC = () => {
       }
     };
 
-    if (id) {
+    if (id || applicationId) {
       fetchData();
     }
-    
+
     // Cleanup function
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [id, applicationId, isEditMode]);
 
   // Check eligibility
   const matchResult = React.useMemo(() => {
@@ -307,16 +393,19 @@ const ApplyScholarship: React.FC = () => {
   // Remove uploaded file
   const handleRemoveFile = (index: number) => {
     const updatedDocs = [...formData.documents];
-    
+
     // Revoke preview URL to free memory
     if (updatedDocs[index].previewUrl) {
       URL.revokeObjectURL(updatedDocs[index].previewUrl!);
     }
-    
+
     updatedDocs[index].file = null;
     updatedDocs[index].uploaded = false;
     updatedDocs[index].error = undefined;
     updatedDocs[index].previewUrl = undefined;
+    updatedDocs[index].existingDocId = undefined;
+    updatedDocs[index].existingFileName = undefined;
+    updatedDocs[index].existingFileSize = undefined;
     setFormData(prev => ({ ...prev, documents: updatedDocs }));
     showToast('File removed', 'info');
   };
@@ -359,7 +448,8 @@ const ApplyScholarship: React.FC = () => {
     try {
       setSubmitting(true);
 
-      if (!id) {
+      const currentScholarshipId = resolvedScholarshipId || id;
+      if (!currentScholarshipId && !isEditMode) {
         throw new Error('Scholarship ID is missing');
       }
 
@@ -377,75 +467,122 @@ const ApplyScholarship: React.FC = () => {
           // Continue with application submission even if profile update fails
         }
       }
-      
+
       // Create FormData for multipart/form-data upload (efficient!)
       const formDataToSend = new FormData();
-      formDataToSend.append('scholarshipId', id);
       formDataToSend.append('personalStatement', formData.personalStatement);
       formDataToSend.append('additionalInfo', formData.additionalInfo);
-      
+
       // Append custom field answers to be stored with the application
       if (Object.keys(customFieldValues).length > 0) {
         formDataToSend.append('customFieldAnswers', JSON.stringify(customFieldValues));
       }
-      
-      // Append file documents and their metadata
-      formData.documents
-        .filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text')
-        .forEach(doc => {
-          formDataToSend.append('documents', doc.file!); // Append actual file
-          formDataToSend.append('documentNames', doc.name);
-          formDataToSend.append('documentTypes', doc.type);
-        });
 
-      // Append text documents (no file, just text content)
-      const textDocuments = formData.documents
-        .filter(doc => doc.allowedFileType === 'text' && doc.textContent && doc.textContent.trim().length > 0)
-        .map(doc => ({
-          name: doc.name,
-          type: doc.type,
-          content: doc.textContent
-        }));
-      
-      if (textDocuments.length > 0) {
-        formDataToSend.append('textDocuments', JSON.stringify(textDocuments));
-      }
+      if (isEditMode) {
+        // EDIT MODE: Include existing document IDs to keep + new uploads
+        const keptDocIds = formData.documents
+          .filter(doc => doc.existingDocId && doc.uploaded && !doc.file)
+          .map(doc => doc.existingDocId!);
+        formDataToSend.append('existingDocumentIds', JSON.stringify(keptDocIds));
 
-      console.log('📝 Submitting application with FormData');
-      console.log('📄 File document count:', formData.documents.filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text').length);
-      console.log('📄 Text document count:', textDocuments.length);
-      console.log('📋 Custom field answers:', customFieldValues);
+        // Only append NEW file uploads (not existing server docs)
+        formData.documents
+          .filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text')
+          .forEach(doc => {
+            formDataToSend.append('documents', doc.file!);
+            formDataToSend.append('documentNames', doc.name);
+            formDataToSend.append('documentTypes', doc.type);
+          });
 
-      // Create the application
-      const response = await applicationApi.create(formDataToSend);
+        // Append text documents
+        const textDocuments = formData.documents
+          .filter(doc => doc.allowedFileType === 'text' && doc.textContent && doc.textContent.trim().length > 0 && !doc.existingDocId)
+          .map(doc => ({
+            name: doc.name,
+            type: doc.type,
+            content: doc.textContent
+          }));
 
-      if (response.success) {
-        // If application was created successfully, submit it
-        const applicationId = response.data?.application?._id;
-        if (applicationId) {
-          // Call submit endpoint to change status from draft to submitted
-          const submitResponse = await applicationApi.submit(applicationId);
-          if (submitResponse.success) {
-            showToast('🎉 Application submitted successfully!', 'success');
-          } else {
-            showToast('⚠️ Application created but not submitted. Please submit it from your applications page.', 'info');
-          }
-        } else {
-          showToast('✅ Application created successfully!', 'success');
+        if (textDocuments.length > 0) {
+          formDataToSend.append('textDocuments', JSON.stringify(textDocuments));
         }
-        
-        setTimeout(() => {
-          navigate('/my-applications');
-        }, 2000);
-      } else {
-        // Check if it's a 409 error (already applied)
-        if (response.message?.includes('already applied')) {
-          showToast('⚠️ You have already applied for this scholarship', 'error');
+
+        console.log('📝 Updating application with FormData');
+        console.log('📄 Kept existing doc IDs:', keptDocIds);
+        console.log('📄 New file document count:', formData.documents.filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text').length);
+
+        const response = await applicationApi.update(applicationId!, formDataToSend);
+
+        if (response.success) {
+          showToast('Application updated successfully!', 'success');
           setTimeout(() => {
             navigate('/my-applications');
           }, 2000);
         } else {
-          throw new Error(response.message || 'Failed to submit application');
+          throw new Error(response.message || 'Failed to update application');
+        }
+      } else {
+        // CREATE MODE: Original flow
+        formDataToSend.append('scholarshipId', currentScholarshipId!);
+
+        // Append file documents and their metadata
+        formData.documents
+          .filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text')
+          .forEach(doc => {
+            formDataToSend.append('documents', doc.file!); // Append actual file
+            formDataToSend.append('documentNames', doc.name);
+            formDataToSend.append('documentTypes', doc.type);
+          });
+
+        // Append text documents (no file, just text content)
+        const textDocuments = formData.documents
+          .filter(doc => doc.allowedFileType === 'text' && doc.textContent && doc.textContent.trim().length > 0)
+          .map(doc => ({
+            name: doc.name,
+            type: doc.type,
+            content: doc.textContent
+          }));
+
+        if (textDocuments.length > 0) {
+          formDataToSend.append('textDocuments', JSON.stringify(textDocuments));
+        }
+
+        console.log('📝 Submitting application with FormData');
+        console.log('📄 File document count:', formData.documents.filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text').length);
+        console.log('📄 Text document count:', textDocuments.length);
+        console.log('📋 Custom field answers:', customFieldValues);
+
+        // Create the application
+        const response = await applicationApi.create(formDataToSend);
+
+        if (response.success) {
+          // If application was created successfully, submit it
+          const createdAppId = response.data?.application?._id;
+          if (createdAppId) {
+            // Call submit endpoint to change status from draft to submitted
+            const submitResponse = await applicationApi.submit(createdAppId);
+            if (submitResponse.success) {
+              showToast('Application submitted successfully!', 'success');
+            } else {
+              showToast('Application created but not submitted. Please submit it from your applications page.', 'info');
+            }
+          } else {
+            showToast('Application created successfully!', 'success');
+          }
+
+          setTimeout(() => {
+            navigate('/my-applications');
+          }, 2000);
+        } else {
+          // Check if it's a 409 error (already applied)
+          if (response.message?.includes('already applied')) {
+            showToast('You have already applied for this scholarship', 'error');
+            setTimeout(() => {
+              navigate('/my-applications');
+            }, 2000);
+          } else {
+            throw new Error(response.message || 'Failed to submit application');
+          }
         }
       }
 
@@ -496,8 +633,8 @@ const ApplyScholarship: React.FC = () => {
     );
   }
 
-  // Check eligibility
-  if (matchResult && !matchResult.isEligible) {
+  // Check eligibility - skip in edit mode (app already exists)
+  if (!isEditMode && matchResult && !matchResult.isEligible) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="card p-8 max-w-md text-center">
@@ -542,20 +679,24 @@ const ApplyScholarship: React.FC = () => {
       <div className="bg-white border-b border-slate-200 shadow-sm">
         <div className="container-app py-6">
           <Link
-            to={`/scholarships/${id}`}
+            to={isEditMode ? '/my-applications' : `/scholarships/${resolvedScholarshipId || id}`}
             className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Scholarship
+            {isEditMode ? 'Back to My Applications' : 'Back to Scholarship'}
           </Link>
-          
+
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <Award className="w-8 h-8 text-primary-600" />
-                <h1 className="text-3xl font-bold text-slate-900">{scholarship.name}</h1>
+                <h1 className="text-3xl font-bold text-slate-900">
+                  {isEditMode ? 'Edit Application' : scholarship.name}
+                </h1>
               </div>
-              <p className="text-slate-600">{scholarship.sponsor}</p>
+              <p className="text-slate-600">
+                {isEditMode ? `Editing application for ${scholarship.name}` : scholarship.sponsor}
+              </p>
               <div className="mt-3">
                 <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium border ${getTypeColor(scholarship.type)}`}>
                   {scholarship.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -905,6 +1046,28 @@ const ApplyScholarship: React.FC = () => {
                               </div>
                             )}
                           </>
+                        ) : doc.existingDocId && !doc.file ? (
+                          /* Existing server document (edit mode) */
+                          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <File className="w-6 h-6 text-green-600" />
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">{doc.existingFileName || doc.name}</p>
+                                <p className="text-xs text-green-700">
+                                  Previously uploaded
+                                  {doc.existingFileSize ? ` - ${(doc.existingFileSize / 1024 / 1024).toFixed(2)} MB` : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(index)}
+                              className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                              title="Remove and re-upload"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
                         ) : !doc.uploaded ? (
                           <label className="block">
                             <input
@@ -1130,12 +1293,12 @@ const ApplyScholarship: React.FC = () => {
                       {submitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Submitting...
+                          {isEditMode ? 'Updating...' : 'Submitting...'}
                         </>
                       ) : (
                         <>
                           <Check className="w-4 h-4" />
-                          Submit Application
+                          {isEditMode ? 'Update Application' : 'Submit Application'}
                         </>
                       )}
                     </button>

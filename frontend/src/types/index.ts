@@ -692,6 +692,7 @@ export interface Application {
   };
   personalStatement?: string;
   additionalInfo?: string;
+  customFieldAnswers?: Record<string, string | number | boolean>;
   submittedAt?: Date;
   decisionMadeAt?: Date;
   reviewedBy?: string;

@@ -854,7 +854,21 @@ router.get('/:id',
  */
 router.put('/:id',
   authMiddleware,
+  requireRole('student'),
   [param('id').isMongoId()],
+  (req, res, next) => {
+    uploadApplicationDocuments(req, res, (err) => {
+      if (err) {
+        console.error('❌ Multer error on edit:', err);
+        return res.status(400).json({
+          success: false,
+          message: err.message || 'File upload error',
+          error: err.code || 'UPLOAD_ERROR'
+        });
+      }
+      next();
+    });
+  },
   async (req, res, next) => {
     try {
       const application = await Application.findById(req.params.id);
@@ -874,22 +888,153 @@ router.put('/:id',
         });
       }
 
-      // Can only update draft applications
-      if (application.status !== ApplicationStatus.DRAFT) {
+      // Can only update draft or submitted applications
+      const editableStatuses = [ApplicationStatus.DRAFT, ApplicationStatus.SUBMITTED];
+      if (!editableStatuses.includes(application.status)) {
         return res.status(400).json({
           success: false,
-          message: 'Cannot edit submitted application'
+          message: 'Cannot edit application in ' + application.status + ' status. Only draft or submitted applications can be edited.'
         });
       }
 
-      const { personalStatement, additionalInfo } = req.body;
+      const { personalStatement, additionalInfo, customFieldAnswers, existingDocumentIds, documentNames, documentTypes, textDocuments } = req.body;
+      const uploadedFiles = req.files || [];
 
+      // Update text fields
       if (personalStatement !== undefined) {
         application.personalStatement = personalStatement;
       }
       if (additionalInfo !== undefined) {
         application.additionalInfo = additionalInfo;
       }
+
+      // Update custom field answers
+      if (customFieldAnswers) {
+        try {
+          application.customFieldAnswers = JSON.parse(customFieldAnswers);
+        } catch (e) {
+          console.error('❌ Error parsing customFieldAnswers on edit:', e);
+        }
+      }
+
+      // Handle documents: keep existing + add new
+      let keptDocuments = [];
+      if (existingDocumentIds) {
+        try {
+          const keepIds = JSON.parse(existingDocumentIds);
+          if (Array.isArray(keepIds)) {
+            keptDocuments = (application.documents || []).filter(
+              doc => keepIds.includes(doc._id.toString())
+            );
+          }
+        } catch (e) {
+          console.error('❌ Error parsing existingDocumentIds:', e);
+          keptDocuments = application.documents || [];
+        }
+      } else {
+        // If no existingDocumentIds sent, keep all existing documents
+        keptDocuments = application.documents || [];
+      }
+
+      // Process new uploaded files
+      const namesArray = Array.isArray(documentNames) ? documentNames : [documentNames].filter(Boolean);
+      const typesArray = Array.isArray(documentTypes) ? documentTypes : [documentTypes].filter(Boolean);
+
+      const newDocuments = uploadedFiles.map((file, index) => {
+        const userId = req.user._id.toString();
+        const relativePath = `documents/${userId}/${file.filename}`;
+
+        return {
+          name: namesArray[index] || 'Uploaded Document',
+          documentType: typesArray[index] || 'other',
+          filePath: relativePath,
+          fileName: file.originalname,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          uploadedAt: new Date()
+        };
+      });
+
+      // Process text documents
+      if (textDocuments) {
+        try {
+          const parsedTextDocs = JSON.parse(textDocuments);
+          if (Array.isArray(parsedTextDocs)) {
+            parsedTextDocs.forEach(textDoc => {
+              newDocuments.push({
+                name: textDoc.name || 'Text Document',
+                documentType: textDoc.type || 'text_response',
+                textContent: textDoc.content,
+                isTextDocument: true,
+                uploadedAt: new Date()
+              });
+            });
+          }
+        } catch (e) {
+          console.error('❌ Error parsing text documents on edit:', e);
+        }
+      }
+
+      // Merge: kept existing + new uploads
+      application.documents = [...keptDocuments, ...newDocuments];
+
+      // Re-run eligibility check and prediction
+      const scholarship = await Scholarship.findById(application.scholarship);
+      if (scholarship) {
+        const eligibilityResult = await calculateEligibility(req.user, scholarship);
+        application.eligibilityChecks = eligibilityResult.checks;
+        application.passedAllEligibilityCriteria = eligibilityResult.passed;
+        application.eligibilityPercentage = eligibilityResult.score;
+        application.criteriaPassed = eligibilityResult.passed
+          ? eligibilityResult.checks.length
+          : eligibilityResult.checks.filter(c => c.passed).length;
+        application.criteriaTotal = eligibilityResult.checks.length;
+
+        // Re-run ML prediction
+        if (eligibilityResult.passed) {
+          try {
+            const prediction = await runPrediction(req.user, scholarship);
+            application.prediction = prediction;
+          } catch (predErr) {
+            console.warn('⚠️ Prediction failed on edit, keeping existing:', predErr.message);
+          }
+        }
+      }
+
+      // Refresh applicant snapshot with latest profile data
+      const profile = req.user.studentProfile || {};
+      application.applicantSnapshot = {
+        studentNumber: profile.studentNumber,
+        firstName: profile.firstName || req.user.firstName,
+        lastName: profile.lastName || req.user.lastName,
+        contactNumber: profile.contactNumber,
+        homeAddress: profile.homeAddress || {},
+        gwa: profile.gwa,
+        classification: profile.classification,
+        college: profile.college,
+        course: profile.course,
+        major: profile.major,
+        unitsEnrolled: profile.unitsEnrolled,
+        unitsPassed: profile.unitsPassed,
+        annualFamilyIncome: profile.annualFamilyIncome,
+        stBracket: profile.stBracket,
+        householdSize: profile.householdSize,
+        provinceOfOrigin: profile.provinceOfOrigin,
+        citizenship: profile.citizenship,
+        hasExistingScholarship: profile.hasExistingScholarship,
+        hasThesisGrant: profile.hasThesisGrant,
+        hasApprovedThesisOutline: profile.hasApprovedThesisOutline,
+        hasDisciplinaryAction: profile.hasDisciplinaryAction,
+        hasFailingGrade: profile.hasFailingGrade
+      };
+
+      // Add status history entry for the edit
+      application.statusHistory.push({
+        status: application.status,
+        changedBy: req.user._id,
+        changedAt: new Date(),
+        notes: 'Application edited by student'
+      });
 
       await application.save();
 
