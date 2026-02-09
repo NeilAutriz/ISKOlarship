@@ -51,7 +51,15 @@ async function predictAsync(user, scholarship) {
   
   // Calculate eligibility score
   const eligibilityResult = calculateEligibilityScore(user, scholarship, courseMatch);
-  const { eligibilityScore, matchedCriteria, totalCriteria } = eligibilityResult;
+  let { eligibilityScore } = eligibilityResult;
+  const { matchedCriteria, totalCriteria } = eligibilityResult;
+
+  // Global model compensation: the global model was trained across all scholarships,
+  // so its weights tend to produce inflated scores for individual scholarships.
+  // Reduce eligibility-related features to bring predictions closer to reality.
+  if (usedModelType === 'global') {
+    eligibilityScore = eligibilityScore * 0.85;
+  }
   
   // Build feature values object for computation
   // 10 base features + 5 interaction features (must match training)

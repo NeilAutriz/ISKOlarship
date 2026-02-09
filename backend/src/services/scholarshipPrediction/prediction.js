@@ -65,12 +65,12 @@ async function predictApprovalProbability(user, scholarship) {
   if (previousApprovals > 0) {
     // Diminishing bonus: asymptotically approaches 0.05 max boost
     const historyBonus = 0.05 * (1 - Math.exp(-0.3 * previousApprovals));
-    adjustedProbability = Math.min(0.95, adjustedProbability + historyBonus);
+    adjustedProbability = Math.min(1, adjustedProbability + historyBonus);
   }
   if (previousRejections > 0) {
     // Diminishing penalty: asymptotically approaches 0.05 max reduction
     const historyPenalty = 0.05 * (1 - Math.exp(-0.3 * previousRejections));
-    adjustedProbability = Math.max(0.05, adjustedProbability - historyPenalty);
+    adjustedProbability = Math.max(0, adjustedProbability - historyPenalty);
   }
 
   // Get eligibility check results for detailed factor analysis
