@@ -4,10 +4,11 @@
   "description": "ISKOlarship: Web-Based Scholarship Platform Using Rule-Based Filtering and Logistic Regression in UPLB",
   "type": "module",
   "scripts": {
+    "start": "cd backend && node src/server.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm start",
     "dev:frontend": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
+    "build": "cd backend && npm install",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
