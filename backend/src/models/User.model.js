@@ -160,6 +160,31 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   
+  // 2FA / OTP fields
+  otpCode: {
+    type: String,
+    select: false
+  },
+  otpExpires: {
+    type: Date,
+    select: false
+  },
+  otpAttempts: {
+    type: Number,
+    default: 0,
+    select: false
+  },
+  
+  // Email verification token (for signup flow)
+  emailVerificationToken: {
+    type: String,
+    select: false
+  },
+  emailVerificationExpires: {
+    type: Date,
+    select: false
+  },
+  
   // Refresh tokens for session management
   refreshTokens: [{
     token: String,

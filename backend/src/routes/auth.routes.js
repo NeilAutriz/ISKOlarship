@@ -9,6 +9,7 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { User, UserRole } = require('../models');
 const { authMiddleware, optionalAuth } = require('../middleware/auth.middleware');
+const { generateOTP, sendOTPEmail, sendVerificationEmail } = require('../services/email.service');
 
 // =============================================================================
 // Validation Rules
@@ -153,6 +154,23 @@ router.post('/register', registerValidation, async (req, res, next) => {
     user.lastLoginAt = new Date();
     await user.save();
 
+    // Send verification email (non-blocking - don't fail registration if email fails)
+    try {
+      const verifyToken = jwt.sign(
+        { userId: user._id, type: 'email_verify' },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      // Store token and expiry on user (select: false fields need explicit save)
+      await User.findByIdAndUpdate(user._id, {
+        emailVerificationToken: verifyToken,
+        emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      });
+      await sendVerificationEmail(user.email, verifyToken, user.firstName || userData.firstName);
+    } catch (emailError) {
+      console.error('Failed to send verification email (non-critical):', emailError.message);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Registration successful',
@@ -212,23 +230,307 @@ router.post('/login', loginValidation, async (req, res, next) => {
       });
     }
 
+    // --- 2FA: Generate and send OTP ---
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Store OTP on user (these are select: false fields, use findByIdAndUpdate)
+    await User.findByIdAndUpdate(user._id, {
+      otpCode: otp,
+      otpExpires,
+      otpAttempts: 0
+    });
+
+    // Determine first name for email personalization
+    const firstName = user.firstName || 
+      user.studentProfile?.firstName || 
+      user.adminProfile?.firstName || 
+      'User';
+
+    // Send OTP email
+    await sendOTPEmail(email, otp, firstName);
+
+    // Return requiresOTP flag instead of tokens
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email',
+      data: {
+        requiresOTP: true,
+        email: email,
+        // Mask email for display: j***@example.com
+        maskedEmail: email.replace(/^(.)(.*)(@.*)$/, (_, first, middle, domain) => 
+          first + '*'.repeat(Math.min(middle.length, 5)) + domain
+        )
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/auth/verify-otp
+ * @desc    Verify OTP code and return tokens (2FA step 2)
+ * @access  Public
+ */
+router.post('/verify-otp', [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('otp').isLength({ min: 6, max: 6 }).isNumeric().withMessage('A valid 6-digit OTP is required')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { email, otp } = req.body;
+
+    // Find user with OTP fields
+    const user = await User.findOne({ email }).select('+otpCode +otpExpires +otpAttempts');
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if OTP has expired
+    if (!user.otpExpires || new Date() > user.otpExpires) {
+      return res.status(401).json({
+        success: false,
+        message: 'Verification code has expired. Please request a new one.',
+        data: { expired: true }
+      });
+    }
+
+    // Check attempt limit (max 5 attempts)
+    if (user.otpAttempts >= 5) {
+      // Clear OTP to force re-login
+      await User.findByIdAndUpdate(user._id, {
+        otpCode: null,
+        otpExpires: null,
+        otpAttempts: 0
+      });
+      return res.status(429).json({
+        success: false,
+        message: 'Too many incorrect attempts. Please sign in again.',
+        data: { tooManyAttempts: true }
+      });
+    }
+
+    // Verify OTP
+    if (user.otpCode !== otp) {
+      // Increment attempts
+      await User.findByIdAndUpdate(user._id, {
+        otpAttempts: (user.otpAttempts || 0) + 1
+      });
+      const remaining = 5 - ((user.otpAttempts || 0) + 1);
+      return res.status(401).json({
+        success: false,
+        message: `Invalid verification code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+      });
+    }
+
+    // OTP is valid — clear it and generate tokens
+    await User.findByIdAndUpdate(user._id, {
+      otpCode: null,
+      otpExpires: null,
+      otpAttempts: 0
+    });
+
     // Generate tokens
     const accessToken = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Update user
-    user.refreshTokens.push({ token: refreshToken });
-    user.lastLoginAt = new Date();
-    await user.save();
+    // Update user login info
+    // Re-fetch user without select: false fields for session update
+    const freshUser = await User.findById(user._id);
+    freshUser.refreshTokens.push({ token: refreshToken });
+    freshUser.lastLoginAt = new Date();
+    await freshUser.save();
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        user: user.getPublicProfile(),
+        user: freshUser.getPublicProfile(),
         accessToken,
         refreshToken
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/auth/resend-otp
+ * @desc    Resend a new OTP code
+ * @access  Public
+ */
+router.post('/resend-otp', [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required')
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid email is required'
+      });
+    }
+
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if user exists
+      return res.json({
+        success: true,
+        message: 'If an account exists, a new verification code has been sent.'
+      });
+    }
+
+    // Generate new OTP
+    const otp = generateOTP();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await User.findByIdAndUpdate(user._id, {
+      otpCode: otp,
+      otpExpires,
+      otpAttempts: 0
+    });
+
+    const firstName = user.firstName || 
+      user.studentProfile?.firstName || 
+      user.adminProfile?.firstName || 
+      'User';
+
+    await sendOTPEmail(email, otp, firstName);
+
+    res.json({
+      success: true,
+      message: 'A new verification code has been sent to your email.'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   GET /api/auth/verify-email
+ * @desc    Verify email address from registration link
+ * @access  Public
+ */
+router.get('/verify-email', async (req, res, next) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Verification token is required'
+      });
+    }
+
+    // Verify the token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.type !== 'email_verify') throw new Error('Invalid token type');
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification link. Please request a new one.'
+      });
+    }
+
+    // Find and update user
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.isEmailVerified) {
+      return res.json({
+        success: true,
+        message: 'Email is already verified',
+        data: { alreadyVerified: true }
+      });
+    }
+
+    user.isEmailVerified = true;
+    await User.findByIdAndUpdate(user._id, {
+      isEmailVerified: true,
+      emailVerificationToken: null,
+      emailVerificationExpires: null
+    });
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully! You can now sign in.'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   POST /api/auth/resend-verification
+ * @desc    Resend email verification link
+ * @access  Public
+ */
+router.post('/resend-verification', [
+  body('email').isEmail().normalizeEmail()
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid email is required'
+      });
+    }
+
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    // Always return success to prevent email enumeration
+    if (!user || user.isEmailVerified) {
+      return res.json({
+        success: true,
+        message: 'If an unverified account exists, a verification email has been sent.'
+      });
+    }
+
+    const verifyToken = jwt.sign(
+      { userId: user._id, type: 'email_verify' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    await User.findByIdAndUpdate(user._id, {
+      emailVerificationToken: verifyToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    });
+
+    const firstName = user.firstName || 
+      user.studentProfile?.firstName || 
+      user.adminProfile?.firstName || 
+      'User';
+
+    await sendVerificationEmail(email, verifyToken, firstName);
+
+    res.json({
+      success: true,
+      message: 'If an unverified account exists, a verification email has been sent.'
     });
   } catch (error) {
     next(error);

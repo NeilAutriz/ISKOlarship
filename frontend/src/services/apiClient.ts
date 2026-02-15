@@ -262,6 +262,7 @@ export const authApi = {
     password: string;
     firstName: string;
     lastName: string;
+    middleName?: string;
     role?: 'student' | 'admin';
   }) => {
     const response = await api.post<ApiResponse<{
@@ -279,15 +280,48 @@ export const authApi = {
 
   login: async (email: string, password: string) => {
     const response = await api.post<ApiResponse<{
+      requiresOTP?: boolean;
+      email?: string;
+      maskedEmail?: string;
+      user?: StudentProfile;
+      accessToken?: string;
+      refreshToken?: string;
+    }>>('/auth/login', { email, password });
+    
+    // If backend returns tokens directly (old backend without 2FA), store them
+    if (response.data.success && response.data.data?.accessToken && response.data.data?.refreshToken) {
+      setTokens(response.data.data.accessToken, response.data.data.refreshToken);
+    }
+    // If requiresOTP, tokens come from verify-otp later
+    return response.data;
+  },
+
+  verifyOTP: async (email: string, otp: string) => {
+    const response = await api.post<ApiResponse<{
       user: StudentProfile;
       accessToken: string;
       refreshToken: string;
-    }>>('/auth/login', { email, password });
-    
+    }>>('/auth/verify-otp', { email, otp });
+
     if (response.data.success) {
       setTokens(response.data.data.accessToken, response.data.data.refreshToken);
     }
-    
+
+    return response.data;
+  },
+
+  resendOTP: async (email: string) => {
+    const response = await api.post<ApiResponse<null>>('/auth/resend-otp', { email });
+    return response.data;
+  },
+
+  verifyEmail: async (token: string) => {
+    const response = await api.get<ApiResponse<{ alreadyVerified?: boolean }>>(`/auth/verify-email?token=${token}`);
+    return response.data;
+  },
+
+  resendVerification: async (email: string) => {
+    const response = await api.post<ApiResponse<null>>('/auth/resend-verification', { email });
     return response.data;
   },
 

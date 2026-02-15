@@ -24,6 +24,7 @@ import Scholarships from './pages/Scholarships';
 import ScholarshipDetails from './pages/ScholarshipDetails';
 import PredictionExplanation from './pages/PredictionExplanation';
 import Analytics from './pages/Analytics';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Student Pages
 import { 
@@ -237,30 +238,79 @@ const App: React.FC = () => {
     }
   };
 
-  // Handle sign in using backend API
+  // Handle sign in using backend API (Step 1: credentials → OTP sent)
   const handleSignIn = async (email: string, password: string, role: 'student' | 'admin') => {
     try {
       const response = await authApi.login(email, password);
       
+      if (response.success && response.data?.requiresOTP) {
+        // 2FA: return OTP info so AuthModal can show OTP screen
+        return {
+          requiresOTP: true,
+          email: response.data.email,
+          maskedEmail: response.data.maskedEmail,
+        };
+      }
+      
+      // Fallback: if server somehow returns tokens directly (shouldn't happen)
       if (response.success && response.data?.user) {
         const userData = response.data.user as User;
-        
+        if ((role === 'admin' && userData.role !== UserRole.ADMIN) ||
+            (role === 'student' && userData.role !== UserRole.STUDENT)) {
+          throw new Error(`Invalid credentials for ${role} login`);
+        }
+        login(userData);
+        setShowAuthModal(false);
+        setNavigateAfterLogin(role === 'admin' ? '/admin/dashboard' : '/dashboard');
+        showToast(`Welcome back, ${getUserDisplayName(userData)}!`, 'success');
+        return {};
+      }
+
+      throw new Error(response.message || 'Login failed');
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Login failed');
+    }
+  };
+
+  // Handle OTP verification (Step 2: verify code → get tokens)
+  const handleVerifyOTP = async (email: string, otp: string, role: 'student' | 'admin') => {
+    try {
+      const response = await authApi.verifyOTP(email, otp);
+
+      if (response.success && response.data?.user) {
+        const userData = response.data.user as User;
+
         // Check if the user role matches the selected role
         if ((role === 'admin' && userData.role !== UserRole.ADMIN) ||
             (role === 'student' && userData.role !== UserRole.STUDENT)) {
           throw new Error(`Invalid credentials for ${role} login`);
         }
-        
+
         login(userData);
         setShowAuthModal(false);
         setNavigateAfterLogin(role === 'admin' ? '/admin/dashboard' : '/dashboard');
         showToast(`Welcome back, ${getUserDisplayName(userData)}!`, 'success');
       } else {
-        throw new Error(response.message || 'Login failed');
+        throw new Error(response.message || 'Verification failed');
       }
     } catch (error: any) {
-      console.error('Sign in error:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Login failed');
+      console.error('OTP verification error:', error);
+      const msg = error.response?.data?.message || error.message || 'Invalid verification code';
+      const err = new Error(msg) as any;
+      err.tooManyAttempts = error.response?.data?.data?.tooManyAttempts;
+      err.expired = error.response?.data?.data?.expired;
+      throw err;
+    }
+  };
+
+  // Handle resend OTP
+  const handleResendOTP = async (email: string) => {
+    try {
+      await authApi.resendOTP(email);
+    } catch (error: any) {
+      console.error('Resend OTP error:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to resend code');
     }
   };
 
@@ -740,6 +790,8 @@ const App: React.FC = () => {
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}
           onSignIn={handleSignIn}
+          onVerifyOTP={handleVerifyOTP}
+          onResendOTP={handleResendOTP}
           onSignUp={handleSignUp}
           onDemoLogin={handleDemoLogin}
         />
@@ -819,6 +871,7 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/scholarships" element={<Scholarships />} />
           <Route path="/scholarships/:id" element={<ScholarshipDetails />} />
           <Route path="/scholarships/:scholarshipId/prediction" element={<PredictionExplanation />} />
