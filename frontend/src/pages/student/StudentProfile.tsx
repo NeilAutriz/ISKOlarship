@@ -208,7 +208,7 @@ const StudentProfile: React.FC = () => {
       }
 
       // Fetch document with auth header
-      const url = `http://localhost:5001/api/users/documents/${document._id}`;
+      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${document._id}`;
       console.log('🌐 Fetching from:', url);
       
       const response = await fetch(url, {
@@ -274,7 +274,7 @@ const StudentProfile: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5001/api/users/documents/${doc._id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${doc._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

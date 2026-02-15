@@ -536,7 +536,7 @@ const App: React.FC = () => {
           formData.append('documentNames', 'UPLB Employee ID');
           
           try {
-            const uploadResponse = await fetch('http://localhost:5001/api/users/documents/upload', {
+            const uploadResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/upload`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${response.data.accessToken}`
