@@ -36,7 +36,7 @@ import {
   Target,
   BarChart2
 } from 'lucide-react';
-import { applicationApi } from '../../services/apiClient';
+import { applicationApi, API_SERVER_URL } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
 import { PredictionResult } from '../../types';
 
@@ -298,12 +298,12 @@ const ApplicationReview: React.FC = () => {
       
       if (document._id && applicationId) {
         // Use the new application documents endpoint
-        fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/applications/${applicationId}/documents/${document._id}`;
+        fetchUrl = `${API_SERVER_URL}/api/applications/${applicationId}/documents/${document._id}`;
       } else if (document.url) {
         // If the URL is already a full URL, use it directly
         const baseUrl = document.url.startsWith('http') 
           ? document.url 
-          : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${document.url}`;
+          : `${API_SERVER_URL}${document.url}`;
         fetchUrl = baseUrl;
       } else {
         toast.error('Document URL not available');
@@ -354,11 +354,11 @@ const ApplicationReview: React.FC = () => {
       
       if (document._id && applicationId) {
         // Use the new application documents endpoint
-        fetchUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/applications/${applicationId}/documents/${document._id}`;
+        fetchUrl = `${API_SERVER_URL}/api/applications/${applicationId}/documents/${document._id}`;
       } else if (document.url) {
         const baseUrl = document.url.startsWith('http') 
           ? document.url 
-          : `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}${document.url}`;
+          : `${API_SERVER_URL}${document.url}`;
         fetchUrl = baseUrl;
       } else {
         toast.error('Document URL not available');

@@ -28,7 +28,7 @@ import {
   Eye,
   Download
 } from 'lucide-react';
-import { userApi } from '../../services/apiClient';
+import { userApi, API_SERVER_URL } from '../../services/apiClient';
 
 // API Response structure from backend
 interface StudentProfileData {
@@ -208,7 +208,7 @@ const StudentProfile: React.FC = () => {
       }
 
       // Fetch document with auth header
-      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${document._id}`;
+      const url = `${API_SERVER_URL}/api/users/documents/${document._id}`;
       console.log('🌐 Fetching from:', url);
       
       const response = await fetch(url, {
@@ -274,7 +274,7 @@ const StudentProfile: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${doc._id}`, {
+      const response = await fetch(`${API_SERVER_URL}/api/users/documents/${doc._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

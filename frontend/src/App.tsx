@@ -16,7 +16,7 @@ import Footer from './components/Footer';
 import AuthModal from './components/AuthModal';
 import ProfileCompletion, { ProfileData } from './components/ProfileCompletion';
 import AdminProfileCompletion, { AdminProfileData } from './components/AdminProfileCompletion';
-import { authApi, userApi, clearTokens, getAccessToken } from './services/apiClient';
+import { authApi, userApi, clearTokens, getAccessToken, API_SERVER_URL } from './services/apiClient';
 
 // Public Pages
 import Home from './pages/Home';
@@ -536,7 +536,7 @@ const App: React.FC = () => {
           formData.append('documentNames', 'UPLB Employee ID');
           
           try {
-            const uploadResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/upload`, {
+            const uploadResponse = await fetch(`${API_SERVER_URL}/api/users/documents/upload`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${response.data.accessToken}`

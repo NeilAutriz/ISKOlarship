@@ -12,6 +12,9 @@ import { Scholarship, StudentProfile, Application, PredictionResult } from '../t
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
 
+// Base server URL (without /api) for direct fetch calls (e.g., document downloads)
+export const API_SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
 // Create Axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,

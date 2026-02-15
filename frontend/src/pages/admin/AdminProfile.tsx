@@ -30,7 +30,7 @@ import {
   Landmark,
   Info
 } from 'lucide-react';
-import { userApi } from '../../services/apiClient';
+import { userApi, API_SERVER_URL } from '../../services/apiClient';
 import { 
   UPLBColleges, 
   UniversityUnits, 
@@ -179,7 +179,7 @@ const AdminProfile: React.FC = () => {
       }
 
       // Fetch document with auth header
-      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5001'}/api/users/documents/${document._id}`;
+      const url = `${API_SERVER_URL}/api/users/documents/${document._id}`;
       
       const response = await fetch(url, {
         method: 'GET',
