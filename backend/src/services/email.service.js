@@ -3,15 +3,15 @@
 // Handles OTP delivery for 2FA login and email verification
 //
 // TRANSPORT STRATEGY:
-//   1. Resend API (HTTP) — works on Railway/cloud platforms where SMTP is blocked
-//      Set RESEND_API_KEY in env vars. Free: 100 emails/day at resend.com
+//   1. Brevo API (HTTP) — works on Railway/cloud platforms where SMTP is blocked
+//      Set BREVO_API_KEY + BREVO_SENDER_EMAIL in env vars.
+//      Free: 300 emails/day at brevo.com (formerly Sendinblue)
 //   2. Gmail SMTP — works locally and on platforms that allow outbound SMTP
 //      Set EMAIL_USER + EMAIL_PASS in env vars.
 //   3. Console fallback — prints OTP to server logs when no email service
 // =============================================================================
 
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
 const dns = require('dns');
 const { promisify } = require('util');
 
@@ -23,41 +23,49 @@ const resolve4 = promisify(dns.resolve4);
 
 /**
  * Determine which email transport to use based on available env vars.
- * Priority: Resend API → Gmail SMTP → Console fallback
+ * Priority: Brevo API → Gmail SMTP → Console fallback
  */
 const getTransportType = () => {
-  if (process.env.RESEND_API_KEY) return 'resend';
+  if (process.env.BREVO_API_KEY) return 'brevo';
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) return 'smtp';
   return 'console';
 };
 
 // =============================================================================
-// Resend (HTTP API) Transport
+// Brevo (HTTP API) Transport — formerly Sendinblue
 // =============================================================================
 
 /**
- * Send email via Resend HTTP API.
+ * Send email via Brevo HTTP API.
  * Uses port 443 (HTTPS) — never blocked by cloud platforms.
+ * Free tier: 300 emails/day. Only requires sender email verification (no domain needed).
  */
-const sendViaResend = async (mailOptions) => {
-  const resend = new Resend(process.env.RESEND_API_KEY);
+const sendViaBrevo = async (mailOptions) => {
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'noreply@iskolarship.ph';
+  const senderName = process.env.BREVO_SENDER_NAME || 'ISKOlarship';
 
-  // Resend free tier sends from 'onboarding@resend.dev'
-  // To use a custom domain, verify it in the Resend dashboard
-  const fromAddress = process.env.RESEND_FROM_EMAIL || 'ISKOlarship <onboarding@resend.dev>';
-
-  const { data, error } = await resend.emails.send({
-    from: fromAddress,
-    to: [mailOptions.to],
-    subject: mailOptions.subject,
-    html: mailOptions.html,
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': process.env.BREVO_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: mailOptions.to }],
+      subject: mailOptions.subject,
+      htmlContent: mailOptions.html,
+    }),
   });
 
-  if (error) {
-    throw new Error(`Resend API error: ${error.message}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(`Brevo API error (${response.status}): ${data.message || JSON.stringify(data)}`);
   }
 
-  console.log(`📧 Email sent via Resend API → ${data.id}`);
+  console.log(`📧 Email sent via Brevo API → messageId: ${data.messageId}`);
   return data;
 };
 
@@ -135,7 +143,7 @@ const sendViaGmailSMTP = async (mailOptions) => {
 
 /**
  * Send an email using the best available transport.
- * Falls through: Resend → SMTP → throws error
+ * Falls through: Brevo → SMTP → throws error
  */
 const sendEmail = async (mailOptions) => {
   const type = getTransportType();
@@ -144,8 +152,8 @@ const sendEmail = async (mailOptions) => {
     return null; // Caller handles console fallback
   }
 
-  if (type === 'resend') {
-    return sendViaResend(mailOptions);
+  if (type === 'brevo') {
+    return sendViaBrevo(mailOptions);
   }
 
   // type === 'smtp'
@@ -296,7 +304,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
     console.log(`║  To:   ${email}`);
     console.log(`║  Code: ${otp}`);
     console.log('╠═══════════════════════════════════════════════════════╣');
-    console.log('║  Set RESEND_API_KEY or EMAIL_USER+EMAIL_PASS to      ║');
+    console.log('║  Set BREVO_API_KEY or EMAIL_USER+EMAIL_PASS to        ║');
     console.log('║  enable real emails.                                 ║');
     console.log('╚═══════════════════════════════════════════════════════╝');
     console.log('');
@@ -353,13 +361,13 @@ const sendVerificationEmail = async (email, token, firstName) => {
 // =============================================================================
 
 const type = getTransportType();
-if (type === 'resend') {
-  console.log('✅ Email transport: Resend API (HTTP)');
+if (type === 'brevo') {
+  console.log('✅ Email transport: Brevo API (HTTP)');
 } else if (type === 'smtp') {
   console.log('✅ Email transport: Gmail SMTP');
 } else {
   console.warn('⚠️ No email transport configured. OTPs will print to console.');
-  console.warn('   → For Railway/cloud: set RESEND_API_KEY (get one at resend.com)');
+  console.warn('   → For Railway/cloud: set BREVO_API_KEY (get one at brevo.com)');
   console.warn('   → For local dev: set EMAIL_USER + EMAIL_PASS in .env');
 }
 
