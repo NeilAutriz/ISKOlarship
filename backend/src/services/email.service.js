@@ -42,11 +42,19 @@ const createTransporter = () => {
   
   let transportConfig;
   
+  // Timeouts to prevent hanging — critical for production (Railway)
+  const timeouts = {
+    connectionTimeout: 15000,  // 15s to establish TCP connection
+    greetingTimeout: 15000,    // 15s for SMTP greeting
+    socketTimeout: 30000,      // 30s for socket inactivity
+  };
+
   if (!host || host.includes('gmail')) {
     // Gmail shorthand — auto-configures host, port, TLS
     transportConfig = {
       service: 'gmail',
       auth: { user, pass },
+      ...timeouts,
     };
   } else {
     // Custom SMTP server
@@ -56,6 +64,7 @@ const createTransporter = () => {
       port,
       secure: port === 465,
       auth: { user, pass },
+      ...timeouts,
     };
   }
 
@@ -80,6 +89,24 @@ const getTransporter = () => {
     transporter = createTransporter();
   }
   return transporter;
+};
+
+// =============================================================================
+// Timeout Helper
+// =============================================================================
+
+/**
+ * Wrap a promise with a timeout to prevent hanging.
+ * If the promise doesn't resolve/reject within `ms`, it rejects.
+ */
+const withTimeout = (promise, ms, label = 'Operation') => {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    })
+  ]).finally(() => clearTimeout(timer));
 };
 
 // =============================================================================
@@ -250,7 +277,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
   }
 
   try {
-    const info = await transport.sendMail(mailOptions);
+    const info = await withTimeout(transport.sendMail(mailOptions), 20000, 'OTP email send');
     console.log(`📧 OTP email sent to ${email} (messageId: ${info.messageId})`);
     return true;
   } catch (error) {
@@ -295,7 +322,7 @@ const sendVerificationEmail = async (email, token, firstName) => {
   }
 
   try {
-    await transport.sendMail(mailOptions);
+    await withTimeout(transport.sendMail(mailOptions), 20000, 'Verification email send');
     console.log(`📧 Verification email sent to ${email}`);
     return true;
   } catch (error) {

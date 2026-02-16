@@ -154,22 +154,19 @@ router.post('/register', registerValidation, async (req, res, next) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    // Send verification email (non-blocking - don't fail registration if email fails)
-    try {
-      const verifyToken = jwt.sign(
-        { userId: user._id, type: 'email_verify' },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      // Store token and expiry on user (select: false fields need explicit save)
-      await User.findByIdAndUpdate(user._id, {
-        emailVerificationToken: verifyToken,
-        emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000)
-      });
-      await sendVerificationEmail(user.email, verifyToken, user.firstName || userData.firstName);
-    } catch (emailError) {
-      console.error('Failed to send verification email (non-critical):', emailError.message);
-    }
+    // Send verification email (fire-and-forget — never block registration)
+    const verifyToken = jwt.sign(
+      { userId: user._id, type: 'email_verify' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    User.findByIdAndUpdate(user._id, {
+      emailVerificationToken: verifyToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    }).then(() => {
+      sendVerificationEmail(user.email, verifyToken, user.firstName || userData.firstName)
+        .catch(err => console.error('Failed to send verification email (non-critical):', err.message));
+    }).catch(err => console.error('Failed to save verification token:', err.message));
 
     res.status(201).json({
       success: true,
