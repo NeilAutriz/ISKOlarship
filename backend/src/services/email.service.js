@@ -4,6 +4,10 @@
 // =============================================================================
 
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+const { promisify } = require('util');
+
+const resolve4 = promisify(dns.resolve4);
 
 // =============================================================================
 // Transporter Configuration
@@ -11,6 +15,13 @@ const nodemailer = require('nodemailer');
 
 /**
  * Create a nodemailer transporter for Gmail.
+ * 
+ * CRITICAL: Railway/cloud containers default to IPv6 for DNS resolution.
+ * Gmail's IPv6 SMTP endpoints are unreliable from containerized environments,
+ * causing "Connection timeout" errors. We fix this by:
+ *   1. Resolving smtp.gmail.com to an IPv4 address ourselves
+ *   2. Connecting to the IPv4 IP directly
+ *   3. Using TLS servername (SNI) so the certificate still validates
  * 
  * SETUP INSTRUCTIONS:
  * 1. Go to your Google Account → Security → 2-Step Verification (enable it)
@@ -21,7 +32,7 @@ const nodemailer = require('nodemailer');
  *    EMAIL_USER=yourgmail@gmail.com
  *    EMAIL_PASS=abcdefghijklmnop   (remove the spaces)
  */
-const createTransporter = () => {
+const createTransporter = async (resolvedHost) => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
@@ -38,7 +49,7 @@ const createTransporter = () => {
   }
 
   // Determine transport config
-  const host = process.env.EMAIL_HOST;
+  const emailHost = process.env.EMAIL_HOST;
   
   let transportConfig;
   
@@ -49,18 +60,30 @@ const createTransporter = () => {
     socketTimeout: 30000,      // 30s for socket inactivity
   };
 
-  if (!host || host.includes('gmail')) {
-    // Gmail shorthand — auto-configures host, port, TLS
+  if (!emailHost || emailHost.includes('gmail')) {
+    // Use the pre-resolved IPv4 address (or hostname as fallback)
+    const smtpHost = resolvedHost || 'smtp.gmail.com';
+    
     transportConfig = {
-      service: 'gmail',
+      host: smtpHost,
+      port: 465,
+      secure: true,
       auth: { user, pass },
       ...timeouts,
+      // TLS servername (SNI) is required when connecting via IP address
+      // so the certificate validates against 'smtp.gmail.com'
+      tls: {
+        servername: 'smtp.gmail.com',
+        rejectUnauthorized: true,
+      },
     };
+    
+    console.log(`📧 Gmail SMTP transport configured → ${smtpHost}:465 (IPv4)`);
   } else {
     // Custom SMTP server
     const port = parseInt(process.env.EMAIL_PORT || '587', 10);
     transportConfig = {
-      host,
+      host: emailHost,
       port,
       secure: port === 465,
       auth: { user, pass },
@@ -83,10 +106,30 @@ const createTransporter = () => {
 };
 
 let transporter = null;
+let transporterInitialized = false;
 
-const getTransporter = () => {
-  if (!transporter) {
-    transporter = createTransporter();
+/**
+ * Get the email transporter (lazy async initialization).
+ * On first call, resolves smtp.gmail.com to IPv4 and creates the transport.
+ */
+const getTransporter = async () => {
+  if (!transporterInitialized) {
+    transporterInitialized = true;
+    
+    // Resolve Gmail SMTP to IPv4 to avoid Railway/cloud IPv6 timeout issues
+    let ipv4Host = null;
+    try {
+      const addresses = await resolve4('smtp.gmail.com');
+      if (addresses && addresses.length > 0) {
+        ipv4Host = addresses[0];
+        console.log(`📧 Resolved smtp.gmail.com → ${ipv4Host} (IPv4)`);
+      }
+    } catch (err) {
+      console.warn('⚠️ DNS resolve4 failed for smtp.gmail.com:', err.message);
+      console.warn('   Will fall back to hostname (may use IPv6)');
+    }
+    
+    transporter = await createTransporter(ipv4Host);
   }
   return transporter;
 };
@@ -251,7 +294,7 @@ const getVerificationEmailHTML = (verifyUrl, firstName) => {
  * @returns {Promise<boolean>} - Whether the email was sent successfully
  */
 const sendOTPEmail = async (email, otp, firstName) => {
-  const transport = getTransporter();
+  const transport = await getTransporter();
 
   const mailOptions = {
     from: `"ISKOlarship" <${process.env.EMAIL_USER || 'noreply@iskolarship.ph'}>`,
@@ -303,7 +346,7 @@ const sendVerificationEmail = async (email, token, firstName) => {
   const frontendUrl = process.env.FRONTEND_URL || 'https://iskolarship.vercel.app';
   const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
 
-  const transport = getTransporter();
+  const transport = await getTransporter();
 
   const mailOptions = {
     from: `"ISKOlarship" <${process.env.EMAIL_USER || 'noreply@iskolarship.ph'}>`,

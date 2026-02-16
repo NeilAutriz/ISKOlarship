@@ -4,6 +4,12 @@
 // =============================================================================
 
 require('dotenv').config();
+
+// Force IPv4 DNS resolution — Railway/cloud containers default to IPv6,
+// which causes Gmail SMTP connections to timeout.
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
