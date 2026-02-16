@@ -1,6 +1,15 @@
 // =============================================================================
 // ISKOlarship - Email Service
 // Handles OTP delivery for 2FA login and email verification
+//
+// CLOUD SMTP FIX: Railway and other cloud platforms often have issues with
+// direct SMTP connections (IPv6 routing, port blocking, etc.). This service
+// uses a multi-strategy approach:
+//   1. Resolve smtp.gmail.com to IPv4 addresses (avoid IPv6 timeout)
+//   2. Try port 587 (STARTTLS) first — most commonly allowed by cloud firewalls
+//   3. Fall back to port 465 (implicit TLS)
+//   4. Try multiple resolved IPs
+//   5. Fresh transporter per send (no stale cached connections)
 // =============================================================================
 
 const nodemailer = require('nodemailer');
@@ -10,146 +19,104 @@ const { promisify } = require('util');
 const resolve4 = promisify(dns.resolve4);
 
 // =============================================================================
-// Transporter Configuration
+// SMTP Configuration
+// =============================================================================
+
+const GMAIL_SMTP_HOST = 'smtp.gmail.com';
+
+// Port strategies to try, in order
+const PORT_STRATEGIES = [
+  { port: 587, secure: false, requireTLS: true, label: 'STARTTLS' },
+  { port: 465, secure: true, requireTLS: false, label: 'TLS' },
+];
+
+// Per-attempt timeouts (short so we can retry different IPs/ports quickly)
+const ATTEMPT_TIMEOUTS = {
+  connectionTimeout: 8000,   // 8s to establish TCP
+  greetingTimeout: 8000,     // 8s for SMTP greeting
+  socketTimeout: 15000,      // 15s for socket inactivity
+};
+
+// =============================================================================
+// IPv4 DNS Resolution
 // =============================================================================
 
 /**
- * Create a nodemailer transporter for Gmail.
- * 
- * CRITICAL: Railway/cloud containers default to IPv6 for DNS resolution.
- * Gmail's IPv6 SMTP endpoints are unreliable from containerized environments,
- * causing "Connection timeout" errors. We fix this by:
- *   1. Resolving smtp.gmail.com to an IPv4 address ourselves
- *   2. Connecting to the IPv4 IP directly
- *   3. Using TLS servername (SNI) so the certificate still validates
- * 
- * SETUP INSTRUCTIONS:
- * 1. Go to your Google Account → Security → 2-Step Verification (enable it)
- * 2. Go to https://myaccount.google.com/apppasswords
- * 3. Select "Mail" as the app, then "Other" and name it "ISKOlarship"
- * 4. Google gives you a 16-character password like "abcd efgh ijkl mnop"
- * 5. Set these in your .env file:
- *    EMAIL_USER=yourgmail@gmail.com
- *    EMAIL_PASS=abcdefghijklmnop   (remove the spaces)
+ * Resolve smtp.gmail.com to IPv4 addresses.
+ * Returns array of IPv4 IPs, or ['smtp.gmail.com'] as fallback.
  */
-const createTransporter = async (resolvedHost) => {
+const resolveGmailIPv4 = async () => {
+  try {
+    const addresses = await resolve4(GMAIL_SMTP_HOST);
+    if (addresses && addresses.length > 0) {
+      console.log(`📧 DNS: smtp.gmail.com → [${addresses.slice(0, 3).join(', ')}] (IPv4)`);
+      return addresses.slice(0, 3); // Use up to 3 IPs
+    }
+  } catch (err) {
+    console.warn('⚠️ DNS resolve4 failed:', err.message);
+  }
+  return [GMAIL_SMTP_HOST]; // Fallback to hostname
+};
+
+// =============================================================================
+// Core Send Function with Multi-Strategy Retry
+// =============================================================================
+
+/**
+ * Try to send an email via Gmail SMTP, attempting multiple ports and IPs.
+ * Creates a fresh transporter for each attempt to avoid stale connections.
+ *
+ * Attempt order: IP1:587 → IP1:465 → IP2:587 → IP2:465 → ...
+ *
+ * @param {object} mailOptions - nodemailer mail options
+ * @returns {Promise<object>} - nodemailer send info
+ * @throws {Error} - if all attempts fail
+ */
+const sendViaGmailSMTP = async (mailOptions) => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
   if (!user || !pass) {
-    console.warn('');
-    console.warn('⚠️  ══════════════════════════════════════════════════════════════');
-    console.warn('⚠️  EMAIL_USER or EMAIL_PASS not set in .env file.');
-    console.warn('⚠️  OTP codes will be printed to this console instead of emailed.');
-    console.warn('⚠️  To enable real emails, follow the setup instructions in:');
-    console.warn('⚠️  backend/src/services/email.service.js');
-    console.warn('⚠️  ══════════════════════════════════════════════════════════════');
-    console.warn('');
-    return null;
+    return null; // No credentials configured
   }
 
-  // Determine transport config
-  const emailHost = process.env.EMAIL_HOST;
-  
-  let transportConfig;
-  
-  // Timeouts to prevent hanging — critical for production (Railway)
-  const timeouts = {
-    connectionTimeout: 15000,  // 15s to establish TCP connection
-    greetingTimeout: 15000,    // 15s for SMTP greeting
-    socketTimeout: 30000,      // 30s for socket inactivity
-  };
+  const hosts = await resolveGmailIPv4();
+  const errors = [];
 
-  if (!emailHost || emailHost.includes('gmail')) {
-    // Use the pre-resolved IPv4 address (or hostname as fallback)
-    const smtpHost = resolvedHost || 'smtp.gmail.com';
-    
-    transportConfig = {
-      host: smtpHost,
-      port: 465,
-      secure: true,
-      auth: { user, pass },
-      ...timeouts,
-      // TLS servername (SNI) is required when connecting via IP address
-      // so the certificate validates against 'smtp.gmail.com'
-      tls: {
-        servername: 'smtp.gmail.com',
-        rejectUnauthorized: true,
-      },
-    };
-    
-    console.log(`📧 Gmail SMTP transport configured → ${smtpHost}:465 (IPv4)`);
-  } else {
-    // Custom SMTP server
-    const port = parseInt(process.env.EMAIL_PORT || '587', 10);
-    transportConfig = {
-      host: emailHost,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-      ...timeouts,
-    };
-  }
+  for (const host of hosts) {
+    for (const strategy of PORT_STRATEGIES) {
+      const transportConfig = {
+        host,
+        port: strategy.port,
+        secure: strategy.secure,
+        auth: { user, pass },
+        ...ATTEMPT_TIMEOUTS,
+        tls: {
+          // SNI: when connecting via IP, the cert is for 'smtp.gmail.com'
+          servername: GMAIL_SMTP_HOST,
+          rejectUnauthorized: true,
+        },
+      };
 
-  const transport = nodemailer.createTransport(transportConfig);
-  
-  // Verify connection on startup (non-blocking)
-  transport.verify()
-    .then(() => console.log('✅ Email service connected successfully'))
-    .catch((err) => {
-      console.error('❌ Email service connection failed:', err.message);
-      console.error('   Check EMAIL_USER and EMAIL_PASS in your .env file.');
-      console.error('   For Gmail, make sure you are using an App Password, NOT your regular password.');
-    });
-
-  return transport;
-};
-
-let transporter = null;
-let transporterInitialized = false;
-
-/**
- * Get the email transporter (lazy async initialization).
- * On first call, resolves smtp.gmail.com to IPv4 and creates the transport.
- */
-const getTransporter = async () => {
-  if (!transporterInitialized) {
-    transporterInitialized = true;
-    
-    // Resolve Gmail SMTP to IPv4 to avoid Railway/cloud IPv6 timeout issues
-    let ipv4Host = null;
-    try {
-      const addresses = await resolve4('smtp.gmail.com');
-      if (addresses && addresses.length > 0) {
-        ipv4Host = addresses[0];
-        console.log(`📧 Resolved smtp.gmail.com → ${ipv4Host} (IPv4)`);
+      if (strategy.requireTLS) {
+        transportConfig.requireTLS = true;
       }
-    } catch (err) {
-      console.warn('⚠️ DNS resolve4 failed for smtp.gmail.com:', err.message);
-      console.warn('   Will fall back to hostname (may use IPv6)');
+
+      try {
+        const transport = nodemailer.createTransport(transportConfig);
+        const info = await transport.sendMail(mailOptions);
+        transport.close();
+        console.log(`📧 Email sent via ${host}:${strategy.port} (${strategy.label}) → ${info.messageId}`);
+        return info;
+      } catch (err) {
+        const msg = `${host}:${strategy.port}/${strategy.label} → ${err.message}`;
+        errors.push(msg);
+        console.warn(`⚠️ SMTP attempt failed: ${msg}`);
+      }
     }
-    
-    transporter = await createTransporter(ipv4Host);
   }
-  return transporter;
-};
 
-// =============================================================================
-// Timeout Helper
-// =============================================================================
-
-/**
- * Wrap a promise with a timeout to prevent hanging.
- * If the promise doesn't resolve/reject within `ms`, it rejects.
- */
-const withTimeout = (promise, ms, label = 'Operation') => {
-  let timer;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    })
-  ]).finally(() => clearTimeout(timer));
+  throw new Error(`All SMTP attempts failed:\n  ${errors.join('\n  ')}`);
 };
 
 // =============================================================================
@@ -294,8 +261,6 @@ const getVerificationEmailHTML = (verifyUrl, firstName) => {
  * @returns {Promise<boolean>} - Whether the email was sent successfully
  */
 const sendOTPEmail = async (email, otp, firstName) => {
-  const transport = await getTransporter();
-
   const mailOptions = {
     from: `"ISKOlarship" <${process.env.EMAIL_USER || 'noreply@iskolarship.ph'}>`,
     to: email,
@@ -303,8 +268,8 @@ const sendOTPEmail = async (email, otp, firstName) => {
     html: getOTPEmailHTML(otp, firstName),
   };
 
-  if (!transport) {
-    // Fallback: log to console when no email service configured
+  // Check if email credentials are configured
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.log('');
     console.log('╔═══════════════════════════════════════════════════════╗');
     console.log('║              📧 OTP CODE (No email configured)       ║');
@@ -320,8 +285,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
   }
 
   try {
-    const info = await withTimeout(transport.sendMail(mailOptions), 20000, 'OTP email send');
-    console.log(`📧 OTP email sent to ${email} (messageId: ${info.messageId})`);
+    await sendViaGmailSMTP(mailOptions);
     return true;
   } catch (error) {
     console.error('❌ Failed to send OTP email:', error.message);
@@ -329,7 +293,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
       console.error('   → Authentication failed. Your EMAIL_PASS is likely wrong.');
       console.error('   → For Gmail, use an App Password: https://myaccount.google.com/apppasswords');
     }
-    // Still log the OTP so login isn't completely blocked during development
+    // Log OTP as fallback so login isn't completely blocked
     console.log(`📧 FALLBACK — OTP for ${email}: ${otp}`);
     return false;
   }
@@ -346,8 +310,6 @@ const sendVerificationEmail = async (email, token, firstName) => {
   const frontendUrl = process.env.FRONTEND_URL || 'https://iskolarship.vercel.app';
   const verifyUrl = `${frontendUrl}/verify-email?token=${token}`;
 
-  const transport = await getTransporter();
-
   const mailOptions = {
     from: `"ISKOlarship" <${process.env.EMAIL_USER || 'noreply@iskolarship.ph'}>`,
     to: email,
@@ -355,7 +317,7 @@ const sendVerificationEmail = async (email, token, firstName) => {
     html: getVerificationEmailHTML(verifyUrl, firstName),
   };
 
-  if (!transport) {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     console.log('═══════════════════════════════════════');
     console.log(`📧 Verification Email (console fallback)`);
     console.log(`   To: ${email}`);
@@ -365,8 +327,7 @@ const sendVerificationEmail = async (email, token, firstName) => {
   }
 
   try {
-    await withTimeout(transport.sendMail(mailOptions), 20000, 'Verification email send');
-    console.log(`📧 Verification email sent to ${email}`);
+    await sendViaGmailSMTP(mailOptions);
     return true;
   } catch (error) {
     console.error('❌ Failed to send verification email:', error.message);
