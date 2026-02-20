@@ -18,12 +18,10 @@ const UserRole = {
 
 // Classification from ERD (year level/standing)
 const Classification = {
-  INCOMING_FRESHMAN: 'Incoming Freshman',
   FRESHMAN: 'Freshman',
   SOPHOMORE: 'Sophomore',
   JUNIOR: 'Junior',
-  SENIOR: 'Senior',
-  GRADUATE: 'Graduate'
+  SENIOR: 'Senior'
 };
 
 // Alias for backward compatibility
@@ -192,6 +190,9 @@ const userSchema = new mongoose.Schema({
   }],
   
   lastLoginAt: Date,
+  
+  // Track when password was last changed (for reset token invalidation)
+  passwordChangedAt: Date,
   
   // =========================================================================
   // STUDENT Entity Fields (from ERD - IS A relationship with USER)
@@ -394,6 +395,7 @@ const userSchema = new mongoose.Schema({
         ]
       },
       filePath: String, // Relative path to uploaded file (e.g., 'documents/userId/filename.pdf')
+      cloudinaryPublicId: String, // Cloudinary public_id for deletion
       fileName: String, // Original filename
       fileSize: Number, // File size in bytes
       mimeType: String, // MIME type (e.g., 'application/pdf', 'image/jpeg')
@@ -401,8 +403,8 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
       },
-      // Legacy field for backward compatibility (deprecated)
-      url: String // Old base64 data - will be gradually phased out
+      // URL field — now stores Cloudinary secure_url
+      url: String
     }],
     
     // =====================================================================
@@ -541,6 +543,8 @@ const userSchema = new mongoose.Schema({
         ]
       },
       filePath: String,
+      cloudinaryPublicId: String, // Cloudinary public_id for deletion
+      url: String, // Cloudinary secure_url
       fileName: String,
       fileSize: Number,
       mimeType: String,
@@ -791,6 +795,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.getPublicProfile = function() {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.refreshTokens;
   return obj;
 };
 

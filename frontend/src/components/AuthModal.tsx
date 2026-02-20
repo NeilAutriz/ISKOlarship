@@ -14,7 +14,6 @@ interface AuthModalProps {
   onVerifyOTP: (email: string, otp: string, role: 'student' | 'admin') => Promise<void>;
   onResendOTP: (email: string) => Promise<void>;
   onSignUp: (email: string, password: string, role: 'student' | 'admin') => void | Promise<void>;
-  onDemoLogin: () => void;
 }
 
 type UserRole = 'student' | 'admin';
@@ -28,7 +27,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onVerifyOTP,
   onResendOTP,
   onSignUp,
-  onDemoLogin
 }) => {
   const [role, setRole] = useState<UserRole>('student');
   const [tab, setTab] = useState<AuthTab>('signin');
@@ -561,28 +559,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
               )}
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-slate-500">or</span>
-            </div>
-          </div>
-
-          {/* Demo Login */}
-          <button
-            onClick={() => {
-              onDemoLogin();
-              onClose();
-            }}
-            className="w-full py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-          >
-            <User className="w-4 h-4" />
-            Continue with Demo Account
-          </button>
 
           {/* Footer */}
           <p className="text-center text-sm text-slate-500 mt-4">

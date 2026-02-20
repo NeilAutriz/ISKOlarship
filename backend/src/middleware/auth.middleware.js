@@ -130,14 +130,15 @@ const requireRole = (...allowedRoles) => {
 
 /**
  * Admin access level middleware
- * @param {string} requiredLevel - Minimum access level required
+ * Checks if admin has sufficient scope level in the hierarchy:
+ *   university (highest) > college > academic_unit (lowest)
+ * @param {string} requiredLevel - Minimum access level required ('university', 'college', or 'academic_unit')
  */
 const requireAdminLevel = (requiredLevel) => {
   const levelHierarchy = {
-    [AdminAccessLevel.VIEWER]: 0,
-    [AdminAccessLevel.REVIEWER]: 1,
-    [AdminAccessLevel.MANAGER]: 2,
-    [AdminAccessLevel.SUPER_ADMIN]: 3
+    [AdminAccessLevel.ACADEMIC_UNIT]: 0,
+    [AdminAccessLevel.COLLEGE]: 1,
+    [AdminAccessLevel.UNIVERSITY]: 2
   };
 
   return (req, res, next) => {
@@ -155,14 +156,14 @@ const requireAdminLevel = (requiredLevel) => {
       });
     }
 
-    const userLevel = req.user.adminProfile?.accessLevel || AdminAccessLevel.VIEWER;
-    const userLevelValue = levelHierarchy[userLevel];
-    const requiredLevelValue = levelHierarchy[requiredLevel];
+    const userLevel = req.user.adminProfile?.accessLevel || AdminAccessLevel.ACADEMIC_UNIT;
+    const userLevelValue = levelHierarchy[userLevel] ?? 0;
+    const requiredLevelValue = levelHierarchy[requiredLevel] ?? 0;
 
     if (userLevelValue < requiredLevelValue) {
       return res.status(403).json({
         success: false,
-        message: `Access denied. ${requiredLevel} level or higher required.`
+        message: `Access denied. ${requiredLevel}-level access or higher required.`
       });
     }
 
@@ -206,6 +207,17 @@ const requireOwnerOrAdmin = (getResourceOwnerId) => {
  * Rate limiting for sensitive operations
  */
 const rateLimitMap = new Map();
+
+// Periodically clean up expired rate limit entries to prevent memory leaks
+const RATE_LIMIT_CLEANUP_INTERVAL = 60 * 1000; // every 60 seconds
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of rateLimitMap) {
+    if (now > record.resetTime) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, RATE_LIMIT_CLEANUP_INTERVAL).unref(); // unref so it doesn't keep process alive
 
 const rateLimit = (maxRequests, windowMs) => {
   return (req, res, next) => {

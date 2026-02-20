@@ -164,7 +164,6 @@ export const predictScholarshipSuccessAsync = async (
         };
       }
     } catch (error) {
-      console.log('API prediction unavailable, trying local with dynamic weights');
     }
     
     // Try to get trained model weights for local prediction

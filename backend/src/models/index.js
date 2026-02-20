@@ -11,7 +11,6 @@ const {
   Classification, 
   Citizenship,
   UPLBCollege,
-  UPLBCourse, 
   STBracket, 
   AdminAccessLevel,
   PhilippineProvinces 
@@ -26,8 +25,7 @@ const {
 
 const { 
   Application, 
-  ApplicationStatus,
-  ApplicationType 
+  ApplicationStatus
 } = require('./Application.model');
 
 const { PlatformStats } = require('./PlatformStats.model');
@@ -48,7 +46,6 @@ module.exports = {
   Classification,   // ERD-aligned classification
   Citizenship,      // ERD field
   UPLBCollege,
-  UPLBCourse,
   STBracket,
   AdminAccessLevel,
   PhilippineProvinces,
@@ -59,6 +56,5 @@ module.exports = {
   ScholarshipStatus,
   
   // Application Enums
-  ApplicationStatus,
-  ApplicationType
+  ApplicationStatus
 };

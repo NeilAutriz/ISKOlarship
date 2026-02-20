@@ -98,7 +98,6 @@ const AdminScholarships: React.FC = () => {
         // Fetch scholarships using admin endpoint (scope-filtered)
         const response = await scholarshipApi.getAdminList({ limit: 100, includeExpired: true });
         if (isMounted && response.success && response.data?.scholarships) {
-          console.log(`📋 Loaded ${response.data.scholarships.length} scholarships for admin scope`);
           setScholarships(response.data.scholarships.map((s: any) => {
             const amount = s.awardAmount ?? s.totalGrant ?? 0;
             return {
@@ -126,7 +125,6 @@ const AdminScholarships: React.FC = () => {
           }
         } else if (isMounted) {
           // Admin endpoint returned but with no scholarships - this is valid (admin has no scholarships in scope)
-          console.log('📋 No scholarships found in admin scope');
           setScholarships([]);
         }
       } catch (error) {

@@ -14,12 +14,10 @@ const MODEL_VERSION = '3.0.0';
  * Maps canonical classification values to normalized values (0-1)
  */
 const YEAR_LEVEL_MAP = {
-  'Incoming Freshman': 0.1,
-  'Freshman': 0.2,
-  'Sophomore': 0.4,
-  'Junior': 0.6,
-  'Senior': 0.8,
-  'Graduate': 1.0
+  'Freshman': 0.25,
+  'Sophomore': 0.5,
+  'Junior': 0.75,
+  'Senior': 1.0
 };
 
 /**

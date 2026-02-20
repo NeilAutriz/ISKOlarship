@@ -97,7 +97,7 @@ const collegeData = {
 };
 
 // Year levels
-const yearLevels = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
+const yearLevels = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
 
 // ST Brackets with income ranges
 const stBrackets = [
@@ -174,8 +174,6 @@ function generateGWA(yearLevel) {
       mean = 2.25; std = 0.5; break;
     case 'Senior':
       mean = 2.3; std = 0.55; break;
-    case 'Graduate':
-      mean = 1.6; std = 0.3; break;  // Graduate students typically have better grades
     default:
       mean = 2.25; std = 0.5;
   }
@@ -327,8 +325,8 @@ function generateStudentProfile(scholarshipCriteria = {}) {
                  Math.floor(randomInRange(36, 60)),
     householdSize: Math.floor(randomInRange(3, 8)),
     hasExistingScholarship: Math.random() < 0.15,
-    hasThesisGrant: yearLevel === 'Senior' || yearLevel === 'Graduate' ? Math.random() < 0.1 : false,
-    hasApprovedThesisOutline: (yearLevel === 'Senior' || yearLevel === 'Graduate') && Math.random() < 0.3,
+    hasThesisGrant: yearLevel === 'Senior' ? Math.random() < 0.1 : false,
+    hasApprovedThesisOutline: yearLevel === 'Senior' && Math.random() < 0.3,
     hasDisciplinaryAction: Math.random() < 0.02,
     hasFailingGrade: Math.random() < 0.05
   };

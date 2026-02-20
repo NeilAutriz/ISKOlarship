@@ -86,9 +86,7 @@ const YEAR_LEVEL_MAP = {
   'FRESHMAN': 'Freshman',
   'SOPHOMORE': 'Sophomore',
   'JUNIOR': 'Junior',
-  'SENIOR': 'Senior',
-  'GRADUATE': 'Graduate',
-  'INCOMING FRESHMAN': 'Incoming Freshman'
+  'SENIOR': 'Senior'
 };
 
 /**

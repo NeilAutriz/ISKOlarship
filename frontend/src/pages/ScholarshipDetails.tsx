@@ -235,7 +235,6 @@ const ScholarshipDetails: React.FC = () => {
           });
         }
       } catch (error) {
-        console.log('API prediction unavailable, using local fallback:', error);
         // Fallback to local prediction
         const localPrediction = predictScholarshipSuccess(studentUser, scholarship);
         if (isMounted) {
@@ -1074,7 +1073,6 @@ const ScholarshipDetails: React.FC = () => {
                     Sign In to Apply
                   </button>
                 )}
-
 
               </div>
             </div>

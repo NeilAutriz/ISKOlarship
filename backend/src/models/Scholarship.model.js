@@ -54,14 +54,18 @@ const ScholarshipStatus = {
 const eligibilityCriteriaSchema = new mongoose.Schema({
   // =========================================================================
   // Academic Requirements (from ERD)
+  // UPLB GWA Scale: 1.0 (highest/best) to 5.0 (lowest/worst)
   // =========================================================================
   
-  // eligible_gwa (from ERD) - Minimum GWA required
+  // Best GWA bound (e.g., 1.0 = no restriction on how good the GWA can be)
+  // Used only for elite scholarships like Dean's List
   minGWA: {
     type: Number,
     min: 1.0,
     max: 5.0
   },
+  // Required GWA threshold — student's GWA must be ≤ this value to qualify
+  // e.g., maxGWA: 2.0 means "must have GWA of 2.0 or better (lower)"
   maxGWA: {
     type: Number,
     min: 1.0,
@@ -516,16 +520,12 @@ scholarshipSchema.index({ scholarshipLevel: 1, managingCollegeCode: 1, managingA
 // =============================================================================
 
 scholarshipSchema.pre('save', function(next) {
-  console.log('🔄 Scholarship pre-save hook running...');
-  console.log('  - managingCollegeCode:', this.managingCollegeCode);
-  console.log('  - managingAcademicUnitCode:', this.managingAcademicUnitCode);
   
   // Auto-populate legacy managingCollege from managingCollegeCode
   if (this.managingCollegeCode) {
     const collegeInfo = getCollegeByCode(this.managingCollegeCode);
     if (collegeInfo) {
       this.managingCollege = collegeInfo.name;
-      console.log('  ✅ Set managingCollege to:', this.managingCollege);
     }
   } else {
     this.managingCollege = null;
@@ -538,9 +538,7 @@ scholarshipSchema.pre('save', function(next) {
     }
     // Look up the full name from UPLBStructure
     const deptInfo = getDepartmentByCode(this.managingAcademicUnitCode);
-    console.log('  📚 getDepartmentByCode result:', deptInfo);
     this.managingAcademicUnit = deptInfo ? deptInfo.name : this.managingAcademicUnitCode;
-    console.log('  ✅ Set managingAcademicUnit to:', this.managingAcademicUnit);
   } else {
     this.managingAcademicUnit = null;
   }
@@ -610,8 +608,10 @@ scholarshipSchema.methods.getEligibilitySummary = function() {
   const criteria = this.eligibilityCriteria;
   const summary = [];
   
-  if (criteria.minGWA) {
-    summary.push(`Minimum GWA: ${criteria.minGWA.toFixed(2)} or better`);
+  if (criteria.minGWA && criteria.minGWA > 1.0) {
+    summary.push(`GWA Range: ${criteria.minGWA.toFixed(2)} to ${(criteria.maxGWA || 5.0).toFixed(2)}`);
+  } else if (criteria.maxGWA && criteria.maxGWA < 5.0) {
+    summary.push(`Required GWA: ${criteria.maxGWA.toFixed(2)} or better`);
   }
   if (criteria.eligibleClassifications?.length) {
     summary.push(`Year Level: ${criteria.eligibleClassifications.join(', ')}`);

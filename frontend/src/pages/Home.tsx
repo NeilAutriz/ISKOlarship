@@ -30,6 +30,26 @@ import {
 import { scholarshipApi, statisticsApi } from '../services/apiClient';
 import { Scholarship } from '../types';
 
+// Animated counter hook (must be at module scope, not inside a component)
+const useCounter = (end: number, duration: number = 2000) => {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    let start = 0;
+    const increment = end / (duration / 16);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= end) {
+        setCount(end);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(start));
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [end, duration]);
+  return count;
+};
+
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, openAuthModal } = useAuth();
@@ -39,7 +59,8 @@ const Home: React.FC = () => {
   const [stats, setStats] = useState({
     totalScholarships: 0,
     totalFunding: 0,
-    activeStudents: 500
+    activeStudents: 0,
+    successRate: 0
   });
 
   // Fetch data from API
@@ -53,7 +74,7 @@ const Home: React.FC = () => {
           setStats(prev => ({
             ...prev,
             totalScholarships: scholarshipRes.data.scholarships.length,
-            totalFunding: scholarshipRes.data.scholarships.reduce((sum: number, s: Scholarship) => sum + (s.awardAmount || 0), 0)
+            totalFunding: scholarshipRes.data.scholarships.reduce((sum: number, s: Scholarship) => sum + (s.totalGrant || s.awardAmount || 0), 0)
           }));
         }
         
@@ -63,7 +84,8 @@ const Home: React.FC = () => {
           if (statsRes.success && statsRes.data) {
             setStats(prev => ({
               ...prev,
-              activeStudents: statsRes.data.overview?.totalStudents || 500
+              activeStudents: statsRes.data.overview?.totalStudents || 0,
+              successRate: statsRes.data.overview?.successRate ?? 0
             }));
           }
         } catch {
@@ -76,26 +98,6 @@ const Home: React.FC = () => {
 
     fetchData();
   }, []);
-
-  // Animated counter hook
-  const useCounter = (end: number, duration: number = 2000) => {
-    const [count, setCount] = useState(0);
-    useEffect(() => {
-      let start = 0;
-      const increment = end / (duration / 16);
-      const timer = setInterval(() => {
-        start += increment;
-        if (start >= end) {
-          setCount(end);
-          clearInterval(timer);
-        } else {
-          setCount(Math.floor(start));
-        }
-      }, 16);
-      return () => clearInterval(timer);
-    }, [end, duration]);
-    return count;
-  };
 
   // Featured scholarships (top 6)
   const featuredScholarships = scholarships.slice(0, 6);
@@ -192,7 +194,7 @@ const Home: React.FC = () => {
                   ))}
                 </div>
                 <div>
-                  <div className="font-bold text-lg">500+ Students</div>
+                  <div className="font-bold text-lg">{stats.activeStudents > 0 ? `${stats.activeStudents}+` : ''} Students</div>
                   <div className="text-white/70 text-sm">Active Users</div>
                 </div>
                 <div className="h-10 w-px bg-white/30" />
@@ -202,7 +204,7 @@ const Home: React.FC = () => {
                       <Star key={i} className="w-4 h-4 text-gold-400 fill-gold-400" />
                     ))}
                   </div>
-                  <span className="text-sm text-white/70">4.9/5 Rating</span>
+                  <span className="text-sm text-white/70">UPLB Scholars</span>
                 </div>
               </div>
             </div>
@@ -214,7 +216,7 @@ const Home: React.FC = () => {
                 <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-4">
                   <Users className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-3xl font-bold text-white">500+</div>
+                <div className="text-3xl font-bold text-white">{stats.activeStudents > 0 ? `${stats.activeStudents}+` : '—'}</div>
                 <div className="text-white/70">Active Students</div>
               </div>
 
@@ -232,7 +234,7 @@ const Home: React.FC = () => {
                 <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-4">
                   <span className="text-white font-bold text-xl">₱</span>
                 </div>
-                <div className="text-3xl font-bold text-white">₱15M+</div>
+                <div className="text-3xl font-bold text-white">{stats.totalFunding > 0 ? `₱${(stats.totalFunding / 1000000).toFixed(1)}M+` : '—'}</div>
                 <div className="text-white/70">Total Awards</div>
               </div>
 
@@ -241,7 +243,7 @@ const Home: React.FC = () => {
                 <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-4">
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-3xl font-bold text-white">85%</div>
+                <div className="text-3xl font-bold text-white">{stats.successRate > 0 ? `${Math.round(stats.successRate)}%` : '—'}</div>
                 <div className="text-white/70">Success Rate</div>
               </div>
             </div>
@@ -332,7 +334,7 @@ const Home: React.FC = () => {
                     <Award className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-slate-900">85%</div>
+                    <div className="text-2xl font-bold text-slate-900">{stats.successRate > 0 ? `${Math.round(stats.successRate)}%` : '—'}</div>
                     <div className="text-sm text-slate-500">Match Accuracy</div>
                   </div>
                 </div>
@@ -344,7 +346,7 @@ const Home: React.FC = () => {
                     <Users className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <div className="text-xl font-bold text-slate-900">500+</div>
+                    <div className="text-xl font-bold text-slate-900">{stats.activeStudents > 0 ? `${stats.activeStudents}+` : '—'}</div>
                     <div className="text-xs text-slate-500">Active Students</div>
                   </div>
                 </div>

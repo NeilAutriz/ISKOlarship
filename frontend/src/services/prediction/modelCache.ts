@@ -64,7 +64,6 @@ export const validateTrainedWeights = (
   }
   
   if (adjustments.length > 0) {
-    console.log('⚡ Adjusted negative weights:', adjustments);
   }
   
   return {
@@ -119,8 +118,6 @@ export const fetchModelWeights = async (scholarshipId?: string): Promise<ModelWe
       if (validationResult) {
         const { weights, isAdjusted } = validationResult;
         
-        console.log(`✅ Loaded ${isAdjusted ? 'adjusted' : 'trained'} ${scholarshipId ? 'scholarship-specific' : 'global'} model weights`);
-        
         // Cache the validated weights
         modelWeightsCache.set(cacheKey, weights);
         cacheExpiry.set(cacheKey, Date.now() + CACHE_TTL);
@@ -128,7 +125,6 @@ export const fetchModelWeights = async (scholarshipId?: string): Promise<ModelWe
         return weights;
       } else {
         // Model failed validation
-        console.log('⚠️ Model failed validation');
         return null;
       }
     }

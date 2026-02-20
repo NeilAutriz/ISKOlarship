@@ -9,7 +9,7 @@ const { Scholarship } = require('../models/Scholarship.model');
 const { User } = require('../models/User.model');
 const { Application } = require('../models/Application.model');
 const { PlatformStats } = require('../models/PlatformStats.model');
-const { optionalAuth } = require('../middleware/auth.middleware');
+const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
 
 // =============================================================================
 // Platform Statistics
@@ -55,7 +55,7 @@ router.get('/overview', async (req, res) => {
       { 
         $group: { 
           _id: null, 
-          totalAmount: { $sum: '$awardAmount' },
+          totalAmount: { $sum: '$totalGrant' },
           totalSlots: { $sum: '$slots' }
         } 
       }
@@ -63,7 +63,7 @@ router.get('/overview', async (req, res) => {
 
     // Scholarship type distribution
     const typeDistribution = await Scholarship.aggregate([
-      { $group: { _id: '$type', count: { $sum: 1 }, totalAmount: { $sum: '$awardAmount' } } },
+      { $group: { _id: '$type', count: { $sum: 1 }, totalAmount: { $sum: '$totalGrant' } } },
       { $sort: { count: -1 } }
     ]);
 
@@ -115,9 +115,9 @@ router.get('/overview', async (req, res) => {
 /**
  * @route   GET /api/statistics/trends
  * @desc    Get application trends over time
- * @access  Public
+ * @access  Admin
  */
-router.get('/trends', async (req, res) => {
+router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     // Applications by academic year
     const yearlyTrends = await Application.aggregate([
@@ -211,9 +211,9 @@ router.get('/trends', async (req, res) => {
 /**
  * @route   GET /api/statistics/scholarships
  * @desc    Get scholarship-specific statistics
- * @access  Public
+ * @access  Admin
  */
-router.get('/scholarships', async (req, res) => {
+router.get('/scholarships', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     // Top scholarships by application count
     const topByApplications = await Application.aggregate([
@@ -257,13 +257,13 @@ router.get('/scholarships', async (req, res) => {
     // Scholarships by funding amount
     const byFunding = await Scholarship.aggregate([
       { $match: { isActive: true } },
-      { $sort: { awardAmount: -1 } },
+      { $sort: { totalGrant: -1 } },
       { $limit: 10 },
       {
         $project: {
           name: 1,
           type: 1,
-          awardAmount: 1,
+          totalGrant: 1,
           sponsor: 1,
           slots: 1
         }
@@ -299,9 +299,9 @@ router.get('/scholarships', async (req, res) => {
 /**
  * @route   GET /api/statistics/prediction-accuracy
  * @desc    Get prediction model accuracy statistics
- * @access  Public
+ * @access  Admin
  */
-router.get('/prediction-accuracy', async (req, res) => {
+router.get('/prediction-accuracy', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     // Get applications with predictions that have final outcomes
     const applicationsWithPredictions = await Application.find({
@@ -363,9 +363,9 @@ router.get('/prediction-accuracy', async (req, res) => {
 /**
  * @route   GET /api/statistics/analytics
  * @desc    Get comprehensive analytics data for the Analytics page
- * @access  Public
+ * @access  Admin
  */
-router.get('/analytics', async (req, res) => {
+router.get('/analytics', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     // Get cached platform stats
     const platformStats = await PlatformStats.findOne({ recordType: 'current' });
@@ -379,7 +379,7 @@ router.get('/analytics', async (req, res) => {
       const uniqueScholars = await Application.distinct('applicant', { status: 'approved' });
       
       const fundingStats = await Scholarship.aggregate([
-        { $group: { _id: null, total: { $sum: '$awardAmount' } } }
+        { $group: { _id: null, total: { $sum: '$totalGrant' } } }
       ]);
       
       return res.json({

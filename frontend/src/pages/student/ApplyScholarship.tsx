@@ -150,10 +150,8 @@ const ApplyScholarship: React.FC = () => {
 
         // Check if scholarship has custom required documents
         if (scholarshipData.requiredDocuments && scholarshipData.requiredDocuments.length > 0) {
-          console.log('📄 Scholarship required documents:', scholarshipData.requiredDocuments);
           // Use scholarship-specific required documents
           scholarshipData.requiredDocuments.forEach((doc: any) => {
-            console.log('📋 Processing document:', doc.name, 'fileType:', doc.fileType);
             // Map document name to type
             let docType = 'other';
             const docNameLower = doc.name.toLowerCase();
@@ -456,7 +454,6 @@ const ApplyScholarship: React.FC = () => {
       // Save custom field values to student profile if any were filled
       if (Object.keys(customFieldValues).length > 0) {
         try {
-          console.log('💾 Saving custom fields to profile:', customFieldValues);
           await userApi.updateProfile({
             studentProfile: {
               customFields: customFieldValues
@@ -507,10 +504,6 @@ const ApplyScholarship: React.FC = () => {
           formDataToSend.append('textDocuments', JSON.stringify(textDocuments));
         }
 
-        console.log('📝 Updating application with FormData');
-        console.log('📄 Kept existing doc IDs:', keptDocIds);
-        console.log('📄 New file document count:', formData.documents.filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text').length);
-
         const response = await applicationApi.update(applicationId!, formDataToSend);
 
         if (response.success) {
@@ -546,11 +539,6 @@ const ApplyScholarship: React.FC = () => {
         if (textDocuments.length > 0) {
           formDataToSend.append('textDocuments', JSON.stringify(textDocuments));
         }
-
-        console.log('📝 Submitting application with FormData');
-        console.log('📄 File document count:', formData.documents.filter(doc => doc.uploaded && doc.file && doc.allowedFileType !== 'text').length);
-        console.log('📄 Text document count:', textDocuments.length);
-        console.log('📋 Custom field answers:', customFieldValues);
 
         // Create the application
         const response = await applicationApi.create(formDataToSend);

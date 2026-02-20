@@ -11,12 +11,10 @@ import { FeatureVector } from './types';
 // ============================================================================
 
 export const yearLevelToNumeric: Record<YearLevel, number> = {
-  [YearLevel.INCOMING_FRESHMAN]: 0,
   [YearLevel.FRESHMAN]: 1,
   [YearLevel.SOPHOMORE]: 2,
   [YearLevel.JUNIOR]: 3,
-  [YearLevel.SENIOR]: 4,
-  [YearLevel.GRADUATE]: 5
+  [YearLevel.SENIOR]: 4
 };
 
 export const stBracketToNumeric: Record<STBracket, number> = {

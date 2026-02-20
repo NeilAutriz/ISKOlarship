@@ -88,8 +88,7 @@ const formatYearLevel = (classification: string): string => {
     'freshman': '1st Year',
     'sophomore': '2nd Year',
     'junior': '3rd Year',
-    'senior': '4th Year',
-    'graduate': 'Graduate'
+    'senior': '4th Year'
   };
   return yearMap[classification.toLowerCase()] || classification;
 };
@@ -98,13 +97,13 @@ const formatYearLevel = (classification: string): string => {
 const getSTBracketDisplay = (bracket?: string): string => {
   if (!bracket) return 'Not Set';
   const bracketMap: Record<string, string> = {
-    'FDS': 'Full Discount with Stipend',
-    'FD': 'Full Discount',
+    'Full Discount with Stipend': 'Full Discount with Stipend',
+    'Full Discount': 'Full Discount',
     'PD80': '80% Partial Discount',
     'PD60': '60% Partial Discount',
     'PD40': '40% Partial Discount',
     'PD20': '20% Partial Discount',
-    'ND': 'No Discount'
+    'No Discount': 'No Discount'
   };
   return bracketMap[bracket] || bracket;
 };
@@ -170,7 +169,6 @@ const StudentProfile: React.FC = () => {
           
           // Load documents from profile
           if (profileData.studentProfile?.documents) {
-            console.log('📚 Documents from API:', profileData.studentProfile.documents);
             setDocuments(profileData.studentProfile.documents as any);
           }
         } else {
@@ -191,66 +189,41 @@ const StudentProfile: React.FC = () => {
     fetchProfile();
   }, []);
 
-  // Load document preview with authentication
+  // Load document preview with authentication (backend streams file from Cloudinary)
   const loadDocumentPreview = async (document: Document) => {
     try {
       setLoadingPreview(true);
       
-      // Get token from localStorage
       const token = localStorage.getItem('accessToken');
-      console.log('🔑 Token exists:', !!token);
-      console.log('📄 Document to load:', JSON.stringify(document, null, 2));
-      
       if (!token) {
-        console.error('❌ No access token found');
         alert('Authentication required. Please log in again.');
         return;
       }
 
-      // Fetch document with auth header
-      const url = `${API_SERVER_URL}/api/users/documents/${document._id}`;
-      console.log('🌐 Fetching from:', url);
-      
-      const response = await fetch(url, {
+      // Fetch the file content streamed through the backend
+      const response = await fetch(`${API_SERVER_URL}/api/users/documents/${document._id}`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': '*/*'
-        },
-        credentials: 'include'
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      console.log('📡 Response status:', response.status, response.statusText);
-      
       if (!response.ok) {
-        const contentType = response.headers.get('content-type');
-        let errorMessage = `Server returned ${response.status}`;
-        
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          console.error('❌ Error response:', errorData);
-          errorMessage = errorData.message || errorMessage;
-        } else {
-          const errorText = await response.text();
-          console.error('❌ Error response text:', errorText);
-          errorMessage = errorText || errorMessage;
-        }
-        
-        throw new Error(errorMessage);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server returned ${response.status}`);
       }
 
-      // Convert to blob and create object URL
-      const blob = await response.blob();
-      console.log('📦 Blob created:', blob.size, 'bytes, type:', blob.type);
-      
+      const responseBlob = await response.blob();
+      // Explicitly type the blob so the PDF viewer recognises the format
+      const contentType = response.headers.get('content-type') || document.mimeType || 'application/octet-stream';
+      const blob = new Blob([responseBlob], { type: contentType });
       const blobUrl = URL.createObjectURL(blob);
-      console.log('✅ Blob URL created:', blobUrl);
-      
+
       setPreviewUrl(blobUrl);
       setPreviewDoc(document);
       setIsPreviewOpen(true);
     } catch (error: any) {
-      console.error('❌ Preview load error:', error);
+      console.error('Preview load error:', error);
       alert(`Failed to load document preview: ${error.message}`);
     } finally {
       setLoadingPreview(false);
@@ -274,15 +247,14 @@ const StudentProfile: React.FC = () => {
         return;
       }
 
+      // Get the file from the backend (streams from Cloudinary)
       const response = await fetch(`${API_SERVER_URL}/api/users/documents/${doc._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to download document');
-      }
+      if (!response.ok) throw new Error('Failed to download document');
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -871,7 +843,6 @@ const StudentProfile: React.FC = () => {
                         <option value="Sophomore">Sophomore</option>
                         <option value="Junior">Junior</option>
                         <option value="Senior">Senior</option>
-                        <option value="Graduate">Graduate</option>
                       </select>
                     </div>
                     <div>
@@ -1139,7 +1110,6 @@ const StudentProfile: React.FC = () => {
                       }
                     };
 
-                    console.log('Updating profile with:', updateData);
                     const response = await userApi.updateProfile(updateData);
                     
                     if (response.success) {
@@ -1218,11 +1188,18 @@ const StudentProfile: React.FC = () => {
                 </div>
               ) : previewUrl ? (
                 previewDoc.mimeType === 'application/pdf' ? (
-                  <iframe
-                    src={previewUrl}
+                  <object
+                    data={previewUrl}
+                    type="application/pdf"
                     className="w-full h-[600px] border-0 rounded-lg"
-                    title={previewDoc.fileName}
-                  />
+                    aria-label={previewDoc.fileName}
+                  >
+                    <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
+                      <FileText className="w-12 h-12" />
+                      <p>PDF preview not available in this browser.</p>
+                      <button onClick={() => handleDownloadDocument(previewDoc)} className="px-4 py-2 bg-primary-600 text-white rounded-lg">Download PDF</button>
+                    </div>
+                  </object>
                 ) : (
                   <img
                     src={previewUrl}

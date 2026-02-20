@@ -41,16 +41,17 @@ export enum ConditionCategory {
 // ============================================================================
 
 export const ST_BRACKET_MAP: Record<string, string> = {
-  'FDS': 'Full Discount with Stipend',
-  'FD': 'Full Discount',
+  'Full Discount with Stipend': 'Full Discount with Stipend',
+  'Full Discount': 'Full Discount',
   'PD80': 'PD80',
   'PD60': 'PD60',
   'PD40': 'PD40',
   'PD20': 'PD20',
-  'ND': 'No Discount',
-  'FULL DISCOUNT WITH STIPEND': 'Full Discount with Stipend',
-  'FULL DISCOUNT': 'Full Discount',
-  'NO DISCOUNT': 'No Discount'
+  'No Discount': 'No Discount',
+  // Legacy short code support (for backward compatibility)
+  'FDS': 'Full Discount with Stipend',
+  'FD': 'Full Discount',
+  'ND': 'No Discount'
 };
 
 export const YEAR_LEVEL_MAP: Record<string, string> = {
@@ -62,9 +63,7 @@ export const YEAR_LEVEL_MAP: Record<string, string> = {
   'FRESHMAN': 'Freshman',
   'SOPHOMORE': 'Sophomore',
   'JUNIOR': 'Junior',
-  'SENIOR': 'Senior',
-  'GRADUATE': 'Graduate',
-  'INCOMING FRESHMAN': 'Incoming Freshman'
+  'SENIOR': 'Senior'
 };
 
 export const COLLEGE_CODE_MAP: Record<string, string> = {

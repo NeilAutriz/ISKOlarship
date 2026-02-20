@@ -29,7 +29,6 @@ const { isDepartmentInCollege } = require('../models/UPLBStructure');
  */
 function getScholarshipScopeFilter(user) {
   if (!user || user.role !== 'admin') {
-    console.log('🚫 Non-admin user - returning empty filter');
     return { _id: { $exists: false } }; // Return nothing for non-admins
   }
 
@@ -41,30 +40,19 @@ function getScholarshipScopeFilter(user) {
   const adminCollege = user.adminProfile?.college || null;
   const adminAcademicUnit = user.adminProfile?.academicUnit || null;
 
-  console.log('🔍 ========== ADMIN SCOPE FILTER DEBUG ==========');
-  console.log('🔍 User email:', user.email);
-  console.log('🔍 Admin Level:', adminLevel);
-  console.log('🔍 CollegeCode:', adminCollegeCode);
-  console.log('🔍 AcademicUnitCode:', adminAcademicUnitCode);
-  console.log('🔍 College (legacy):', adminCollege);
-  console.log('🔍 AcademicUnit (legacy):', adminAcademicUnit);
-
   // STRICT CHECK: If admin level is not explicitly 'university', require proper assignment
   if (!adminLevel) {
-    console.warn('⚠️ Admin has NO accessLevel set - denying access');
     return { _id: { $exists: false } };
   }
 
   switch (adminLevel) {
     case 'university':
       // University admins can see ALL scholarships
-      console.log('✅ University admin - Full access to all scholarships');
       return {};
 
     case 'college':
       // College admins see ONLY college-level scholarships for their college
       if (!adminCollegeCode && !adminCollege) {
-        console.warn('⚠️ College admin without college assignment - denying access');
         return { _id: { $exists: false } };
       }
       
@@ -72,14 +60,11 @@ function getScholarshipScopeFilter(user) {
         scholarshipLevel: 'college',
         managingCollegeCode: adminCollegeCode
       };
-      console.log('✅ College admin filter:', JSON.stringify(collegeFilter));
       return collegeFilter;
 
     case 'academic_unit':
       // Academic Unit admins see ONLY their specific unit's scholarships
       if (!adminCollegeCode || !adminAcademicUnitCode) {
-        console.warn('⚠️ Academic unit admin missing collegeCode or academicUnitCode - denying access');
-        console.warn('  collegeCode:', adminCollegeCode, 'academicUnitCode:', adminAcademicUnitCode);
         return { _id: { $exists: false } };
       }
       
@@ -88,12 +73,10 @@ function getScholarshipScopeFilter(user) {
         managingCollegeCode: adminCollegeCode,
         managingAcademicUnitCode: adminAcademicUnitCode
       };
-      console.log('✅ Academic unit admin filter:', JSON.stringify(unitFilter));
       return unitFilter;
 
     default:
       // Unknown admin level - deny access
-      console.warn('⚠️ Unknown admin level:', adminLevel, '- denying access');
       return { _id: { $exists: false } };
   }
 }
@@ -113,7 +96,6 @@ function getApplicationScopeFilter(user, scholarshipIds = null) {
 
   // If no admin level set, deny access
   if (!adminLevel) {
-    console.warn('⚠️ Application filter: Admin has no accessLevel set');
     return { _id: { $exists: false } };
   }
 
@@ -128,7 +110,6 @@ function getApplicationScopeFilter(user, scholarshipIds = null) {
   }
 
   // If no scholarship IDs provided, return empty result
-  console.warn('⚠️ Application filter: Non-university admin without scholarship IDs');
   return { _id: { $exists: false } };
 }
 
@@ -140,11 +121,6 @@ function attachAdminScope(req, res, next) {
   if (req.user && req.user.role === 'admin') {
     const adminProfile = req.user.adminProfile || {};
     const accessLevel = adminProfile.accessLevel;
-    
-    console.log('📎 Attaching admin scope for:', req.user.email);
-    console.log('📎 Access level:', accessLevel);
-    console.log('📎 College code:', adminProfile.collegeCode);
-    console.log('📎 Academic unit code:', adminProfile.academicUnitCode);
     
     req.adminScope = {
       level: accessLevel || null,
@@ -160,7 +136,6 @@ function attachAdminScope(req, res, next) {
       isAcademicUnitLevel: accessLevel === 'academic_unit'
     };
     
-    console.log('📎 Scholarship filter:', JSON.stringify(req.adminScope.scholarshipFilter));
   }
   next();
 }
@@ -181,7 +156,6 @@ function canManageScholarship(user, scholarship) {
   
   // STRICT: No access level means no access
   if (!adminLevel) {
-    console.warn('⚠️ canManageScholarship: Admin has no accessLevel set');
     return false;
   }
   const adminCollegeCode = user.adminProfile?.collegeCode;
@@ -313,7 +287,6 @@ function canViewScholarship(user, scholarship) {
   
   // STRICT: No access level means no access
   if (!adminLevel) {
-    console.warn('⚠️ canViewScholarship: Admin has no accessLevel set');
     return false;
   }
   const adminCollegeCode = user.adminProfile?.collegeCode;
@@ -373,7 +346,6 @@ function getAdminScopeSummary(user) {
   
   // STRICT: Return minimal info if no access level set
   if (!adminLevel) {
-    console.warn('⚠️ getAdminScopeSummary: Admin has no accessLevel set');
     return {
       level: null,
       levelDisplay: 'Unconfigured Admin',

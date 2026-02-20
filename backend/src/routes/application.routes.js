@@ -9,15 +9,13 @@ const router = express.Router();
 const { body, query, param, validationResult } = require('express-validator');
 const { Application, ApplicationStatus, Scholarship, User } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel, requireOwnerOrAdmin } = require('../middleware/auth.middleware');
-const { uploadApplicationDocuments } = require('../middleware/upload.middleware');
+const { uploadApplicationDocuments, uploadFilesToCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
 const { 
   attachAdminScope, 
   getScholarshipScopeFilter, 
   canManageApplication,
   getAdminScopeSummary 
 } = require('../middleware/adminScope.middleware');
-const path = require('path');
-const fs = require('fs');
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
 
 // =============================================================================
@@ -57,18 +55,16 @@ const statusUpdateValidation = [
  */
 router.get('/my', authMiddleware, async (req, res, next) => {
   try {
-    console.log('📥 Fetching applications for user:', req.user._id);
     const startTime = Date.now();
     
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
 
     const query = { applicant: req.user._id };
     if (status) query.status = status;
 
     const skip = (page - 1) * limit;
-
-    console.log('🔍 Query:', JSON.stringify(query));
-    console.log('📄 Pagination: page', page, 'limit', limit, 'skip', skip);
 
     // Execute query with timeout protection
     const queryTimeout = setTimeout(() => {
@@ -77,7 +73,6 @@ router.get('/my', authMiddleware, async (req, res, next) => {
 
     const [applications, total] = await Promise.all([
       Application.find(query)
-        .select('-documents.url') // Exclude large base64 document URLs from list view
         .populate('scholarship', 'name type sponsor applicationDeadline awardAmount')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -90,7 +85,6 @@ router.get('/my', authMiddleware, async (req, res, next) => {
     clearTimeout(queryTimeout);
     
     const elapsed = Date.now() - startTime;
-    console.log(`✅ Query completed in ${elapsed}ms - Found ${applications.length} applications (total: ${total})`);
 
     // Build applicantSnapshot from current user profile if snapshot is empty
     const userProfile = req.user.studentProfile || {};
@@ -207,10 +201,6 @@ router.post('/',
   applicationValidation, // THEN validate
   async (req, res, next) => {
     try {
-      console.log('📥 Received application request');
-      console.log('📦 Request body:', req.body);
-      console.log('📎 Files:', req.files?.length || 0);
-      console.log('📋 Content-Type:', req.headers['content-type']);
       
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -224,20 +214,6 @@ router.post('/',
 
       const { scholarshipId, personalStatement, additionalInfo, documentNames, documentTypes, customFieldAnswers, textDocuments } = req.body;
       const uploadedFiles = req.files || [];
-
-      console.log('📝 Application Creation Request:');
-      console.log('📤 Files uploaded:', uploadedFiles.length);
-      console.log('📋 Document names:', documentNames);
-      console.log('📋 Document types:', documentTypes);
-      console.log('📋 Custom field answers:', customFieldAnswers);
-      console.log('📋 Text documents:', textDocuments);
-      console.log('🔍 Uploaded files details:', JSON.stringify(uploadedFiles.map(f => ({
-        fieldname: f.fieldname,
-        originalname: f.originalname,
-        filename: f.filename,
-        size: f.size,
-        mimetype: f.mimetype
-      })), null, 2));
 
       // Check if scholarship exists and is open
       const scholarship = await Scholarship.findById(scholarshipId);
@@ -311,18 +287,22 @@ router.post('/',
         hasFailingGrade: profile.hasFailingGrade
       };
 
+      // Upload files to Cloudinary
+      const userId = req.user._id.toString();
+      const cloudinaryResults = await uploadFilesToCloudinary(uploadedFiles, userId);
+
       // Process documents from uploaded files
       const namesArray = Array.isArray(documentNames) ? documentNames : [documentNames].filter(Boolean);
       const typesArray = Array.isArray(documentTypes) ? documentTypes : [documentTypes].filter(Boolean);
       
       const processedDocuments = uploadedFiles.map((file, index) => {
-        const userId = req.user._id.toString();
-        const relativePath = `documents/${userId}/${file.filename}`;
+        const cloudResult = cloudinaryResults[index];
         
         return {
           name: namesArray[index] || 'Uploaded Document',
           documentType: typesArray[index] || 'other',
-          filePath: relativePath,
+          url: cloudResult.url,
+          cloudinaryPublicId: cloudResult.publicId,
           fileName: file.originalname,
           fileSize: file.size,
           mimeType: file.mimetype,
@@ -350,21 +330,11 @@ router.post('/',
         }
       }
 
-      console.log('📄 Processed Documents:', processedDocuments);
-      console.log('📄 Processed Documents Count:', processedDocuments.length);
-
       // Update document flags based on uploaded documents
       const hasTranscript = processedDocuments.some(d => d.documentType === 'transcript');
       const hasIncomeCertificate = processedDocuments.some(d => d.documentType === 'income_certificate');
       const hasCertificateOfRegistration = processedDocuments.some(d => d.documentType === 'certificate_of_registration');
       const hasGradeReport = processedDocuments.some(d => d.documentType === 'grade_report');
-      
-      console.log('📋 Document Flags:', {
-        hasTranscript,
-        hasIncomeCertificate,
-        hasCertificateOfRegistration,
-        hasGradeReport
-      });
 
       // Create application
       const application = new Application({
@@ -383,7 +353,6 @@ router.post('/',
           if (customFieldAnswers) {
             try {
               const parsed = JSON.parse(customFieldAnswers);
-              console.log('📋 Parsed custom field answers:', parsed);
               // Store as plain object instead of Map for better serialization
               return parsed;
             } catch (e) {
@@ -416,11 +385,6 @@ router.post('/',
 
       await application.save();
       
-      console.log('💾 Application saved to database');
-      console.log('💾 Saved documents count:', application.documents.length);
-      console.log('💾 Saved documents:', application.documents);
-      console.log('💾 Saved customFieldAnswers:', application.customFieldAnswers);
-
       res.status(201).json({
         success: true,
         message: 'Application created successfully',
@@ -450,9 +414,6 @@ router.get('/admin/scope',
   requireRole('admin'),
   attachAdminScope,
   (req, res) => {
-    console.log('📋 ========== ADMIN APPLICATION SCOPE REQUEST ==========');
-    console.log('📋 User:', req.user?.email);
-    console.log('📋 Admin Profile:', JSON.stringify(req.user?.adminProfile, null, 2));
     
     const scopeSummary = getAdminScopeSummary(req.user);
     res.json({
@@ -473,9 +434,6 @@ router.get('/admin',
   attachAdminScope,
   async (req, res, next) => {
     try {
-      console.log('📋 ========== ADMIN APPLICATIONS REQUEST ==========');
-      console.log('📋 User:', req.user?.email);
-      console.log('📋 Admin Profile:', JSON.stringify(req.user?.adminProfile, null, 2));
 
       const {
         status,
@@ -491,7 +449,6 @@ router.get('/admin',
       
       // CRITICAL: Check if scope filter denies all access
       if (scholarshipScopeFilter._id && scholarshipScopeFilter._id.$exists === false) {
-        console.log('🚫 Admin scope denies all access - returning empty result');
         return res.json({
           success: true,
           data: {
@@ -508,14 +465,11 @@ router.get('/admin',
         });
       }
       
-      console.log('📋 Scholarship scope filter:', JSON.stringify(scholarshipScopeFilter));
-      
       const accessibleScholarships = await Scholarship.find(scholarshipScopeFilter)
         .select('_id name scholarshipLevel')
         .lean();
       
       const accessibleScholarshipIds = accessibleScholarships.map(s => s._id);
-      console.log('📋 Accessible scholarships:', accessibleScholarshipIds.length);
 
       // Build application query filtered by accessible scholarships
       const query = {
@@ -534,8 +488,6 @@ router.get('/admin',
         query.scholarship = scholarshipId;
       }
 
-      console.log('📋 Final query:', JSON.stringify(query));
-
       const skip = (page - 1) * limit;
       const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
@@ -549,8 +501,6 @@ router.get('/admin',
           .lean(),
         Application.countDocuments(query)
       ]);
-
-      console.log('📋 Results: Found', total, 'applications for', req.user?.email);
 
       // Add permission info to each application
       const enrichedApplications = applications.map(app => ({
@@ -589,7 +539,7 @@ router.get('/admin/review-queue',
   attachAdminScope,
   async (req, res, next) => {
     try {
-      const { limit = 50 } = req.query;
+      const limit = Math.min(parseInt(req.query.limit) || 50, 100);
 
       // Get accessible scholarships for this admin
       const scholarshipScopeFilter = getScholarshipScopeFilter(req.user);
@@ -789,9 +739,6 @@ router.get('/:id',
           message: 'Application not found'
         });
       }
-
-      console.log('📋 Application fetched:', application._id);
-      console.log('📋 customFieldAnswers in fetched application:', application.customFieldAnswers);
 
       // Build applicantSnapshot from populated applicant data if snapshot is empty/missing
       // This ensures existing applications display profile info correctly
@@ -996,7 +943,6 @@ router.put('/:id',
             const prediction = await runPrediction(req.user, scholarship);
             application.prediction = prediction;
           } catch (predErr) {
-            console.warn('⚠️ Prediction failed on edit, keeping existing:', predErr.message);
           }
         }
       }
@@ -1217,6 +1163,7 @@ router.put('/:id/status',
       }
 
       const { status, notes, reason } = req.body;
+      const previousStatus = application.status;
 
       // Update status
       application.updateStatus(status, req.user._id, notes, reason);
@@ -1227,11 +1174,18 @@ router.put('/:id/status',
         application.rejectionReason = reason;
       }
 
-      // If approved, increment scholarship filled slots
-      if (status === ApplicationStatus.APPROVED) {
+      // Handle scholarship filledSlots based on status transitions
+      if (status === ApplicationStatus.APPROVED && previousStatus !== ApplicationStatus.APPROVED) {
+        // Newly approved — increment slots
         await Scholarship.findByIdAndUpdate(
           application.scholarship._id,
           { $inc: { filledSlots: 1 } }
+        );
+      } else if (previousStatus === ApplicationStatus.APPROVED && status !== ApplicationStatus.APPROVED) {
+        // Was approved, now changed to something else — decrement slots
+        await Scholarship.findByIdAndUpdate(
+          application.scholarship._id,
+          { $inc: { filledSlots: -1 } }
         );
       }
 
@@ -1262,13 +1216,6 @@ router.get('/:applicationId/documents/:documentId',
   async (req, res, next) => {
     try {
       const { applicationId, documentId } = req.params;
-      
-      console.log('📥 Application document request:', {
-        applicationId,
-        documentId,
-        requestedBy: req.user.email,
-        role: req.user.role
-      });
 
       // Find the application
       const application = await Application.findById(applicationId)
@@ -1282,14 +1229,7 @@ router.get('/:applicationId/documents/:documentId',
         });
       }
 
-      // Log all documents for debugging
-      console.log('📄 Application documents:', application.documents.map(d => ({
-        id: d._id.toString(),
-        name: d.name,
-        filePath: d.filePath,
-        url: d.url,
-        fileName: d.fileName
-      })));
+
 
       // Check authorization
       const isOwner = application.applicant._id.toString() === req.user._id.toString();
@@ -1306,92 +1246,54 @@ router.get('/:applicationId/documents/:documentId',
       const document = application.documents.id(documentId);
       
       if (!document) {
-        console.log('❌ Document not found in application. Available documents:', 
-          application.documents.map(d => ({ id: d._id.toString(), name: d.name }))
-        );
         return res.status(404).json({
           success: false,
           message: 'Document not found in application'
         });
       }
 
-      // Get the applicant ID for path reconstruction
-      const applicantId = application.applicant._id 
-        ? application.applicant._id.toString() 
-        : application.applicant.toString();
+      // Stream the file from Cloudinary through the backend (avoids CDN 401 for raw files)
+      if ((document.url && document.url.startsWith('http')) || document.cloudinaryPublicId) {
+        const downloadUrl = document.cloudinaryPublicId
+          ? getSignedUrl(document.cloudinaryPublicId, document.mimeType)
+          : document.url;
 
-      // Try multiple methods to find the file
-      let filePath = null;
-      
-      // Method 1: Use stored filePath if available
-      if (document.filePath) {
-        filePath = path.join(__dirname, '../../uploads', document.filePath);
-        console.log('📂 Trying stored filePath:', filePath);
-      }
-      
-      // Method 2: Use stored url if available
-      if (!filePath || !fs.existsSync(filePath)) {
-        if (document.url) {
-          filePath = path.join(__dirname, '../../uploads', document.url);
-          console.log('📂 Trying url field:', filePath);
-        }
-      }
-      
-      // Method 3: Search in applicant's document folder by filename pattern
-      if (!filePath || !fs.existsSync(filePath)) {
-        const userDocFolder = path.join(__dirname, '../../uploads/documents', applicantId);
-        console.log('📂 Searching in user folder:', userDocFolder);
-        
-        if (fs.existsSync(userDocFolder)) {
-          const files = fs.readdirSync(userDocFolder);
-          // Try to find a file that matches the document's original filename
-          const originalName = document.fileName || document.name;
-          const sanitizedName = originalName?.replace(/[^a-zA-Z0-9]/g, '_');
-          
-          const matchingFile = files.find(f => {
-            // Match by containing the original filename pattern
-            return f.includes(sanitizedName) || 
-                   f.toLowerCase().includes(originalName?.toLowerCase().replace(/\s+/g, '_'));
+        // Check if client wants JSON metadata
+        const wantsJson = (req.headers.accept || '').includes('application/json');
+        if (wantsJson) {
+          return res.json({
+            success: true,
+            data: { url: downloadUrl, fileName: document.fileName, mimeType: document.mimeType }
           });
-          
-          if (matchingFile) {
-            filePath = path.join(userDocFolder, matchingFile);
-            console.log('📂 Found matching file:', filePath);
-          } else {
-            // If no exact match, just return the first file as fallback (if only one doc)
-            console.log('📂 Available files in folder:', files);
-          }
         }
-      }
-      
-      // Final check if file exists
-      if (!filePath || !fs.existsSync(filePath)) {
-        console.error('❌ File not found. Tried paths:', {
-          storedFilePath: document.filePath,
-          storedUrl: document.url,
-          applicantFolder: path.join(__dirname, '../../uploads/documents', applicantId),
-          finalPath: filePath
+
+        // Stream the binary content
+        const https = require('https');
+        const { pipeline } = require('stream');
+        res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${document.fileName}"`);
+        https.get(downloadUrl, (upstream) => {
+          if (upstream.statusCode !== 200) {
+            return res.status(502).json({ success: false, message: 'Failed to fetch document from storage' });
+          }
+          if (upstream.headers['content-length']) {
+            res.setHeader('Content-Length', upstream.headers['content-length']);
+          }
+          pipeline(upstream, res, (err) => {
+            if (err) console.error('Stream error:', err.message);
+          });
+        }).on('error', (err) => {
+          console.error('Cloudinary fetch error:', err);
+          res.status(502).json({ success: false, message: 'Failed to fetch document from storage' });
         });
-        return res.status(404).json({
-          success: false,
-          message: 'Document file not found on server'
-        });
+        return;
       }
 
-      console.log('📂 Serving file from:', filePath);
-
-      // Set appropriate headers
-      res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `inline; filename="${document.fileName}"`);
-      if (document.fileSize) {
-        res.setHeader('Content-Length', document.fileSize);
-      }
-
-      // Stream the file
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
-
-      console.log('✅ Application document sent successfully:', document.fileName);
+      // No cloud URL available (legacy data)
+      return res.status(404).json({
+        success: false,
+        message: 'Document file not found – it may have been uploaded before cloud storage was enabled'
+      });
     } catch (error) {
       console.error('❌ Application document download error:', error);
       next(error);

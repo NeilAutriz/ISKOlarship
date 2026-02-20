@@ -113,36 +113,50 @@ router.get('/', filterValidation, optionalAuth, async (req, res, next) => {
       applicationDeadline: { $gte: new Date() }
     };
 
+    // Collect $and conditions for filters that need $or (to avoid overwriting)
+    const andConditions = [];
+
     // Apply filters
     if (type) {
       query.type = type;
     }
 
     if (yearLevel) {
-      query['eligibilityCriteria.requiredYearLevels'] = { 
+      query['eligibilityCriteria.eligibleClassifications'] = { 
         $in: [yearLevel] 
       };
     }
 
     if (college) {
-      query.$or = [
-        { 'eligibilityCriteria.eligibleColleges': { $size: 0 } },
-        { 'eligibilityCriteria.eligibleColleges': { $in: [college] } }
-      ];
+      andConditions.push({
+        $or: [
+          { 'eligibilityCriteria.eligibleColleges': { $size: 0 } },
+          { 'eligibilityCriteria.eligibleColleges': { $in: [college] } }
+        ]
+      });
     }
 
     if (maxIncome) {
-      query.$or = [
-        { 'eligibilityCriteria.maxAnnualFamilyIncome': null },
-        { 'eligibilityCriteria.maxAnnualFamilyIncome': { $gte: parseFloat(maxIncome) } }
-      ];
+      andConditions.push({
+        $or: [
+          { 'eligibilityCriteria.maxAnnualFamilyIncome': null },
+          { 'eligibilityCriteria.maxAnnualFamilyIncome': { $gte: parseFloat(maxIncome) } }
+        ]
+      });
     }
 
     if (minGWA) {
-      query.$or = [
-        { 'eligibilityCriteria.minGWA': null },
-        { 'eligibilityCriteria.minGWA': { $lte: parseFloat(minGWA) } }
-      ];
+      andConditions.push({
+        $or: [
+          { 'eligibilityCriteria.minGWA': null },
+          { 'eligibilityCriteria.minGWA': { $lte: parseFloat(minGWA) } }
+        ]
+      });
+    }
+
+    // Combine all $or conditions using $and to prevent overwriting
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     // Text search
@@ -259,8 +273,8 @@ router.get('/stats', async (req, res, next) => {
         .limit(5)
         .select('name type applicationDeadline sponsor'),
       Scholarship.aggregate([
-        { $match: { isActive: true, awardAmount: { $exists: true, $ne: null } } },
-        { $group: { _id: null, total: { $sum: '$awardAmount' } } }
+        { $match: { isActive: true, totalGrant: { $exists: true, $ne: null } } },
+        { $group: { _id: null, total: { $sum: '$totalGrant' } } }
       ])
     ]);
 
@@ -311,9 +325,6 @@ router.get('/admin',
   attachAdminScope,
   async (req, res, next) => {
     try {
-      console.log('🎓 ========== ADMIN SCHOLARSHIPS REQUEST ==========');
-      console.log('🎓 User:', req.user?.email);
-      console.log('🎓 Admin Profile:', JSON.stringify(req.user?.adminProfile, null, 2));
       
       const {
         status,
@@ -331,8 +342,6 @@ router.get('/admin',
       
       // CRITICAL: Check if scopeFilter would deny all access
       if (scopeFilter._id && scopeFilter._id.$exists === false) {
-        console.log('🚫 Access denied by scope filter - returning empty result');
-        console.log('🚫 Admin profile may not be fully configured');
         return res.json({
           success: true,
           data: {
@@ -348,8 +357,6 @@ router.get('/admin',
           }
         });
       }
-      
-      console.log('🎓 Scope filter generated:', JSON.stringify(scopeFilter));
       
       // Build additional filters
       const query = { ...scopeFilter };
@@ -378,8 +385,6 @@ router.get('/admin',
         ];
       }
 
-      console.log('🎓 Final query:', JSON.stringify(query));
-
       // Execute query with pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);
       const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
@@ -393,8 +398,6 @@ router.get('/admin',
           .lean(),
         Scholarship.countDocuments(query)
       ]);
-
-      console.log('🎓 Results: Found', total, 'scholarships for', req.user?.email);
 
       // Add computed fields and permission info
       const enrichedScholarships = scholarships.map(s => ({
@@ -575,7 +578,6 @@ router.post('/',
         };
         const normalizedType = scholarshipType.toLowerCase().trim();
         if (typeMapping[normalizedType]) {
-          console.log(`🔄 Normalizing scholarship type: '${scholarshipType}' → '${typeMapping[normalizedType]}'`);
           scholarshipType = typeMapping[normalizedType];
         }
       }
@@ -592,12 +594,8 @@ router.post('/',
         createdBy: req.user._id
       });
 
-      console.log('📝 Creating scholarship with managingAcademicUnitCode:', managingAcademicUnitCode);
-      
       await scholarship.save();
       
-      console.log('✅ Saved scholarship - managingAcademicUnit:', scholarship.managingAcademicUnit);
-
       res.status(201).json({
         success: true,
         message: 'Scholarship created successfully',
@@ -686,7 +684,6 @@ router.put('/:id',
         };
         const normalizedType = req.body.type.toLowerCase().trim();
         if (typeMapping[normalizedType]) {
-          console.log(`🔄 Normalizing scholarship type: '${req.body.type}' → '${typeMapping[normalizedType]}'`);
           req.body.type = typeMapping[normalizedType];
         }
       }
@@ -745,9 +742,24 @@ router.delete('/:id',
         });
       }
 
-      // Delete related applications
-      await Application.deleteMany({ scholarship: req.params.id });
+      // Check if scholarship has associated applications
+      const applicationCount = await Application.countDocuments({ scholarship: req.params.id });
+      
+      if (applicationCount > 0) {
+        // Soft-delete: archive the scholarship instead of destroying history
+        await Scholarship.findByIdAndUpdate(req.params.id, {
+          isActive: false,
+          status: 'archived',
+          $set: { archivedAt: new Date(), archivedBy: req.user._id }
+        });
+        
+        return res.json({
+          success: true,
+          message: `Scholarship archived (${applicationCount} applications preserved). It will no longer appear in active listings.`
+        });
+      }
 
+      // No applications — safe to permanently delete
       // Unlink related trained models (set scholarshipId to null)
       await TrainedModel.updateMany(
         { scholarshipId: req.params.id },
@@ -776,11 +788,13 @@ function getEligibilitySummary(criteria) {
   
   const summary = [];
   
-  if (criteria.minGWA) {
-    summary.push(`Minimum GWA: ${criteria.minGWA.toFixed(2)}`);
+  if (criteria.minGWA && criteria.minGWA > 1.0) {
+    summary.push(`GWA Range: ${criteria.minGWA.toFixed(2)} to ${(criteria.maxGWA || 5.0).toFixed(2)}`);
+  } else if (criteria.maxGWA && criteria.maxGWA < 5.0) {
+    summary.push(`Required GWA: ${criteria.maxGWA.toFixed(2)} or better`);
   }
-  if (criteria.requiredYearLevels?.length) {
-    summary.push(`Year Level: ${criteria.requiredYearLevels.join(', ')}`);
+  if (criteria.eligibleClassifications?.length) {
+    summary.push(`Year Level: ${criteria.eligibleClassifications.join(', ')}`);
   }
   if (criteria.eligibleColleges?.length) {
     summary.push(`Colleges: ${criteria.eligibleColleges.length} eligible`);
@@ -788,8 +802,8 @@ function getEligibilitySummary(criteria) {
   if (criteria.maxAnnualFamilyIncome) {
     summary.push(`Max Family Income: ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}`);
   }
-  if (criteria.requiredSTBrackets?.length) {
-    summary.push(`ST Brackets: ${criteria.requiredSTBrackets.join(', ')}`);
+  if (criteria.eligibleSTBrackets?.length) {
+    summary.push(`ST Brackets: ${criteria.eligibleSTBrackets.join(', ')}`);
   }
   
   return summary;

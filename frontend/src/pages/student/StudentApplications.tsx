@@ -28,7 +28,7 @@ import {
   Globe2,
   Edit3
 } from 'lucide-react';
-import { applicationApi } from '../../services/apiClient';
+import { applicationApi, API_SERVER_URL } from '../../services/apiClient';
 
 type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn';
 
@@ -61,7 +61,7 @@ const StudentApplications: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [previewDocument, setPreviewDocument] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<{ _id: string; applicationId: string; name: string; type: string } | null>(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawingAppId, setWithdrawingAppId] = useState<string | null>(null);
   const [withdrawReason, setWithdrawReason] = useState('');
@@ -117,8 +117,6 @@ const StudentApplications: React.FC = () => {
       const response = await applicationApi.getById(applicationId);
       if (response.success && response.data) {
         const app = response.data as any; // Use any to access dynamic API response
-        console.log('📋 Full application data:', app);
-        console.log('👤 Applicant Snapshot:', app.applicantSnapshot);
         const scholarship = typeof app.scholarship === 'object' ? app.scholarship : null;
         setSelectedApplication({
           id: app._id || app.id || applicationId,
@@ -529,7 +527,7 @@ const StudentApplications: React.FC = () => {
 interface ApplicationDetailsModalProps {
   application: Application;
   onClose: () => void;
-  onPreviewDocument: (doc: { url: string; name: string; type: string }) => void;
+  onPreviewDocument: (doc: { _id: string; applicationId: string; name: string; type: string }) => void;
 }
 
 const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ application, onClose, onPreviewDocument }) => {
@@ -793,9 +791,10 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
                       <div 
                         className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
                         onClick={() => {
-                          if (doc.url) {
+                          if (doc._id || doc.url) {
                             onPreviewDocument({
-                              url: doc.url,
+                              _id: doc._id || doc.id,
+                              applicationId: application.id,
                               name: doc.name,
                               type: doc.mimeType || 'application/pdf'
                             });
@@ -808,7 +807,7 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-slate-900 truncate flex items-center gap-1">
                             {doc.name}
-                            {doc.url && <span className="text-purple-600 text-xs">(Click to preview)</span>}
+                            {(doc._id || doc.url) && <span className="text-purple-600 text-xs">(Click to preview)</span>}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <p className="text-xs text-slate-500">
@@ -833,11 +832,12 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
                           </div>
                         </div>
                       </div>
-                      {doc.url && (
+                      {(doc._id || doc.url) && (
                         <button 
                           onClick={() => {
                             onPreviewDocument({
-                              url: doc.url,
+                              _id: doc._id || doc.id,
+                              applicationId: application.id,
                               name: doc.name,
                               type: doc.mimeType || 'application/pdf'
                             });
@@ -934,16 +934,71 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
   );
 };
 
-// Document Preview Modal Component
+// Document Preview Modal Component — fetches file through backend proxy
 interface DocumentPreviewModalProps {
-  document: { url: string; name: string; type: string } | null;
+  document: { _id: string; applicationId: string; name: string; type: string } | null;
   onClose: () => void;
 }
 
 const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ document, onClose }) => {
+  const [blobUrl, setBlobUrl] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!document) return;
+    let cancelled = false;
+
+    const fetchDocument = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const token = localStorage.getItem('accessToken');
+        if (!token) { setError('Authentication required'); return; }
+
+        const res = await fetch(
+          `${API_SERVER_URL}/api/applications/${document.applicationId}/documents/${document._id}`,
+          { headers: { 'Authorization': `Bearer ${token}` } }
+        );
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `Server returned ${res.status}`);
+        }
+
+        if (cancelled) return;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || 'Failed to load document');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchDocument();
+    return () => { cancelled = true; };
+  }, [document]);
+
+  // Cleanup blob URL on close
+  React.useEffect(() => {
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [blobUrl]);
+
   if (!document) return null;
 
   const isPDF = document.type === 'application/pdf' || document.name.toLowerCase().endsWith('.pdf');
+
+  const handleDownload = () => {
+    if (!blobUrl) return;
+    const a = window.document.createElement('a');
+    a.href = blobUrl;
+    a.download = document.name;
+    window.document.body.appendChild(a);
+    a.click();
+    window.document.body.removeChild(a);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -957,47 +1012,55 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({ document, o
               <p className="text-sm text-primary-100">{isPDF ? 'PDF Document' : 'Image'}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-4 bg-slate-50">
-          {isPDF ? (
-            <iframe
-              src={document.url}
-              className="w-full h-full rounded-lg border-2 border-slate-200 bg-white"
-              title={document.name}
-            />
-          ) : (
+          {loading ? (
             <div className="flex items-center justify-center h-full">
-              <img
-                src={document.url}
-                alt={document.name}
-                className="max-w-full max-h-full rounded-lg shadow-lg"
-              />
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
             </div>
-          )}
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
+              <AlertCircle className="w-10 h-10 text-red-400" />
+              <p className="text-sm">{error}</p>
+            </div>
+          ) : blobUrl ? (
+            isPDF ? (
+              <object
+                data={blobUrl}
+                type="application/pdf"
+                className="w-full h-full rounded-lg border-2 border-slate-200 bg-white"
+                aria-label={document.name}
+              >
+                <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-500">
+                  <FileText className="w-12 h-12" />
+                  <p>PDF preview not available in this browser.</p>
+                  <button onClick={handleDownload} className="px-4 py-2 bg-primary-600 text-white rounded-lg">Download PDF</button>
+                </div>
+              </object>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <img src={blobUrl} alt={document.name} className="max-w-full max-h-full rounded-lg shadow-lg" />
+              </div>
+            )
+          ) : null}
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-between flex-shrink-0">
-          <a
-            href={document.url}
-            download={document.name}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors shadow-md"
+          <button
+            onClick={handleDownload}
+            disabled={!blobUrl}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors shadow-md disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
             Download
-          </a>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-600 text-white text-sm font-bold rounded-lg hover:bg-slate-700 transition-colors"
-          >
+          </button>
+          <button onClick={onClose} className="px-4 py-2 bg-slate-600 text-white text-sm font-bold rounded-lg hover:bg-slate-700 transition-colors">
             Close
           </button>
         </div>

@@ -52,6 +52,7 @@ const documentSchema = new mongoose.Schema({
     ]
   },
   url: String,
+  cloudinaryPublicId: String, // Cloudinary public_id for deletion
   filePath: String,
   fileName: String,
   fileSize: Number,

@@ -791,11 +791,11 @@ const AddScholarship: React.FC = () => {
   // Preset condition templates for quick addition
   const CONDITION_PRESETS = [
     {
-      label: 'Maximum GWA Required',
+      label: 'GWA Requirement',
       icon: '📊',
       template: {
-        name: 'Maximum GWA Requirement',
-        description: 'Student must have GWA less than or equal to specified value',
+        name: 'GWA Requirement',
+        description: 'Student must have GWA equal to or better than (≤) the specified value (UPLB scale: 1.0 = best)',
         conditionType: ConditionType.RANGE,
         studentField: 'gwa',
         operator: RangeOperator.LESS_THAN_OR_EQUAL,
@@ -869,7 +869,7 @@ const AddScholarship: React.FC = () => {
         conditionType: ConditionType.LIST,
         studentField: 'stBracket',
         operator: ListOperator.IN,
-        value: ['FDS', 'FD'],
+        value: ['Full Discount with Stipend', 'Full Discount'],
         category: ConditionCategory.FINANCIAL,
         importance: ConditionImportance.REQUIRED
       }
@@ -924,7 +924,7 @@ const AddScholarship: React.FC = () => {
         }
         if (formData.eligibilityCriteria.minGWA > 0 && formData.eligibilityCriteria.maxGWA > 0) {
           if (formData.eligibilityCriteria.minGWA > formData.eligibilityCriteria.maxGWA) {
-            errors.minGWA = 'Min GWA must be less than or equal to Max GWA';
+            errors.minGWA = 'Best GWA bound must be less than or equal to the required GWA threshold (remember: 1.0 = best)';
           }
         }
         if (formData.eligibilityCriteria.minAnnualFamilyIncome > 0 && formData.eligibilityCriteria.maxAnnualFamilyIncome > 0) {
@@ -1159,13 +1159,9 @@ const AddScholarship: React.FC = () => {
         requiredDocuments: formData.requiredDocuments
       };
 
-      console.log(`📤 ${isEditMode ? 'Updating' : 'Creating'} scholarship data:`, JSON.stringify(scholarshipData, null, 2));
-
       const response = isEditMode 
         ? await scholarshipApi.update(id!, scholarshipData)
         : await scholarshipApi.create(scholarshipData);
-      
-      console.log('📥 Received response:', response);
       
       if (response.success) {
         toast.success(`🎓 Scholarship ${isEditMode ? 'updated' : 'created'} successfully!`, {
@@ -1693,17 +1689,17 @@ const AddScholarship: React.FC = () => {
                     </h3>
 
                     <div className="space-y-4">
-                      {/* GWA Requirement - UPLB uses 1.0=highest, 5.0=lowest */}
+                      {/* GWA Requirement - UPLB uses 1.0=highest (best), 5.0=lowest (worst) */}
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
                         <p className="text-xs text-amber-800">
                           <strong>UP Grading System:</strong> 1.0 = highest (excellent), 5.0 = lowest (failed). 
-                          Set the maximum GWA a student can have to be eligible (e.g., 2.0 means students must have 2.0 or better).
+                          Set the GWA threshold a student must meet to qualify (e.g., 2.0 means the student's GWA must be 2.0 or better).
                         </p>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Required GWA (or better)
+                            Required GWA Threshold (or better)
                           </label>
                           <input
                             type="number"
@@ -1720,7 +1716,7 @@ const AddScholarship: React.FC = () => {
 
                         <div>
                           <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Minimum GWA (for elite scholarships)
+                            Best GWA Bound (for elite scholarships)
                           </label>
                           <input
                             type="number"

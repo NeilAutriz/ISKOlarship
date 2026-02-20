@@ -93,7 +93,7 @@ const collegeStatsSchema = new mongoose.Schema({
 const yearLevelStatsSchema = new mongoose.Schema({
   yearLevel: {
     type: String,
-    enum: ['freshman', 'sophomore', 'junior', 'senior', 'graduate'],
+    enum: ['Freshman', 'Sophomore', 'Junior', 'Senior'],
     required: true
   },
   totalApplications: {
@@ -163,7 +163,7 @@ const incomeDistributionSchema = new mongoose.Schema({
 const typeStatsSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['university', 'college', 'government', 'private', 'thesis_grant'],
+    enum: ['University Scholarship', 'College Scholarship', 'Government Scholarship', 'Private Scholarship', 'Thesis/Research Grant'],
     required: true
   },
   count: {
@@ -317,7 +317,7 @@ platformStatsSchema.methods.recalculate = async function(Application, Scholarshi
   const totalScholarships = await Scholarship.countDocuments({});
   const activeScholarships = await Scholarship.countDocuments({ 
     isActive: true,
-    'applicationPeriod.endDate': { $gte: new Date() }
+    applicationDeadline: { $gte: new Date() }
   });
   
   const totalStudents = await User.countDocuments({ role: 'student' });
@@ -349,7 +349,7 @@ platformStatsSchema.methods.recalculate = async function(Application, Scholarshi
   this.overview.totalApprovedAllTime = stats.approved;
   this.overview.totalRejectedAllTime = stats.rejected;
   this.overview.overallSuccessRate = stats.total > 0 
-    ? ((stats.approved / stats.total) * 100).toFixed(2) 
+    ? parseFloat(((stats.approved / stats.total) * 100).toFixed(2)) 
     : 0;
   this.overview.uniqueScholars = stats.uniqueApplicants?.length || 0;
   
@@ -358,7 +358,7 @@ platformStatsSchema.methods.recalculate = async function(Application, Scholarshi
     {
       $group: {
         _id: null,
-        totalFunding: { $sum: '$amount' },
+        totalFunding: { $sum: '$totalGrant' },
         totalSlots: { $sum: '$slots' }
       }
     }

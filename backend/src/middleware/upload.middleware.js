@@ -1,56 +1,43 @@
 // =============================================================================
 // ISKOlarship - File Upload Middleware
-// Multer configuration for efficient file uploads
+// Multer + Cloudinary for persistent cloud-based file storage
+// Files are uploaded to Cloudinary instead of local disk so they survive
+// Railway container restarts, deploys, and scaling events.
 // =============================================================================
 
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
+const { Readable } = require('stream');
 
 // =============================================================================
-// Storage Configuration
+// Cloudinary Configuration
 // =============================================================================
 
-// Configure storage to organize files by user ID
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Create user-specific directory
-    const userId = req.user._id.toString();
-    const uploadPath = path.join(__dirname, '../../uploads/documents', userId);
-    
-    // Ensure directory exists
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename: timestamp-originalname
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const basename = path.basename(file.originalname, ext)
-      .replace(/[^a-zA-Z0-9]/g, '_') // Sanitize filename
-      .substring(0, 50); // Limit length
-    
-    cb(null, `${basename}-${uniqueSuffix}${ext}`);
-  }
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
+// =============================================================================
+// Storage Configuration — Memory (files go to Cloudinary after multer parses)
+// =============================================================================
+
+const storage = multer.memoryStorage();
 
 // =============================================================================
 // File Filter (Validation)
 // =============================================================================
 
 const fileFilter = (req, file, cb) => {
-  // Allowed file types
   const allowedMimeTypes = [
     'application/pdf',
     'image/jpeg',
     'image/jpg',
     'image/png',
     'image/gif',
-    'application/msword', // .doc
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ];
 
   if (allowedMimeTypes.includes(file.mimetype)) {
@@ -64,33 +51,24 @@ const fileFilter = (req, file, cb) => {
 // Multer Configuration
 // =============================================================================
 
-// File size limits
 const limits = {
   fileSize: 5 * 1024 * 1024, // 5MB max per file
-  files: 10 // Maximum 10 files per request
+  files: 10
 };
 
-// Create multer instance
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: limits
+  storage,
+  fileFilter,
+  limits
 });
 
 // =============================================================================
 // Upload Middleware Configurations
 // =============================================================================
 
-// Single file upload
 const uploadSingle = upload.single('document');
-
-// Multiple files upload (for profile documents)
 const uploadMultiple = upload.array('documents', 10);
-
-// Application documents upload (same as profile documents)
 const uploadApplicationDocuments = upload.array('documents', 10);
-
-// Fields-based upload (different types)
 const uploadFields = upload.fields([
   { name: 'studentId', maxCount: 1 },
   { name: 'grades', maxCount: 1 },
@@ -101,12 +79,142 @@ const uploadFields = upload.fields([
 ]);
 
 // =============================================================================
+// Cloudinary Upload Helper
+// =============================================================================
+
+/**
+ * Upload a single file buffer to Cloudinary.
+ * @param {Buffer} buffer - File contents
+ * @param {object} options
+ * @param {string} options.folder - Cloudinary folder (e.g. 'iskolaship/documents/<userId>')
+ * @param {string} [options.publicId] - Optional custom public_id
+ * @param {string} [options.resourceType] - 'image' | 'raw' | 'auto' (default 'auto')
+ * @returns {Promise<{ url: string, publicId: string, bytes: number, format: string }>}
+ */
+const uploadToCloudinary = (buffer, { folder, publicId, resourceType = 'auto', originalFilename } = {}) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        public_id: publicId,
+        resource_type: resourceType,
+        // Keep the original filename in the URL for readability
+        use_filename: true,
+        unique_filename: true,
+        // Pass original filename so Cloudinary can use it
+        ...(originalFilename && { filename: originalFilename }),
+        // Ensure raw files (PDFs, docs) are accessible via URL
+        access_mode: 'public'
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({
+          url: result.secure_url,
+          publicId: result.public_id,
+          bytes: result.bytes,
+          format: result.format
+        });
+      }
+    );
+
+    // Pipe the buffer into the upload stream
+    const readable = new Readable();
+    readable.push(buffer);
+    readable.push(null);
+    readable.pipe(uploadStream);
+  });
+};
+
+/**
+ * Determine the correct Cloudinary resource_type based on MIME type.
+ * Images → 'image' (enables Cloudinary transformations & native preview)
+ * PDFs, docs, etc. → 'raw' (stored as-is, accessible via direct URL)
+ */
+const getResourceType = (mimetype) => {
+  if (mimetype && mimetype.startsWith('image/')) return 'image';
+  return 'raw';
+};
+
+/**
+ * Upload an array of multer file objects to Cloudinary.
+ * Uploads in parallel for speed. Returns results in the same order.
+ * @param {Array} files - req.files from multer (memoryStorage)
+ * @param {string} userId - Owner's user ID (used as sub-folder)
+ * @returns {Promise<Array<{ url: string, publicId: string, bytes: number, format: string }>}
+ */
+const uploadFilesToCloudinary = async (files, userId) => {
+  const folder = `iskolaship/documents/${userId}`;
+
+  const promises = files.map(file =>
+    uploadToCloudinary(file.buffer, {
+      folder,
+      resourceType: getResourceType(file.mimetype),
+      originalFilename: file.originalname
+    })
+  );
+
+  return Promise.all(promises);
+};
+
+// =============================================================================
+// Cloudinary Delete Helper
+// =============================================================================
+
+/**
+ * Delete a resource from Cloudinary by public_id.
+ * @param {string} publicId - Cloudinary public_id
+ * @param {string} [resourceType='raw'] - 'image' | 'raw' | 'video'
+ * @returns {Promise<boolean>}
+ */
+const deleteFromCloudinary = async (publicId, resourceType = 'raw') => {
+  if (!publicId) return false;
+  try {
+    // Try the specified resource type first, then fallback to others
+    const typesToTry = [resourceType, 'image', 'raw'].filter(
+      (v, i, a) => a.indexOf(v) === i // unique
+    );
+    for (const type of typesToTry) {
+      try {
+        const result = await cloudinary.uploader.destroy(publicId, {
+          resource_type: type
+        });
+        if (result.result === 'ok') return true;
+      } catch {
+        // Try next type
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error('Error deleting from Cloudinary:', error);
+    return false;
+  }
+};
+
+/**
+ * Delete all Cloudinary resources in a user's folder.
+ * @param {string} userId
+ * @returns {Promise<boolean>}
+ */
+const deleteUserFiles = async (userId) => {
+  try {
+    const prefix = `iskolaship/documents/${userId}`;
+    await cloudinary.api.delete_resources_by_prefix(prefix, { resource_type: 'raw' });
+    await cloudinary.api.delete_resources_by_prefix(prefix, { resource_type: 'image' });
+    // Remove the now-empty folder
+    await cloudinary.api.delete_folder(prefix).catch(() => {});
+    return true;
+  } catch (error) {
+    console.error('Error deleting user files from Cloudinary:', error);
+    return false;
+  }
+};
+
+// =============================================================================
 // Error Handler Middleware
 // =============================================================================
 
 const handleUploadError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
-    // Multer-specific errors
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
@@ -133,69 +241,36 @@ const handleUploadError = (err, req, res, next) => {
       });
     }
   } else if (err) {
-    // Other errors (e.g., file type validation)
     return res.status(400).json({
       success: false,
       message: err.message || 'An error occurred during file upload',
       error: 'UPLOAD_ERROR'
     });
   }
-  
   next();
 };
 
 // =============================================================================
-// Utility Functions
+// Signed URL Helper
 // =============================================================================
 
-// Delete a file
-const deleteFile = (filePath) => {
-  try {
-    const fullPath = path.join(__dirname, '../../uploads', filePath);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error deleting file:', error);
-    return false;
-  }
-};
-
-// Delete all files for a user
-const deleteUserFiles = (userId) => {
-  try {
-    const userPath = path.join(__dirname, '../../uploads/documents', userId);
-    if (fs.existsSync(userPath)) {
-      fs.rmSync(userPath, { recursive: true, force: true });
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error deleting user files:', error);
-    return false;
-  }
-};
-
-// Get file info
-const getFileInfo = (filePath) => {
-  try {
-    const fullPath = path.join(__dirname, '../../uploads', filePath);
-    if (fs.existsSync(fullPath)) {
-      const stats = fs.statSync(fullPath);
-      return {
-        exists: true,
-        size: stats.size,
-        created: stats.birthtime,
-        modified: stats.mtime
-      };
-    }
-    return { exists: false };
-  } catch (error) {
-    console.error('Error getting file info:', error);
-    return { exists: false };
-  }
+/**
+ * Generate an authenticated download URL for a Cloudinary resource.
+ * Uses the Cloudinary download API which bypasses CDN delivery restrictions
+ * that block unsigned / signed raw-file access (401 errors).
+ * The generated URL is valid for 1 hour.
+ * @param {string} publicId - Cloudinary public_id (includes extension for raw)
+ * @param {string} [mimeType] - MIME type to determine resource_type
+ * @returns {string} Authenticated HTTPS download URL (valid 1 h)
+ */
+const getSignedUrl = (publicId, mimeType) => {
+  if (!publicId) return null;
+  const resourceType = (mimeType && mimeType.startsWith('image/')) ? 'image' : 'raw';
+  return cloudinary.utils.private_download_url(publicId, '', {
+    resource_type: resourceType,
+    type: 'upload',
+    expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour
+  });
 };
 
 // =============================================================================
@@ -208,7 +283,10 @@ module.exports = {
   uploadApplicationDocuments,
   uploadFields,
   handleUploadError,
-  deleteFile,
+  uploadToCloudinary,
+  uploadFilesToCloudinary,
+  deleteFromCloudinary,
   deleteUserFiles,
-  getFileInfo
+  getSignedUrl,
+  cloudinary
 };

@@ -116,7 +116,6 @@ const ScholarshipApplicants: React.FC = () => {
         });
         
         if (isMounted && response.success && response.data?.applications) {
-          console.log(`📋 Loaded ${response.data.applications.length} applications for scholarship ${scholarshipId}`);
           setApplications(response.data.applications.map((app: any) => ({
             id: app._id || app.id,
             studentName: app.applicant?.studentProfile 

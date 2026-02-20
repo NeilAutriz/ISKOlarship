@@ -23,22 +23,16 @@ export const uploadDocuments = async (
   error?: string;
 }> => {
   try {
-    console.log('🚀 uploadDocuments() called with:', documents.length, 'documents');
-    console.log('📋 Documents to upload:', documents.map(d => ({ name: d.name, type: d.type, fileName: d.file.name, fileSize: d.file.size })));
     
     // Create FormData to send files
     const formData = new FormData();
     
     // Append each file and its metadata
     documents.forEach((doc, index) => {
-      console.log(`  Adding to FormData [${index}]:`, doc.name, doc.file.name);
       formData.append('documents', doc.file); // 'documents' matches multer field name
       formData.append('documentNames', doc.name);
       formData.append('documentTypes', doc.type);
     });
-
-    console.log(`📤 Uploading ${documents.length} document(s) via FormData to /users/documents/upload...`);
-    console.log('🔑 Current access token exists:', !!localStorage.getItem('accessToken'));
 
     // Send multipart/form-data request
     const response = await apiClient.post('/users/documents/upload', formData, {
@@ -51,13 +45,10 @@ export const uploadDocuments = async (
           const percentCompleted = Math.round(
             (progressEvent.loaded * 100) / progressEvent.total
           );
-          console.log(`📊 Upload progress: ${percentCompleted}%`);
         }
       }
     });
 
-    console.log('✅ Upload response:', response.data);
-    
     return response.data;
   } catch (error: any) {
     console.error('❌ Document upload error:', error);

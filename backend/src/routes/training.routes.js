@@ -26,16 +26,8 @@ const { Application } = require('../models');
  * @desc    Train global model on all applications
  * @access  Admin only
  */
-router.post('/train', authMiddleware, async (req, res) => {
+router.post('/train', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can train models'
-      });
-    }
-    
-    console.log('🎯 Starting global model training...');
     
     const result = await trainGlobalModel(req.user._id);
     
@@ -64,18 +56,9 @@ router.post('/train', authMiddleware, async (req, res) => {
  * @desc    Train model for a specific scholarship
  * @access  Admin only
  */
-router.post('/train/:scholarshipId', authMiddleware, async (req, res) => {
+router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can train models'
-      });
-    }
-    
     const { scholarshipId } = req.params;
-    
-    console.log(`🎯 Starting model training for scholarship: ${scholarshipId}`);
     
     const result = await trainScholarshipModel(scholarshipId, req.user._id);
     
@@ -103,16 +86,8 @@ router.post('/train/:scholarshipId', authMiddleware, async (req, res) => {
  * @desc    Train models for all scholarships with sufficient data
  * @access  Admin only
  */
-router.post('/train-all', authMiddleware, async (req, res) => {
+router.post('/train-all', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can train models'
-      });
-    }
-    
-    console.log('🎯 Starting batch model training...');
     
     const results = await trainAllScholarshipModels(req.user._id);
     
@@ -149,7 +124,7 @@ router.post('/train-all', authMiddleware, async (req, res) => {
  * @desc    Get all trained models
  * @access  Admin only
  */
-router.get('/models', authMiddleware, async (req, res) => {
+router.get('/models', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const models = await TrainedModel.find()
       .sort({ trainedAt: -1 })
@@ -173,9 +148,9 @@ router.get('/models', authMiddleware, async (req, res) => {
 /**
  * @route   GET /api/training/models/active
  * @desc    Get active global model
- * @access  Public (for predictions)
+ * @access  Private (authenticated users)
  */
-router.get('/models/active', async (req, res) => {
+router.get('/models/active', authMiddleware, async (req, res) => {
   try {
     const model = await TrainedModel.findOne({
       modelType: 'global',
@@ -213,9 +188,9 @@ router.get('/models/active', async (req, res) => {
 /**
  * @route   GET /api/training/models/scholarship/:scholarshipId
  * @desc    Get model for a specific scholarship (or fallback to global)
- * @access  Public (for predictions)
+ * @access  Private (authenticated users)
  */
-router.get('/models/scholarship/:scholarshipId', async (req, res) => {
+router.get('/models/scholarship/:scholarshipId', authMiddleware, async (req, res) => {
   try {
     const { scholarshipId } = req.params;
     
@@ -271,15 +246,8 @@ router.get('/models/scholarship/:scholarshipId', async (req, res) => {
  * @desc    Activate a specific model
  * @access  Admin only
  */
-router.post('/models/:modelId/activate', authMiddleware, async (req, res) => {
+router.post('/models/:modelId/activate', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can activate models'
-      });
-    }
-    
     const { modelId } = req.params;
     
     const model = await TrainedModel.activateModel(modelId);
@@ -307,15 +275,8 @@ router.post('/models/:modelId/activate', authMiddleware, async (req, res) => {
  * @desc    Delete a model
  * @access  Admin only
  */
-router.delete('/models/:modelId', authMiddleware, async (req, res) => {
+router.delete('/models/:modelId', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can delete models'
-      });
-    }
-    
     const { modelId } = req.params;
     
     const model = await TrainedModel.findById(modelId);
@@ -358,7 +319,7 @@ router.delete('/models/:modelId', authMiddleware, async (req, res) => {
  * @desc    Get training statistics
  * @access  Admin only
  */
-router.get('/stats', authMiddleware, async (req, res) => {
+router.get('/stats', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const stats = await getTrainingStats();
     
@@ -380,7 +341,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
  * @desc    Get scholarships that can be trained (have enough data)
  * @access  Admin only
  */
-router.get('/scholarships/trainable', authMiddleware, async (req, res) => {
+router.get('/scholarships/trainable', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     // Get application counts per scholarship
     const counts = await Application.aggregate([

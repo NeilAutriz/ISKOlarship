@@ -9,7 +9,7 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { User, UserRole } = require('../models');
 const { authMiddleware, optionalAuth } = require('../middleware/auth.middleware');
-const { generateOTP, sendOTPEmail, sendVerificationEmail } = require('../services/email.service');
+const { generateOTP, sendOTPEmail, sendVerificationEmail, sendPasswordResetEmail } = require('../services/email.service');
 
 // =============================================================================
 // Validation Rules
@@ -56,7 +56,7 @@ const loginValidation = [
 // Helper Functions
 // =============================================================================
 
-const generateToken = (userId, expiresIn = '7d') => {
+const generateToken = (userId, expiresIn = '30m') => {
   return jwt.sign(
     { userId },
     process.env.JWT_SECRET,
@@ -662,16 +662,15 @@ router.post('/forgot-password', [
       });
     }
 
-    // Generate reset token (in production, send via email)
+    // Generate reset token
     const resetToken = jwt.sign(
       { userId: user._id, type: 'reset' },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    // In production, send email with reset link
-    // For now, just return success message
-    console.log(`Password reset token for ${email}: ${resetToken}`);
+    // Send password reset email
+    await sendPasswordResetEmail(email, resetToken, user.firstName);
 
     res.json({
       success: true,
@@ -726,7 +725,20 @@ router.post('/reset-password', [
       });
     }
 
+    // Ensure the reset token was issued AFTER the last password change
+    // This prevents reuse of a reset token after password has already been changed
+    if (user.passwordChangedAt) {
+      const tokenIssuedAt = new Date(decoded.iat * 1000);
+      if (tokenIssuedAt < user.passwordChangedAt) {
+        return res.status(400).json({
+          success: false,
+          message: 'This reset token has already been used'
+        });
+      }
+    }
+
     user.password = password;
+    user.passwordChangedAt = new Date();
     user.refreshTokens = []; // Invalidate all sessions
     await user.save();
 

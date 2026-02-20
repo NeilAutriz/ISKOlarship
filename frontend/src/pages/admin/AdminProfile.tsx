@@ -178,32 +178,25 @@ const AdminProfile: React.FC = () => {
         return;
       }
 
-      // Fetch document with auth header
+      // Fetch the file content streamed through the backend
       const url = `${API_SERVER_URL}/api/users/documents/${document._id}`;
       
-      const response = await fetch(url, {
+      const fileRes = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': '*/*'
-        },
-        credentials: 'include'
+          'Authorization': `Bearer ${token}`
+        }
       });
       
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type');
-        let errorMessage = `Server returned ${response.status}`;
-        
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-        }
-        
-        throw new Error(errorMessage);
+      if (!fileRes.ok) {
+        const errorData = await fileRes.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server returned ${fileRes.status}`);
       }
 
-      // Convert to blob and create object URL
-      const blob = await response.blob();
+      const responseBlob = await fileRes.blob();
+      // Explicitly type the blob so the PDF viewer recognises the format
+      const contentType = fileRes.headers.get('content-type') || document.mimeType || 'application/octet-stream';
+      const blob = new Blob([responseBlob], { type: contentType });
       const blobUrl = URL.createObjectURL(blob);
       
       setPreviewUrl(blobUrl);
@@ -965,7 +958,6 @@ const AdminProfile: React.FC = () => {
                       }
                     };
 
-                    console.log('Updating admin profile with:', updateData);
                     const response = await userApi.updateProfile(updateData);
                     
                     if (response.success) {
@@ -1035,11 +1027,18 @@ const AdminProfile: React.FC = () => {
                   className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
                 />
               ) : previewDoc?.mimeType === 'application/pdf' ? (
-                <iframe
-                  src={previewUrl}
+                <object
+                  data={previewUrl}
+                  type="application/pdf"
                   className="w-full h-full min-h-[600px] rounded-lg shadow-lg"
-                  title={previewDoc.fileName}
-                />
+                  aria-label={previewDoc.fileName}
+                >
+                  <div className="flex flex-col items-center justify-center h-64 gap-4 text-slate-500">
+                    <FileText className="w-12 h-12" />
+                    <p>PDF preview not available in this browser.</p>
+                    <a href={previewUrl} download={previewDoc.fileName} className="px-4 py-2 bg-primary-600 text-white rounded-lg">Download PDF</a>
+                  </div>
+                </object>
               ) : (
                 <div className="flex items-center justify-center h-64">
                   <div className="text-center">

@@ -76,7 +76,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   onCancel
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+  const totalSteps = 3;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>('');
 
@@ -99,7 +99,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
     position: '',
     accessLevel: '',
     responsibilities: '',
-    permissions: [], // Changed to empty array
+    permissions: [] // Assigned automatically based on accessLevel selection
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -116,8 +116,6 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
         updated.academicUnitCode = '';
         if (typeof value === 'string' && value) {
           const collegeCode = getCollegeCodeFromLegacy(value);
-          console.log('🏛️ Admin college selected:', value);
-          console.log('🔍 College code lookup result:', collegeCode);
           if (collegeCode) {
             updated.collegeCode = collegeCode;
           } else {
@@ -134,6 +132,23 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
         updated.collegeCode = '';
         updated.academicUnit = '';
         updated.academicUnitCode = '';
+      }
+      
+      // Auto-assign permissions based on access level
+      if (field === 'accessLevel') {
+        switch (value) {
+          case AdminAccessLevel.UNIVERSITY:
+            updated.permissions = ['manage_scholarships', 'review_applications', 'approve_applications', 'manage_users', 'view_analytics', 'system_settings'];
+            break;
+          case AdminAccessLevel.COLLEGE:
+            updated.permissions = ['manage_scholarships', 'review_applications', 'approve_applications', 'view_analytics'];
+            break;
+          case AdminAccessLevel.ACADEMIC_UNIT:
+            updated.permissions = ['review_applications', 'approve_applications', 'view_analytics'];
+            break;
+          default:
+            updated.permissions = ['view_analytics'];
+        }
       }
       
       return updated;
@@ -173,9 +188,6 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
         }
         break;
       case 3:
-        if (!formData.responsibilities.trim()) newErrors.responsibilities = 'Please describe your responsibilities';
-        break;
-      case 4:
         if (!formData.employeeIdDocument.uploaded) newErrors.employeeIdDocument = 'Employee ID document is required';
         break;
     }
@@ -350,7 +362,6 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   const stepInfo = [
     { icon: User, label: 'Personal' },
     { icon: Building2, label: 'Administrative' },
-    { icon: Shield, label: 'Permissions' },
     { icon: FileText, label: 'Upload' }
   ];
 
@@ -684,13 +695,10 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
                 value={formData.academicUnitCode}
                 onChange={(e) => {
                   const unitCode = e.target.value;
-                  console.log('🎯 Admin Academic Unit selected:', unitCode);
                   setFormData(prev => {
                     const depts = getDepartmentOptions(prev.collegeCode as UPLBCollegeCode);
                     const selectedUnit = depts.find(d => d.value === unitCode);
                     const unitName = selectedUnit ? selectedUnit.label.split(' - ')[1] || selectedUnit.label : '';
-                    console.log('📝 Setting academicUnitCode:', unitCode);
-                    console.log('📝 Setting academicUnit:', unitName);
                     return {
                       ...prev,
                       academicUnitCode: unitCode,
@@ -763,104 +771,6 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
   );
 
   const renderStep3 = () => (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-          <Shield className="w-5 h-5 text-green-600" />
-        </div>
-        <div>
-          <h3 className="text-lg font-bold text-slate-900">Responsibilities & Permissions</h3>
-          <p className="text-slate-500 text-sm">Define your role and capabilities</p>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Primary Responsibilities
-          </label>
-          <textarea
-            value={formData.responsibilities}
-            onChange={(e) => updateField('responsibilities', e.target.value)}
-            placeholder="Describe your main duties (e.g., Managing scholarship programs, reviewing applications, coordinating with college units...)"
-            rows={4}
-            className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none ${
-              errors.responsibilities ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
-            }`}
-          />
-          {errors.responsibilities && <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {errors.responsibilities}</p>}
-        </div>
-
-        <div className="border-t border-slate-200 pt-4">
-          <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-primary-600" />
-            System Permissions
-          </label>
-          <p className="text-sm text-slate-600 mb-3">Select the permissions you need for your role</p>
-          <div className="space-y-3">
-            {[
-              { value: 'manage_scholarships', label: 'Create & Manage Scholarships', description: 'Post new scholarship opportunities and edit existing ones' },
-              { value: 'review_applications', label: 'Review Applications', description: 'View and review student applications' },
-              { value: 'approve_applications', label: 'Approve Applications', description: 'Evaluate student applications and make decisions' },
-              { value: 'manage_users', label: 'Manage Users & Admins', description: 'Add, edit, or remove user accounts (requires elevated privileges)' },
-              { value: 'view_analytics', label: 'View Analytics', description: 'Access platform analytics and reports' },
-              { value: 'system_settings', label: 'System Settings', description: 'Configure platform settings' },
-            ].map((permission) => {
-              const isChecked = formData.permissions.includes(permission.value);
-              return (
-                <div
-                  key={permission.value}
-                  onClick={() => {
-                    if (isChecked) {
-                      setFormData(prev => ({ ...prev, permissions: prev.permissions.filter(p => p !== permission.value) }));
-                    } else {
-                      setFormData(prev => ({ ...prev, permissions: [...prev.permissions, permission.value] }));
-                    }
-                  }}
-                  className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                    isChecked
-                      ? 'border-primary-600 bg-primary-50 shadow-sm'
-                      : 'border-slate-300 hover:border-primary-400 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                    isChecked
-                      ? 'border-primary-600 bg-primary-600'
-                      : 'border-slate-300'
-                  }`}>
-                    {isChecked && (
-                      <Check className="w-3 h-3 text-white" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-slate-900 text-base">{permission.label}</h4>
-                    <p className="text-sm text-slate-600 mt-1">{permission.description}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Prominent Access Review Notice */}
-        <div className="mt-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-lg">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-5 h-5 text-amber-600 mt-0.5">
-              <Shield className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-amber-900 mb-1">Access Review Required</h4>
-              <p className="text-sm text-amber-800">
-                Your administrative access and permissions will be reviewed and approved by the system administrator before activation. You will be notified once your account is verified.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStep4 = () => (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
@@ -1024,7 +934,7 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
             <h4 className="text-sm font-semibold text-amber-900 mb-1">What happens next?</h4>
             <p className="text-sm text-amber-800">
               After submission, a system administrator will review your employee ID and verify your credentials. 
-              Once approved, you'll gain access to the scholarship management dashboard and all assigned permissions.
+              Once approved, you'll gain full access to the scholarship management dashboard within your assigned scope.
             </p>
           </div>
         </div>
@@ -1048,7 +958,6 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
         {currentStep === 1 && renderStep1()}
         {currentStep === 2 && renderStep2()}
         {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
 
         {/* Navigation Buttons */}
         <div className="flex gap-4 mt-6">

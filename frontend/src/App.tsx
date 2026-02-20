@@ -48,7 +48,7 @@ import ModelTraining from './pages/admin/ModelTraining';
 
 import './styles/globals.css';
 
-import { StudentProfile as StudentProfileType, AdminProfile as AdminProfileType, User, UserRole, YearLevel, UPLBCollege, STBracket, AdminAccessLevel } from './types';
+import { User, UserRole } from './types';
 
 // ============================================================================
 // AUTH CONTEXT
@@ -85,75 +85,6 @@ const getUserDisplayName = (userData: User | any | null | undefined, fallback: s
   if (userData.adminProfile?.firstName) return userData.adminProfile.firstName;
   return fallback;
 };
-
-// ============================================================================
-// MOCK USER FOR DEMO
-// ============================================================================
-
-const createMockStudent = (): StudentProfileType => ({
-  id: 'student-001',
-  email: 'juan.delacruz@up.edu.ph',
-  role: UserRole.STUDENT,
-  createdAt: new Date('2024-08-01'),
-  updatedAt: new Date(),
-  
-  // Personal Information
-  firstName: 'Juan',
-  lastName: 'Dela Cruz',
-  middleName: 'Santos',
-  contactNumber: '09171234567',
-  address: {
-    province: 'Laguna',
-    city: 'Los Baños',
-    barangay: 'Batong Malake',
-    street: '123 University Ave',
-    zipCode: '4031'
-  },
-  hometown: 'Laguna',
-  
-  // Academic Information
-  studentNumber: '2021-12345',
-  college: UPLBCollege.CAS,
-  course: 'BS Biology',
-  yearLevel: YearLevel.JUNIOR,
-  gwa: 1.85,
-  unitsEnrolled: 18,
-  expectedGraduationDate: new Date('2026-06-30'),
-  hasApprovedThesis: false,
-  
-  // Financial Information
-  annualFamilyIncome: 180000,
-  householdSize: 5,
-  stBracket: STBracket.PD80,
-  
-  // Scholarship Status
-  isScholarshipRecipient: false,
-  currentScholarships: [],
-  hasThesisGrant: false,
-  
-  // Disciplinary Record
-  hasDisciplinaryAction: false,
-  
-  // Profile Completion
-  profileCompleted: true,
-  lastUpdated: new Date()
-});
-
-// Mock Admin User for Demo
-const createMockAdmin = (): AdminProfileType => ({
-  id: 'admin-001',
-  email: 'admin@iskolarship.ph',
-  role: UserRole.ADMIN,
-  createdAt: new Date('2024-01-15'),
-  updatedAt: new Date(),
-  
-  firstName: 'Admin',
-  lastName: 'User',
-  department: 'Scholarship Management',
-  college: UPLBCollege.CAS,
-  accessLevel: AdminAccessLevel.UNIVERSITY,
-  permissions: ['manage_scholarships', 'review_applications', 'view_analytics', 'manage_users']
-});
 
 // ============================================================================
 // APP COMPONENT
@@ -332,19 +263,12 @@ const App: React.FC = () => {
 
   // Handle profile completion - register user with API
   const handleProfileComplete = async (profileData: ProfileData) => {
-    console.log('=== Student Registration Flow ===');
-    console.log('Profile Data:', profileData);
-    console.log('Pending Email:', pendingEmail);
-    console.log('Pending Role:', pendingRole);
-    console.log('Password provided:', pendingPassword ? 'Yes (length: ' + pendingPassword.length + ')' : 'No');
     
     try {
       // Use the provided name fields directly
       const firstName = profileData.firstName || 'User';
       const lastName = profileData.lastName || 'Student';
       const middleName = profileData.middleName || '';
-      
-      console.log('Parsed name:', { firstName, middleName, lastName });
       
       // First, register the user with the password from signup form
       const registrationData = {
@@ -356,14 +280,9 @@ const App: React.FC = () => {
         role: pendingRole
       };
       
-      console.log('Registration payload:', { ...registrationData, password: '[HIDDEN]' });
-      
       const response = await authApi.register(registrationData);
       
-      console.log('Registration response:', response);
-      
       if (response.success && response.data?.user) {
-        console.log('✅ User registered successfully:', response.data.user.email);
         
         // Build the profile update WITHOUT documents (optimized approach)
         const profileUpdate = {
@@ -408,14 +327,6 @@ const App: React.FC = () => {
         };
         
         // DEBUG: Log college/academicUnit data
-        console.log('🏫 College/Academic Unit data being sent:');
-        console.log('  - college:', profileData.college);
-        console.log('  - collegeCode:', profileData.collegeCode);
-        console.log('  - academicUnit:', profileData.academicUnit);
-        console.log('  - academicUnitCode:', profileData.academicUnitCode);
-        console.log('📤 Full studentProfile:', JSON.stringify(profileUpdate.studentProfile, null, 2));
-        
-        console.log('📝 Updating profile with basic information...');
         
         // Update profile WITHOUT documents first (much faster!)
         const updateResponse = await userApi.updateProfile(profileUpdate);
@@ -424,40 +335,12 @@ const App: React.FC = () => {
           throw new Error(updateResponse.message || 'Profile update failed');
         }
         
-        console.log('✅ Profile updated successfully');
-        
-        // CRITICAL DEBUG: Check what we received
-        console.log('🔍 CRITICAL DEBUG - Full profileData:', {
-          hasDocuments: !!profileData.documents,
-          documentsLength: profileData.documents?.length,
-          documents: profileData.documents
-        });
-        
-        // Check each document individually
-        if (profileData.documents && profileData.documents.length > 0) {
-          console.log('📋 DOCUMENT ANALYSIS:');
-          profileData.documents.forEach((doc, idx) => {
-            console.log(`  Document ${idx}:`, {
-              name: doc.name,
-              type: doc.type,
-              uploaded: doc.uploaded,
-              hasFile: !!doc.file,
-              fileIsNull: doc.file === null,
-              fileIsUndefined: doc.file === undefined,
-              fileType: typeof doc.file,
-              fileName: doc.file?.name,
-              fileSize: doc.file?.size
-            });
-          });
-        } else {
-          console.error('❌ CRITICAL: profileData.documents is empty or undefined!');
-        }
+
         
         // Now upload documents separately using optimized approach
         const documentsToUpload = (profileData.documents || [])
           .filter(doc => {
             const hasFile = doc.uploaded && doc.file;
-            console.log(`Filter check for "${doc.name}": uploaded=${doc.uploaded}, hasFile=${!!doc.file}, passes=${hasFile}`);
             return hasFile;
           })
           .map(doc => ({
@@ -466,11 +349,7 @@ const App: React.FC = () => {
             type: doc.type
           }));
 
-        console.log('📤 documentsToUpload length:', documentsToUpload.length);
-        console.log('📤 documentsToUpload:', documentsToUpload);
-
         if (documentsToUpload.length > 0) {
-          console.log(`📤 Uploading ${documentsToUpload.length} document(s) using optimized method...`);
           
           try {
             // Import the upload function dynamically
@@ -478,13 +357,11 @@ const App: React.FC = () => {
             const uploadResult = await uploadDocuments(documentsToUpload);
             
             if (uploadResult.success) {
-              console.log(`✅ Successfully uploaded ${documentsToUpload.length} document(s)`);
               
               // IMPORTANT: Fetch updated user profile to get documents in the session
               try {
                 const meResponse = await authApi.getMe();
                 if (meResponse.success && meResponse.data?.user) {
-                  console.log('✅ Fetched updated user with documents');
                   // Use the fresh user data with documents
                   login(meResponse.data.user as User);
                   setShowProfileCompletion(false);
@@ -506,13 +383,10 @@ const App: React.FC = () => {
             showToast('Profile created successfully. Documents can be uploaded later from your profile.', 'info');
           }
         } else {
-          console.log('ℹ️ No documents to upload');
         }
         
         // Use the UPDATED user from updateProfile response (fallback if no documents or upload failed)
         const updatedUser = updateResponse.data || response.data.user;
-        
-        console.log('Final user data for login:', updatedUser);
         
         login(updatedUser as User);
         setShowProfileCompletion(false);
@@ -549,10 +423,6 @@ const App: React.FC = () => {
 
   // Handle admin profile completion - register admin with API
   const handleAdminProfileComplete = async (profileData: AdminProfileData) => {
-    console.log('=== Admin Registration Flow ===');
-    console.log('Profile Data:', profileData);
-    console.log('Pending Email:', pendingEmail);
-    console.log('Pending Role:', pendingRole);
     
     try {
       // Use the provided name fields directly
@@ -570,16 +440,11 @@ const App: React.FC = () => {
         role: 'admin' as 'admin' | 'student'
       };
       
-      console.log('Admin registration payload:', { ...registrationData, password: '[HIDDEN]' });
-      
       const response = await authApi.register(registrationData);
-      
-      console.log('Admin registration response:', response);
       
       if (response.success && response.data?.user) {
         // Upload employee ID document if provided
         if (profileData.employeeIdDocument.file) {
-          console.log('📤 Uploading employee ID document...');
           const formData = new FormData();
           formData.append('documents', profileData.employeeIdDocument.file);
           formData.append('documentTypes', 'employee_id');
@@ -595,10 +460,8 @@ const App: React.FC = () => {
             });
             
             const uploadResult = await uploadResponse.json();
-            console.log('📋 Employee ID upload result:', uploadResult);
             
             if (uploadResult.success) {
-              console.log('✅ Employee ID document uploaded and saved to adminProfile.employeeIdDocument');
             } else {
               console.error('❌ Employee ID upload failed:', uploadResult.message);
               throw new Error(uploadResult.message || 'Failed to upload employee ID');
@@ -636,24 +499,14 @@ const App: React.FC = () => {
         };
         
         // DEBUG: Log college/academicUnit data for admin
-        console.log('🏛️ Admin College/Academic Unit data being sent:');
-        console.log('  - college:', profileData.college);
-        console.log('  - collegeCode:', profileData.collegeCode);
-        console.log('  - academicUnit:', profileData.academicUnit);
-        console.log('  - academicUnitCode:', profileData.academicUnitCode);
-        console.log('  - accessLevel:', profileData.accessLevel);
-        console.log('Admin profile update payload:', JSON.stringify(profileUpdate, null, 2));
         
         // Update profile with complete data
         const updateResponse = await userApi.updateProfile(profileUpdate);
-        console.log('Admin profile update response:', JSON.stringify(updateResponse, null, 2));
         
         // Use the UPDATED user from updateProfile response if available
         const updatedUser = updateResponse.success && updateResponse.data 
           ? updateResponse.data 
           : response.data.user;
-        
-        console.log('Final admin user data for login:', updatedUser);
         
         login(updatedUser as User);
         setShowProfileCompletion(false);
@@ -679,15 +532,6 @@ const App: React.FC = () => {
       // Re-throw the error to be handled by AdminProfileCompletion
       throw error;
     }
-  };
-
-  // For demo purposes, auto-login with mock user
-  const handleDemoLogin = () => {
-    const mockUser = createMockStudent();
-    login(mockUser);
-    setShowAuthModal(false);
-    setNavigateAfterLogin('/dashboard');
-    showToast(`👋 Welcome! You're using a demo account (${mockUser.firstName} ${mockUser.lastName})`, 'info');
   };
 
   // Open auth modal from header
@@ -793,7 +637,6 @@ const App: React.FC = () => {
           onVerifyOTP={handleVerifyOTP}
           onResendOTP={handleResendOTP}
           onSignUp={handleSignUp}
-          onDemoLogin={handleDemoLogin}
         />
         
         {/* Toast Notifications */}
@@ -860,7 +703,7 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
     if (showStudentHeader) {
       return <StudentHeader />;
     }
-    return <Header onDemoLogin={onOpenAuthModal} />;
+    return <Header onOpenAuth={onOpenAuthModal} />;
   };
 
   return (
@@ -883,7 +726,7 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
             </ProtectedRoute>
           } />
           <Route path="/analytics" element={
-            <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
+            <ProtectedRoute onRequireAuth={onRequireAuth}>
               <Analytics />
             </ProtectedRoute>
           } />

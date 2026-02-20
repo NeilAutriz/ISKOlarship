@@ -23,17 +23,20 @@ export enum ApplicationStatus {
   DRAFT = 'draft',
   SUBMITTED = 'submitted',
   UNDER_REVIEW = 'under_review',
+  DOCUMENTS_REQUIRED = 'documents_required',
+  SHORTLISTED = 'shortlisted',
+  INTERVIEW_SCHEDULED = 'interview_scheduled',
   APPROVED = 'approved',
-  REJECTED = 'rejected'
+  REJECTED = 'rejected',
+  WAITLISTED = 'waitlisted',
+  WITHDRAWN = 'withdrawn'
 }
 
 export enum YearLevel {
-  INCOMING_FRESHMAN = 'Incoming Freshman',
   FRESHMAN = 'Freshman',
   SOPHOMORE = 'Sophomore',
   JUNIOR = 'Junior',
-  SENIOR = 'Senior',
-  GRADUATE = 'Graduate'
+  SENIOR = 'Senior'
 }
 
 export enum ScholarshipType {
@@ -53,13 +56,13 @@ export enum ScholarshipLevel {
 }
 
 export enum STBracket {
-  FULL_DISCOUNT_WITH_STIPEND = 'FDS',
-  FULL_DISCOUNT = 'FD',
+  FULL_DISCOUNT_WITH_STIPEND = 'Full Discount with Stipend',
+  FULL_DISCOUNT = 'Full Discount',
   PD80 = 'PD80',
   PD60 = 'PD60',
   PD40 = 'PD40',
   PD20 = 'PD20',
-  NO_DISCOUNT = 'ND'
+  NO_DISCOUNT = 'No Discount'
 }
 
 // ============================================================================
@@ -691,12 +694,35 @@ export interface Application {
   appliedDate?: Date;
   prediction?: PredictionResult;
   applicantSnapshot?: {
+    studentNumber?: string;
+    firstName?: string;
+    lastName?: string;
+    contactNumber?: string;
+    homeAddress?: {
+      street?: string;
+      barangay?: string;
+      city?: string;
+      province?: string;
+      zipCode?: string;
+      fullAddress?: string;
+    };
     gwa: number;
-    yearLevel: string;
+    classification?: string;
+    yearLevel?: string; // Alias for classification
     college: string;
     course: string;
+    major?: string;
     annualFamilyIncome: number;
     unitsEnrolled: number;
+    unitsPassed?: number;
+    provinceOfOrigin?: string;
+    citizenship?: string;
+    stBracket?: string;
+    hasExistingScholarship?: boolean;
+    hasThesisGrant?: boolean;
+    hasApprovedThesisOutline?: boolean;
+    hasDisciplinaryAction?: boolean;
+    hasFailingGrade?: boolean;
   };
   personalStatement?: string;
   additionalInfo?: string;

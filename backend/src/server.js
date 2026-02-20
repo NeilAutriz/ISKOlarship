@@ -21,6 +21,7 @@ const scholarshipRoutes = require('./routes/scholarship.routes');
 const applicationRoutes = require('./routes/application.routes');
 const predictionRoutes = require('./routes/prediction.routes');
 const statisticsRoutes = require('./routes/statistics.routes');
+const trainingRoutes = require('./routes/training.routes');
 
 // Initialize Express App
 const app = express();
@@ -41,11 +42,11 @@ app.use(cors({
   credentials: true
 }));
 
-// Parse JSON bodies with increased limit for file uploads (base64)
-app.use(express.json({ limit: '50mb' }));
+// Parse JSON bodies (reduced from 50mb — file uploads now go through Cloudinary)
+app.use(express.json({ limit: '1mb' }));
 
-// Parse URL-encoded bodies with increased limit
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Parse URL-encoded bodies
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // =============================================================================
 // Database Connection
@@ -123,7 +124,6 @@ app.use('/api/predictions', checkDatabaseConnection, predictionRoutes);
 app.use('/api/statistics', checkDatabaseConnection, statisticsRoutes);
 
 // Training Routes (with DB check)
-const { trainingRoutes } = require('./routes');
 app.use('/api/training', checkDatabaseConnection, trainingRoutes);
 
 // =============================================================================

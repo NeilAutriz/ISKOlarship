@@ -178,11 +178,8 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         // Set college code from the legacy college name
         if (typeof value === 'string' && value) {
           const collegeCode = getCollegeCodeFromLegacy(value);
-          console.log('🎓 College selected:', value);
-          console.log('🔍 College code lookup result:', collegeCode);
           if (collegeCode) {
             updated.collegeCode = collegeCode;
-            console.log('✅ Set collegeCode to:', collegeCode);
           } else {
             console.warn('⚠️ Could not find college code for:', value);
             updated.collegeCode = '';
@@ -272,16 +269,13 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   
   // Handle file upload - Optimized approach (no base64 conversion)
   const handleFileChange = async (index: number, file: File | null) => {
-    console.log(`📎 handleFileChange called - index: ${index}, file:`, file);
     
     if (!file) {
-      console.log('❌ No file provided');
       return;
     }
 
     // Validate file using utility function
     const validation = validateFile(file);
-    console.log(`📋 Validation result:`, validation);
     
     if (!validation.valid) {
       const updatedDocs = [...formData.documents];
@@ -300,12 +294,8 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     updatedDocs[index].error = undefined;
     updatedDocs[index].previewUrl = previewUrl;
     
-    console.log(`✅ File stored in state - index: ${index}, file name: ${file.name}, file size: ${file.size}`);
-    console.log(`📋 Updated docs array:`, updatedDocs.map(d => ({ name: d.name, hasFile: !!d.file, uploaded: d.uploaded })));
-    
     setFormData(prev => ({ ...prev, documents: updatedDocs }));
     
-    console.log(`✅ File selected: ${file.name} (${formatFileSize(file.size)})`);
   };
 
   // Remove uploaded file
@@ -333,23 +323,6 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         setSubmitting(true);
         setSubmitError('');
         try {
-          // DEBUG: Log academic info before submission
-          console.log('📤 ProfileCompletion - Academic info at submission:');
-          console.log('  - college:', formData.college);
-          console.log('  - collegeCode:', formData.collegeCode);
-          console.log('  - academicUnit:', formData.academicUnit);
-          console.log('  - academicUnitCode:', formData.academicUnitCode);
-          
-          // DEBUG: Log documents state before submission
-          console.log('📤 ProfileCompletion - Submitting with documents:', formData.documents.map(d => ({
-            name: d.name,
-            type: d.type,
-            uploaded: d.uploaded,
-            hasFile: !!d.file,
-            fileName: d.file?.name,
-            fileSize: d.file?.size
-          })));
-          
           await onComplete(formData);
         } catch (error: any) {
           console.error('Profile completion error:', error);
@@ -462,7 +435,6 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     { value: YearLevel.SOPHOMORE, label: 'Sophomore' },
     { value: YearLevel.JUNIOR, label: 'Junior' },
     { value: YearLevel.SENIOR, label: 'Senior' },
-    { value: YearLevel.GRADUATE, label: 'Graduate' },
   ];
 
   // Philippine provinces
@@ -1278,12 +1250,6 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
                   <div 
                     className="border border-green-200 rounded-xl overflow-hidden cursor-pointer hover:border-green-400 transition-colors relative group"
                     onClick={() => {
-                      console.log('🔍 Preview clicked:', {
-                        name: doc.name,
-                        fileType: doc.file?.type,
-                        previewUrl: doc.previewUrl,
-                        hasPreviewUrl: !!doc.previewUrl
-                      });
                       setPreviewDoc({
                         name: doc.name,
                         type: doc.file?.type || 'application/pdf',

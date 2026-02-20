@@ -129,17 +129,25 @@ router.post('/application/:applicationId',
         });
       }
 
-      if (!application.applicant) {
-        return res.status(404).json({
-          success: false,
-          message: 'Applicant not found'
-        });
-      }
-
-      if (!application.scholarship) {
-        return res.status(404).json({
-          success: false,
-          message: 'Scholarship not found'
+      // If applicant or scholarship was deleted, return a default prediction
+      // instead of 404 so the dashboard doesn't error out
+      if (!application.applicant || !application.scholarship) {
+        return res.json({
+          success: true,
+          data: {
+            probability: 0,
+            probabilityPercentage: 0,
+            confidence: 'low',
+            eligible: false,
+            factors: [],
+            modelVersion: 'fallback',
+            applicantName: application.applicant
+              ? `${application.applicant.firstName || ''} ${application.applicant.lastName || ''}`.trim()
+              : 'Unknown Applicant',
+            scholarshipName: application.scholarship?.name || 'Unknown Scholarship',
+            scholarshipId: application.scholarship?._id || null,
+            note: 'Prediction unavailable – referenced data may have been removed'
+          }
         });
       }
 

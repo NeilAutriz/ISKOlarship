@@ -213,8 +213,6 @@ const ApplicationReview: React.FC = () => {
               const answers = app.customFieldAnswers && typeof app.customFieldAnswers === 'object' 
                 ? app.customFieldAnswers 
                 : {};
-              console.log('📋 Raw customFieldAnswers from API:', app.customFieldAnswers);
-              console.log('📋 Processed customFieldAnswers:', answers);
               return answers;
             })(),
             // Documents
@@ -281,7 +279,7 @@ const ApplicationReview: React.FC = () => {
     featureContributions: application.prediction.featureContributions
   } as PredictionResult : null);
 
-  // Load document preview with authentication
+  // Load document preview — backend streams file from Cloudinary
   const loadDocumentPreview = async (document: { _id?: string; name: string; type: string; mimeType?: string; url: string }) => {
     try {
       setLoadingPreview(true);
@@ -292,40 +290,26 @@ const ApplicationReview: React.FC = () => {
         return;
       }
 
-      // Use the application documents endpoint
-      let fetchUrl = '';
       const applicationId = application?.id || id;
-      
-      if (document._id && applicationId) {
-        // Use the new application documents endpoint
-        fetchUrl = `${API_SERVER_URL}/api/applications/${applicationId}/documents/${document._id}`;
-      } else if (document.url) {
-        // If the URL is already a full URL, use it directly
-        const baseUrl = document.url.startsWith('http') 
-          ? document.url 
-          : `${API_SERVER_URL}${document.url}`;
-        fetchUrl = baseUrl;
-      } else {
-        toast.error('Document URL not available');
+
+      if (!document._id || !applicationId) {
+        toast.error('Document ID not available');
         return;
       }
 
-      console.log('📥 Fetching document from:', fetchUrl);
-
-      const response = await fetch(fetchUrl, {
-        method: 'GET',
+      // Fetch the file content streamed through the backend
+      const response = await fetch(`${API_SERVER_URL}/api/applications/${applicationId}/documents/${document._id}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': '*/*'
-        },
-        credentials: 'include'
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to load document: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Failed to fetch document: ${response.statusText}`);
 
-      const blob = await response.blob();
+      const responseBlob = await response.blob();
+      // Explicitly type the blob so the PDF viewer recognises the format
+      const contentType = response.headers.get('content-type') || document.mimeType || 'application/octet-stream';
+      const blob = new Blob([responseBlob], { type: contentType });
       const blobUrl = URL.createObjectURL(blob);
       
       setPreviewUrl(blobUrl);
@@ -339,7 +323,7 @@ const ApplicationReview: React.FC = () => {
     }
   };
 
-  // Handle document download with authentication
+  // Handle document download — backend streams file from Cloudinary
   const handleDownloadDocument = async (document: { _id?: string; name: string; url: string }) => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -348,34 +332,21 @@ const ApplicationReview: React.FC = () => {
         return;
       }
 
-      // Use the application documents endpoint
-      let fetchUrl = '';
       const applicationId = application?.id || id;
-      
-      if (document._id && applicationId) {
-        // Use the new application documents endpoint
-        fetchUrl = `${API_SERVER_URL}/api/applications/${applicationId}/documents/${document._id}`;
-      } else if (document.url) {
-        const baseUrl = document.url.startsWith('http') 
-          ? document.url 
-          : `${API_SERVER_URL}${document.url}`;
-        fetchUrl = baseUrl;
-      } else {
-        toast.error('Document URL not available');
+
+      if (!document._id || !applicationId) {
+        toast.error('Document ID not available');
         return;
       }
 
-      console.log('📥 Downloading document from:', fetchUrl);
-
-      const response = await fetch(fetchUrl, {
+      // Fetch the file streamed through the backend
+      const response = await fetch(`${API_SERVER_URL}/api/applications/${applicationId}/documents/${document._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to download document');
-      }
+      if (!response.ok) throw new Error('Failed to download document');
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -1271,11 +1242,18 @@ const ApplicationReview: React.FC = () => {
             {/* Content */}
             <div className="flex-1 overflow-auto p-4 bg-slate-100">
               {previewDoc.mimeType?.includes('pdf') || previewDoc.name.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={previewUrl}
+                <object
+                  data={previewUrl}
+                  type="application/pdf"
                   className="w-full h-full rounded-lg border-2 border-slate-200 bg-white"
-                  title={previewDoc.name}
-                />
+                  aria-label={previewDoc.name}
+                >
+                  <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500">
+                    <FileText className="w-12 h-12" />
+                    <p>PDF preview not available in this browser.</p>
+                    <a href={previewUrl} download={previewDoc.name} className="px-4 py-2 bg-primary-600 text-white rounded-lg">Download PDF</a>
+                  </div>
+                </object>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <img

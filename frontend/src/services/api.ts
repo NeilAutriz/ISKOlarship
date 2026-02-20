@@ -10,7 +10,7 @@ import { Scholarship, StudentProfile, HistoricalApplication, Application } from 
 // Configuration
 // ============================================================================
 
-const USE_MOCK_FALLBACK = true; // Enable fallback to mock data when API fails
+const USE_MOCK_FALLBACK = false; // Disabled - errors should propagate to the UI
 
 // Helper to handle API calls with optional mock fallback
 async function apiWithFallback<T>(

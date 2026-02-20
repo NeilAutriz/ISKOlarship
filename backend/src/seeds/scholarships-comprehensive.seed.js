@@ -47,7 +47,7 @@ const COLLEGES = {
 const ALL_COLLEGES = Object.values(COLLEGES);
 
 // Year Levels
-const YEAR_LEVELS = ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'];
+const YEAR_LEVELS = ['Freshman', 'Sophomore', 'Junior', 'Senior'];
 
 // ST Brackets
 const ST_BRACKETS = {
@@ -1226,7 +1226,7 @@ const scholarships = [
     eligibilityCriteria: {
       minGWA: 1.0,
       maxGWA: 1.75,
-      eligibleClassifications: ['Senior', 'Graduate'],
+      eligibleClassifications: ['Senior'],
       minUnitsEnrolled: 12,
       minUnitsPassed: 120,
       eligibleColleges: [COLLEGES.CAFS, COLLEGES.CFNR, COLLEGES.CHE],

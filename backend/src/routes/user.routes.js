@@ -8,9 +8,7 @@ const router = express.Router();
 const { body, param, validationResult } = require('express-validator');
 const { User, UserRole, UPLBCollege, YearLevel, STBracket } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
-const { uploadMultiple, handleUploadError } = require('../middleware/upload.middleware');
-const path = require('path');
-const fs = require('fs');
+const { uploadMultiple, handleUploadError, uploadFilesToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
 
 // =============================================================================
 // Validation Rules
@@ -52,39 +50,6 @@ router.get('/profile', authMiddleware, async (req, res) => {
 });
 
 /**
- * @route   GET /api/users/debug-documents
- * @desc    Debug endpoint to check documents in database
- * @access  Private
- */
-router.get('/debug-documents', authMiddleware, async (req, res) => {
-  try {
-    console.log('🔍 DEBUG: Checking documents for user:', req.user.email);
-    console.log('🔍 DEBUG: User ID:', req.user._id);
-    console.log('🔍 DEBUG: Documents in req.user:', req.user.studentProfile?.documents);
-    
-    // Fetch fresh from database
-    const freshUser = await User.findById(req.user._id);
-    console.log('🔍 DEBUG: Documents in fresh DB fetch:', freshUser.studentProfile?.documents);
-    
-    res.json({
-      success: true,
-      data: {
-        userId: req.user._id,
-        email: req.user.email,
-        documentsInMemory: req.user.studentProfile?.documents || [],
-        documentsInDB: freshUser.studentProfile?.documents || [],
-        documentCount: freshUser.studentProfile?.documents?.length || 0,
-        hasDocuments: !!freshUser.studentProfile?.documents && freshUser.studentProfile.documents.length > 0
-      }
-    });
-  } catch (error) {
-    console.error('❌ DEBUG endpoint error:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-/**
  * @route   PUT /api/users/profile
  * @desc    Update current user's profile
  * @access  Private
@@ -94,45 +59,11 @@ router.put('/profile',
   profileUpdateValidation,
   async (req, res, next) => {
     try {
-      console.log('====== PROFILE UPDATE REQUEST ======');
-      console.log('User ID:', req.user._id);
-      console.log('User role:', req.user.role);
       
-      // CRITICAL DEBUG: Check documents in raw request body
-      console.log('🚨 RAW REQUEST - studentProfile.documents exists?', !!req.body.studentProfile?.documents);
-      console.log('🚨 RAW REQUEST - documents count:', req.body.studentProfile?.documents?.length || 0);
-      if (req.body.studentProfile?.documents?.length > 0) {
-        console.log('🚨 RAW REQUEST - First document:', {
-          name: req.body.studentProfile.documents[0].name,
-          type: req.body.studentProfile.documents[0].type,
-          hasBase64: !!req.body.studentProfile.documents[0].base64,
-          base64Length: req.body.studentProfile.documents[0].base64?.length || 0
-        });
-      }
-      
-      // Don't log full body if documents exist (too large), summarize instead
-      if (req.body.studentProfile?.documents?.length > 0) {
-        const bodySummary = {
-          ...req.body,
-          studentProfile: {
-            ...req.body.studentProfile,
-            documents: req.body.studentProfile.documents.map(d => ({
-              name: d.name,
-              type: d.type,
-              hasBase64: !!d.base64,
-              base64Length: d.base64?.length || 0,
-              fileName: d.fileName
-            }))
-          }
-        };
-        console.log('Request body (documents summarized):', JSON.stringify(bodySummary, null, 2));
-      } else {
-        console.log('Request body:', JSON.stringify(req.body, null, 2));
-      }
+
       
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        console.log('Validation errors:', errors.array());
         return res.status(400).json({
           success: false,
           errors: errors.array()
@@ -155,15 +86,9 @@ router.put('/profile',
 
       // Update student profile if user is a student
       if (req.user.role === UserRole.STUDENT && req.body.studentProfile) {
-        console.log('Processing studentProfile update...');
         const studentData = req.body.studentProfile;
         
         // DEBUG: Log college/academicUnit data received
-        console.log('🏫 College/Academic Unit data received:');
-        console.log('  - college:', studentData.college);
-        console.log('  - collegeCode:', studentData.collegeCode);
-        console.log('  - academicUnit:', studentData.academicUnit);
-        console.log('  - academicUnitCode:', studentData.academicUnitCode);
         
         // Check for duplicate student number if being updated
         if (studentData.studentNumber) {
@@ -173,7 +98,6 @@ router.put('/profile',
           });
           
           if (existingUser) {
-            console.log('Duplicate student number detected:', studentData.studentNumber);
             return res.status(409).json({
               success: false,
               message: 'This student number is already registered in the system.',
@@ -184,7 +108,6 @@ router.put('/profile',
         
         // Initialize studentProfile if it doesn't exist
         if (!req.user.studentProfile) {
-          console.log('Initializing empty studentProfile');
           req.user.studentProfile = {};
         }
 
@@ -230,14 +153,12 @@ router.put('/profile',
             req.user.studentProfile[field] = studentData[field];
             // DEBUG: Log specific fields we care about
             if (['collegeCode', 'academicUnitCode', 'academicUnit'].includes(field)) {
-              console.log(`📝 Setting ${field} = "${studentData[field]}"`);
             }
           }
         }
         
         // CRITICAL: Mark studentProfile as modified to ensure Mongoose saves all changes
         req.user.markModified('studentProfile');
-        console.log('✅ Marked studentProfile as modified');
         
         // Handle homeAddress as nested object
         if (studentData.homeAddress) {
@@ -245,25 +166,13 @@ router.put('/profile',
             ...req.user.studentProfile.homeAddress,
             ...studentData.homeAddress
           };
-          console.log('Updated homeAddress:', req.user.studentProfile.homeAddress);
         }
         
         // Handle documents array (for profile verification documents)
-        console.log('🔍 Checking for documents in studentData...');
-        console.log('studentData.documents:', studentData.documents);
-        console.log('Is array?', Array.isArray(studentData.documents));
-        console.log('Length:', studentData.documents?.length);
         
         if (studentData.documents !== undefined) {
           if (Array.isArray(studentData.documents) && studentData.documents.length > 0) {
             req.user.studentProfile.documents = studentData.documents.map(doc => {
-              console.log('Processing document:', {
-                name: doc.name,
-                type: doc.type,
-                hasBase64: !!doc.base64,
-                base64Length: doc.base64?.length || 0,
-                fileName: doc.fileName
-              });
               return {
                 name: doc.name || '',
                 documentType: doc.type || 'other',
@@ -274,32 +183,18 @@ router.put('/profile',
                 uploadedAt: new Date()
               };
             });
-            console.log('✅ Updated documents:', req.user.studentProfile.documents.length, 'document(s)');
-            console.log('📄 Document details:', JSON.stringify(req.user.studentProfile.documents.map(d => ({
-              name: d.name,
-              type: d.documentType,
-              fileName: d.fileName,
-              fileSize: d.fileSize,
-              urlLength: d.url?.length || 0,
-              hasUrl: !!d.url
-            })), null, 2));
             
             // CRITICAL: Mark the documents array as modified for Mongoose
             req.user.markModified('studentProfile.documents');
-            console.log('🔄 Marked studentProfile.documents as modified');
           } else {
-            console.log('⚠️ Documents array is empty or not an array');
             // Initialize empty array if not provided
             req.user.studentProfile.documents = [];
             req.user.markModified('studentProfile.documents');
           }
-        } else {
-          console.log('⚠️ No documents field in studentData');
         }
         
         // Handle customFields (merge with existing, don't replace)
         if (studentData.customFields && typeof studentData.customFields === 'object') {
-          console.log('📝 Processing customFields update:', studentData.customFields);
           
           // Initialize customFields if doesn't exist
           if (!req.user.studentProfile.customFields) {
@@ -309,12 +204,10 @@ router.put('/profile',
           // Merge new custom fields with existing ones
           for (const [key, value] of Object.entries(studentData.customFields)) {
             req.user.studentProfile.customFields.set(key, value);
-            console.log(`  ➕ Set customFields.${key} = ${value}`);
           }
           
           // CRITICAL: Mark customFields as modified for Mongoose to save Map changes
           req.user.markModified('studentProfile.customFields');
-          console.log('✅ Merged customFields, marked as modified');
         }
         
         // Mark profile as completed if we have essential fields
@@ -323,32 +216,10 @@ router.put('/profile',
           req.user.studentProfile.profileCompletedAt = new Date();
         }
         
-        console.log('=== FINAL STUDENT PROFILE BEFORE SAVE ===');
-        console.log('🏫 College/Academic Unit fields:');
-        console.log('  - college:', req.user.studentProfile.college);
-        console.log('  - collegeCode:', req.user.studentProfile.collegeCode);
-        console.log('  - academicUnit:', req.user.studentProfile.academicUnit);
-        console.log('  - academicUnitCode:', req.user.studentProfile.academicUnitCode);
-        console.log('Has documents?', !!req.user.studentProfile.documents);
-        console.log('Documents count:', req.user.studentProfile.documents?.length || 0);
-        if (req.user.studentProfile.documents && req.user.studentProfile.documents.length > 0) {
-          console.log('Documents array:', JSON.stringify(req.user.studentProfile.documents.map(d => ({
-            name: d.name,
-            documentType: d.documentType,
-            fileName: d.fileName,
-            hasUrl: !!d.url,
-            urlLength: d.url?.length || 0
-          })), null, 2));
-        }
-        console.log('Full profile (documents truncated):', JSON.stringify({
-          ...req.user.studentProfile,
-          documents: req.user.studentProfile.documents?.map(d => '...')
-        }, null, 2));
       }
 
       // Update admin profile if user is an admin
       if (req.user.role === UserRole.ADMIN && req.body.adminProfile) {
-        console.log('Processing adminProfile update...');
         const adminData = req.body.adminProfile;
         
         // CRITICAL: Validate accessLevel and required scope fields for clean separation
@@ -381,7 +252,6 @@ router.put('/profile',
         
         // Initialize adminProfile if it doesn't exist
         if (!req.user.adminProfile) {
-          console.log('Initializing adminProfile with provided accessLevel:', accessLevel);
           req.user.adminProfile = {
             accessLevel: accessLevel
           };
@@ -410,14 +280,12 @@ router.put('/profile',
             req.user.adminProfile[field] = adminData[field];
             // DEBUG: Log specific fields we care about
             if (['collegeCode', 'academicUnitCode', 'academicUnit', 'accessLevel'].includes(field)) {
-              console.log(`📝 Admin setting ${field} = "${adminData[field]}"`);
             }
           }
         }
         
         // CRITICAL: Mark adminProfile as modified to ensure Mongoose saves all changes
         req.user.markModified('adminProfile');
-        console.log('✅ Marked adminProfile as modified');
         
         // Handle address as nested object
         if (adminData.address) {
@@ -425,34 +293,23 @@ router.put('/profile',
             ...req.user.adminProfile.address,
             ...adminData.address
           };
-          console.log('Updated admin address:', req.user.adminProfile.address);
         }
         
         // Handle permissions array
         if (adminData.permissions && Array.isArray(adminData.permissions)) {
           req.user.adminProfile.permissions = adminData.permissions;
-          console.log('Updated admin permissions:', req.user.adminProfile.permissions);
         }
         
         // Handle documents array (for admin verification documents)
-        console.log('🔍 Checking for documents in adminData...');
-        console.log('adminData.documents:', adminData.documents);
-        console.log('Is array?', Array.isArray(adminData.documents));
-        console.log('Length:', adminData.documents?.length);
         
         if (adminData.documents !== undefined) {
           if (Array.isArray(adminData.documents) && adminData.documents.length > 0) {
             req.user.adminProfile.documents = adminData.documents.map(doc => {
-              console.log('Processing admin document:', {
-                name: doc.name,
-                type: doc.type,
-                hasBase64: !!doc.base64,
-                base64Length: doc.base64?.length || 0,
-                fileName: doc.fileName
-              });
               return {
                 name: doc.name || '',
                 documentType: doc.type || 'other',
+                url: doc.url || '',
+                cloudinaryPublicId: doc.cloudinaryPublicId || '',
                 filePath: doc.filePath || '',
                 fileName: doc.fileName || '',
                 fileSize: doc.fileSize || 0,
@@ -460,67 +317,27 @@ router.put('/profile',
                 uploadedAt: new Date()
               };
             });
-            console.log('✅ Updated admin documents:', req.user.adminProfile.documents.length, 'document(s)');
             
             // CRITICAL: Mark the documents array as modified for Mongoose
             req.user.markModified('adminProfile.documents');
-            console.log('🔄 Marked adminProfile.documents as modified');
           } else {
-            console.log('⚠️ Admin documents array is empty or not an array');
             // Initialize empty array if not provided
             req.user.adminProfile.documents = [];
             req.user.markModified('adminProfile.documents');
           }
-        } else {
-          console.log('⚠️ No documents field in adminData');
         }
         
         // Mark profile as completed if we have essential fields
-        if (adminData.department && adminData.position) {
+        if (adminData.position && req.user.adminProfile.accessLevel) {
           req.user.adminProfile.profileCompleted = true;
           req.user.adminProfile.profileCompletedAt = new Date();
         }
         
-        console.log('Final adminProfile before save:', JSON.stringify(req.user.adminProfile, null, 2));
       }
 
       await req.user.save();
-      console.log('✅ User saved successfully');
       
-      // CRITICAL DEBUG: Verify fields were actually saved by fetching fresh from DB
-      const savedUser = await User.findById(req.user._id);
-      console.log('🔎 FRESH DB FETCH - Verifying data in database:');
-      console.log('  - collegeCode in DB:', savedUser.studentProfile?.collegeCode);
-      console.log('  - academicUnitCode in DB:', savedUser.studentProfile?.academicUnitCode);
-      console.log('  - Documents in database:', savedUser.studentProfile?.documents?.length || 0);
-      if (savedUser.studentProfile?.documents?.length > 0) {
-        console.log('✅ SUCCESS! Documents ARE in database:');
-        savedUser.studentProfile.documents.forEach((doc, idx) => {
-          console.log(`  DB Doc ${idx + 1}:`, {
-            name: doc.name,
-            type: doc.documentType,
-            hasUrl: !!doc.url,
-            urlLength: doc.url?.length || 0
-          });
-        });
-      } else {
-        console.log('❌ FAILURE! Documents NOT in database after save');
-        console.log('❌ This means Mongoose did NOT persist the documents');
-      }
-      
-      // Verify documents were saved
-      if (req.user.role === UserRole.STUDENT && req.user.studentProfile?.documents) {
-        console.log('📄 Documents in memory after save:', req.user.studentProfile.documents.length, 'document(s)');
-        req.user.studentProfile.documents.forEach((doc, idx) => {
-          console.log(`  Memory Doc ${idx + 1}:`, {
-            name: doc.name,
-            type: doc.documentType,
-            hasUrl: !!doc.url,
-            urlLength: doc.url?.length || 0
-          });
-        });
-      }
-      console.log('Returning profile:', JSON.stringify(req.user.getPublicProfile(), null, 2));
+
 
       res.json({
         success: true,
@@ -670,88 +487,10 @@ router.get('/',
 );
 
 /**
- * @route   GET /api/users/:id
- * @desc    Get user by ID (admin)
- * @access  Admin
- */
-router.get('/:id',
-  authMiddleware,
-  requireRole('admin'),
-  [param('id').isMongoId()],
-  async (req, res, next) => {
-    try {
-      const user = await User.findById(req.params.id)
-        .select('-password -refreshTokens')
-        .lean();
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        data: user
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-/**
- * @route   PUT /api/users/:id/status
- * @desc    Update user status (activate/deactivate)
- * @access  Admin
- */
-router.put('/:id/status',
-  authMiddleware,
-  requireRole('admin'),
-  requireAdminLevel('manager'),
-  [
-    param('id').isMongoId(),
-    body('isActive').isBoolean()
-  ],
-  async (req, res, next) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({
-          success: false,
-          errors: errors.array()
-        });
-      }
-
-      const user = await User.findByIdAndUpdate(
-        req.params.id,
-        { isActive: req.body.isActive },
-        { new: true }
-      ).select('-password -refreshTokens');
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: `User ${req.body.isActive ? 'activated' : 'deactivated'} successfully`,
-        data: user
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-/**
  * @route   GET /api/users/stats/overview
  * @desc    Get user statistics
  * @access  Admin
+ * NOTE: Must be defined BEFORE /:id to avoid Express matching "stats" as an id parameter
  */
 router.get('/stats/overview',
   authMiddleware,
@@ -798,6 +537,85 @@ router.get('/stats/overview',
   }
 );
 
+/**
+ * @route   GET /api/users/:id
+ * @desc    Get user by ID (admin)
+ * @access  Admin
+ */
+router.get('/:id',
+  authMiddleware,
+  requireRole('admin'),
+  [param('id').isMongoId()],
+  async (req, res, next) => {
+    try {
+      const user = await User.findById(req.params.id)
+        .select('-password -refreshTokens')
+        .lean();
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @route   PUT /api/users/:id/status
+ * @desc    Update user status (activate/deactivate)
+ * @access  Admin
+ */
+router.put('/:id/status',
+  authMiddleware,
+  requireRole('admin'),
+  requireAdminLevel('university'),
+  [
+    param('id').isMongoId(),
+    body('isActive').isBoolean()
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array()
+        });
+      }
+
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        { isActive: req.body.isActive },
+        { new: true }
+      ).select('-password -refreshTokens');
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `User ${req.body.isActive ? 'activated' : 'deactivated'} successfully`,
+        data: user
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // =============================================================================
 // Document Upload Routes (Optimized File Storage)
 // =============================================================================
@@ -819,7 +637,6 @@ router.post('/documents/upload',
   },
   async (req, res, next) => {
     try {
-      console.log('📤 Document upload request from user:', req.user.email, 'Role:', req.user.role);
       
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({
@@ -829,9 +646,10 @@ router.post('/documents/upload',
         });
       }
 
-      console.log(`📄 Received ${req.files.length} file(s)`);
+      // Upload files to Cloudinary
+      const cloudinaryResults = await uploadFilesToCloudinary(req.files, req.user._id.toString());
 
-      // Process uploaded files and create document metadata
+      // Build document metadata with Cloudinary URLs
       const uploadedDocuments = req.files.map((file, index) => {
         const documentType = req.body.documentTypes ? 
           (Array.isArray(req.body.documentTypes) ? req.body.documentTypes[index] : req.body.documentTypes) : 
@@ -841,15 +659,13 @@ router.post('/documents/upload',
           (Array.isArray(req.body.documentNames) ? req.body.documentNames[index] : req.body.documentNames) :
           file.originalname;
 
-        // Create relative path for storage
-        const relativePath = `documents/${req.user._id}/${file.filename}`;
-
-        console.log(`  📎 ${index + 1}. ${documentName} (${file.originalname}) - ${(file.size / 1024).toFixed(2)}KB`);
+        const cloudResult = cloudinaryResults[index];
 
         return {
           name: documentName,
           documentType: documentType,
-          filePath: relativePath,
+          url: cloudResult.url,
+          cloudinaryPublicId: cloudResult.publicId,
           fileName: file.originalname,
           fileSize: file.size,
           mimeType: file.mimetype,
@@ -875,21 +691,15 @@ router.post('/documents/upload',
         req.user.markModified('studentProfile.documents');
         await req.user.save();
 
-        console.log(`✅ Successfully uploaded and saved ${uploadedDocuments.length} document(s) to studentProfile`);
       } else if (req.user.role === UserRole.ADMIN) {
         // Handle admin employee ID document
-        console.log('🔧 Processing admin document upload...');
-        console.log('   Current adminProfile:', req.user.adminProfile);
         
         if (!req.user.adminProfile) {
-          console.log('   Creating new adminProfile object');
           req.user.adminProfile = {};
         }
 
         // For admin, we expect only employee_id document
         const employeeIdDoc = uploadedDocuments.find(doc => doc.documentType === 'employee_id');
-        console.log('   Looking for employee_id document type...');
-        console.log('   Found:', employeeIdDoc ? 'YES' : 'NO');
         
         if (employeeIdDoc) {
           // Initialize documents array if needed
@@ -901,38 +711,27 @@ router.post('/documents/upload',
             name: 'Employee ID',
             documentType: 'employee_id',
             fileName: employeeIdDoc.fileName,
-            filePath: employeeIdDoc.filePath,
+            url: employeeIdDoc.url,
+            cloudinaryPublicId: employeeIdDoc.cloudinaryPublicId,
             fileSize: employeeIdDoc.fileSize,
             mimeType: employeeIdDoc.mimeType,
             uploadedAt: employeeIdDoc.uploadedAt
           };
           
-          console.log('   Adding document to adminProfile.documents:', JSON.stringify(docData, null, 2));
           req.user.adminProfile.documents.push(docData);
           
           // Mark as modified and save
           req.user.markModified('adminProfile.documents');
-          console.log('   Marked adminProfile.documents as modified');
           
           const savedUser = await req.user.save();
-          console.log('   User saved successfully');
           
           // Verify it was saved
-          console.log('   🔎 VERIFYING SAVE...');
           const freshUser = await User.findById(req.user._id);
           if (freshUser.adminProfile?.documents?.length > 0) {
-            console.log('   ✅ SUCCESS! Document found in database after save');
-            console.log('   📄 Documents count:', freshUser.adminProfile.documents.length);
-            console.log('   📄 Latest document:', JSON.stringify(freshUser.adminProfile.documents[freshUser.adminProfile.documents.length - 1], null, 2));
           } else {
-            console.log('   ❌ FAILURE! Document NOT in database after save');
-            console.log('   This means Mongoose did NOT persist the document');
           }
 
-          console.log(`✅ Successfully uploaded and saved employee ID document to adminProfile.documents`);
         } else {
-          console.log('   ❌ No employee_id document type found in uploads');
-          console.log('   Uploaded document types:', uploadedDocuments.map(d => d.documentType));
           return res.status(400).json({
             success: false,
             message: 'Employee ID document type required for admin uploads',
@@ -949,7 +748,7 @@ router.post('/documents/upload',
             name: doc.name,
             documentType: doc.documentType,
             fileName: doc.fileName,
-            filePath: doc.filePath,
+            url: doc.url,
             fileSize: doc.fileSize,
             mimeType: doc.mimeType,
             uploadedAt: doc.uploadedAt
@@ -976,10 +775,6 @@ router.get('/documents/:documentId',
     try {
       const { documentId } = req.params;
       
-      console.log('📥 Document download request:', documentId, 'by user:', req.user.email);
-      console.log('🔍 User role:', req.user.role);
-      console.log('📁 Admin documents count:', req.user.adminProfile?.documents?.length || 0);
-
       // Find the document in user's profile
       let document;
       let userId;
@@ -992,14 +787,8 @@ router.get('/documents/:documentId',
         // Try using .id() method first, then fallback to manual search
         let ownDocument = req.user.adminProfile?.documents?.id(documentId);
         
-        console.log('🔍 Looking for document ID:', documentId);
         if (req.user.adminProfile?.documents) {
-          console.log('📋 Available document IDs:', 
-            req.user.adminProfile.documents.map(d => ({
-              id: d._id?.toString(),
-              fileName: d.fileName
-            }))
-          );
+
         }
         
         if (!ownDocument && req.user.adminProfile?.documents) {
@@ -1007,12 +796,10 @@ router.get('/documents/:documentId',
           ownDocument = req.user.adminProfile.documents.find(
             doc => doc._id && doc._id.toString() === documentId
           );
-          console.log('🔍 Manual search result:', ownDocument ? 'Found!' : 'Not found');
         }
         
         if (ownDocument) {
           // Admin accessing their own document
-          console.log('✅ Found admin own document:', ownDocument.fileName);
           document = ownDocument;
           userId = req.user._id;
         } else {
@@ -1020,8 +807,6 @@ router.get('/documents/:documentId',
           const studentId = req.query.studentId;
           
           if (!studentId) {
-            console.log('❌ Document not in admin profile, no studentId provided');
-            console.log('Admin documents:', req.user.adminProfile?.documents?.length || 0);
             return res.status(400).json({
               success: false,
               message: 'Document not found in your profile'
@@ -1048,30 +833,49 @@ router.get('/documents/:documentId',
         });
       }
 
-      // Construct file path
-      const filePath = path.join(__dirname, '../../uploads', document.filePath);
-      
-      console.log('📂 File path:', filePath);
+      // Stream the file from Cloudinary through the backend (avoids CDN 401 for raw files)
+      if (document.url || document.cloudinaryPublicId) {
+        const downloadUrl = document.cloudinaryPublicId
+          ? getSignedUrl(document.cloudinaryPublicId, document.mimeType)
+          : document.url;
 
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
-        console.error('❌ File not found on disk:', filePath);
-        return res.status(404).json({
-          success: false,
-          message: 'Document file not found on server'
+        // Check if client wants JSON metadata (Accept: application/json)
+        const wantsJson = (req.headers.accept || '').includes('application/json');
+        if (wantsJson) {
+          return res.json({
+            success: true,
+            data: { url: downloadUrl, fileName: document.fileName, mimeType: document.mimeType }
+          });
+        }
+
+        // Otherwise stream the binary content back to the client
+        const https = require('https');
+        const { pipeline } = require('stream');
+        res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${document.fileName}"`);
+        https.get(downloadUrl, (upstream) => {
+          if (upstream.statusCode !== 200) {
+            return res.status(502).json({ success: false, message: 'Failed to fetch document from storage' });
+          }
+          if (upstream.headers['content-length']) {
+            res.setHeader('Content-Length', upstream.headers['content-length']);
+          }
+          pipeline(upstream, res, (err) => {
+            if (err) console.error('Stream error:', err.message);
+          });
+        }).on('error', (err) => {
+          console.error('Cloudinary fetch error:', err);
+          res.status(502).json({ success: false, message: 'Failed to fetch document from storage' });
         });
+        return;
       }
 
-      // Set appropriate headers
-      res.setHeader('Content-Type', document.mimeType);
-      res.setHeader('Content-Disposition', `inline; filename="${document.fileName}"`);
-      res.setHeader('Content-Length', document.fileSize);
+      // Fallback: no URL stored (legacy data)
+      return res.status(404).json({
+        success: false,
+        message: 'Document file not found – it may have been uploaded before cloud storage was enabled'
+      });
 
-      // Stream the file
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
-
-      console.log('✅ Document sent successfully');
     } catch (error) {
       console.error('❌ Document download error:', error);
       next(error);
@@ -1091,8 +895,6 @@ router.delete('/documents/:documentId',
     try {
       const { documentId } = req.params;
       
-      console.log('🗑️ Document delete request:', documentId, 'by user:', req.user.email);
-
       // Find the document
       const document = req.user.studentProfile?.documents?.id(documentId);
       
@@ -1103,18 +905,14 @@ router.delete('/documents/:documentId',
         });
       }
 
-      // Delete file from disk
-      const filePath = path.join(__dirname, '../../uploads', document.filePath);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log('🗑️ File deleted from disk:', filePath);
+      // Delete file from Cloudinary
+      if (document.cloudinaryPublicId) {
+        await deleteFromCloudinary(document.cloudinaryPublicId);
       }
 
       // Remove from database
       req.user.studentProfile.documents.pull(documentId);
       await req.user.save();
-
-      console.log('✅ Document deleted successfully');
 
       res.json({
         success: true,

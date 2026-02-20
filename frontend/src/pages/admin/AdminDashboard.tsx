@@ -75,7 +75,7 @@ const AdminDashboard: React.FC = () => {
             totalApplications: statsRes.data.overview.totalApplications || 0,
             pendingReviews: statsRes.data.overview.pendingApplications || 0,
             approvedThisMonth: statsRes.data.overview.approvedApplications || 0,
-            conversionRate: Math.round((statsRes.data.overview.successRate || 0) * 100)
+            conversionRate: Math.round(statsRes.data.overview.successRate || 0)
           });
         }
         
@@ -108,7 +108,7 @@ const AdminDashboard: React.FC = () => {
             name: s.name,
             sponsor: s.sponsor,
             applicants: s.currentApplicants || 0,
-            slots: s.maxSlots || s.totalSlots || 0,
+            slots: s.slots || s.maxSlots || s.totalSlots || 0,
             deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A'
           })));
         }
