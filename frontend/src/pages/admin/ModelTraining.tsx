@@ -22,7 +22,10 @@ import {
   Star,
   Globe,
   Info,
-  Shield
+  Shield,
+  Bot,
+  Clock,
+  SkipForward
 } from 'lucide-react';
 import { trainingApi } from '../../services/apiClient';
 
@@ -45,6 +48,7 @@ interface TrainedModel {
   };
   featureImportance: Record<string, number>;
   trainedAt: string;
+  triggerType?: 'manual' | 'auto_status_change' | 'auto_global_refresh';
 }
 
 interface TrainingStats {
@@ -66,6 +70,38 @@ interface TrainableScholarship {
   isTrainable: boolean;
 }
 
+interface AutoTrainingStatus {
+  enabled: boolean;
+  globalDecisionCounter: number;
+  decisionsUntilGlobalRetrain: number;
+  activeLocks: string[];
+  todaySummary: {
+    totalAutoTrains: number;
+    scholarshipTrains: number;
+    globalTrains: number;
+  };
+  lastEvent: {
+    timestamp: string;
+    type: string;
+    scope?: string;
+    scholarshipName?: string;
+    accuracy?: number;
+    error?: string;
+  } | null;
+}
+
+interface AutoTrainingLogEntry {
+  timestamp: string;
+  type: string;
+  scope?: string;
+  scholarshipId?: string;
+  scholarshipName?: string;
+  accuracy?: number;
+  elapsed?: number;
+  error?: string;
+  reason?: string;
+}
+
 const ModelTraining: React.FC = () => {
   const [models, setModels] = useState<TrainedModel[]>([]);
   const [stats, setStats] = useState<TrainingStats | null>(null);
@@ -76,6 +112,9 @@ const ModelTraining: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isScopeError, setIsScopeError] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [autoStatus, setAutoStatus] = useState<AutoTrainingStatus | null>(null);
+  const [autoLog, setAutoLog] = useState<AutoTrainingLogEntry[]>([]);
+  const [showAutoLog, setShowAutoLog] = useState(false);
 
   // Feature display names
   const featureDisplayNames: Record<string, string> = {
@@ -102,15 +141,19 @@ const ModelTraining: React.FC = () => {
     setError(null);
     
     try {
-      const [modelsRes, statsRes, scholarshipsRes] = await Promise.all([
+      const [modelsRes, statsRes, scholarshipsRes, autoStatusRes, autoLogRes] = await Promise.all([
         trainingApi.getAllModels(),
         trainingApi.getStats(),
-        trainingApi.getTrainableScholarships()
+        trainingApi.getTrainableScholarships(),
+        trainingApi.getAutoTrainingStatus().catch(() => ({ success: false, data: null })),
+        trainingApi.getAutoTrainingLog(20).catch(() => ({ success: false, data: [] })),
       ]);
 
       if (modelsRes.success) setModels(modelsRes.data as any || []);
       if (statsRes.success) setStats(statsRes.data as TrainingStats);
       if (scholarshipsRes.success) setTrainableScholarships(scholarshipsRes.data as any || []);
+      if (autoStatusRes.success && autoStatusRes.data) setAutoStatus(autoStatusRes.data as any);
+      if (autoLogRes.success && autoLogRes.data) setAutoLog(autoLogRes.data as any || []);
     } catch (err: any) {
       if (err.isSessionExpired) {
         setError('Your session has expired. Please log in again.');
@@ -385,6 +428,124 @@ const ModelTraining: React.FC = () => {
           </div>
         )}
 
+        {/* Auto-Training Status Panel */}
+        {autoStatus && (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold text-slate-900">Auto-Training</h2>
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white text-xs font-semibold rounded-full">
+                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-600">Models retrain automatically when you approve or reject applications</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAutoLog(!showAutoLog)}
+                  className="text-sm text-emerald-700 hover:text-emerald-800 font-medium px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors"
+                >
+                  {showAutoLog ? 'Hide Log' : 'View Log'}
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-emerald-700">{autoStatus.todaySummary.totalAutoTrains}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Auto-trains today</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-blue-700">{autoStatus.todaySummary.scholarshipTrains}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Scholarship models</p>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-purple-700">{autoStatus.todaySummary.globalTrains}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Global retrains</p>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-bold text-slate-700">{autoStatus.decisionsUntilGlobalRetrain}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Until next global</p>
+                </div>
+              </div>
+
+              {/* Last Event */}
+              {autoStatus.lastEvent && (
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Clock className="w-4 h-4 text-slate-400" />
+                  <span>
+                    Last event: {autoStatus.lastEvent.type === 'success' ? '✅' : autoStatus.lastEvent.type === 'skipped' ? '⏭️' : '⚠️'}
+                    {' '}{autoStatus.lastEvent.scope === 'global' ? 'Global model' : autoStatus.lastEvent.scholarshipName || 'Scholarship model'}
+                    {autoStatus.lastEvent.accuracy != null && ` — ${(autoStatus.lastEvent.accuracy * 100).toFixed(1)}% accuracy`}
+                    {' · '}{new Date(autoStatus.lastEvent.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              )}
+
+              {/* Expandable Log */}
+              {showAutoLog && autoLog.length > 0 && (
+                <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                    <h3 className="text-sm font-medium text-slate-700">Recent Auto-Training Activity</h3>
+                  </div>
+                  <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                    {autoLog.map((entry, i) => (
+                      <div key={i} className="px-4 py-2.5 flex items-center gap-3 text-sm hover:bg-slate-50">
+                        {/* Status icon */}
+                        {entry.type === 'success' ? (
+                          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        ) : entry.type === 'skipped' ? (
+                          <SkipForward className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                        )}
+                        {/* Description */}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-slate-800">
+                            {entry.scope === 'global' ? 'Global model' : entry.scholarshipName || 'Scholarship model'}
+                          </span>
+                          {entry.type === 'success' && entry.accuracy != null && (
+                            <span className="text-slate-500"> — {(entry.accuracy * 100).toFixed(1)}%</span>
+                          )}
+                          {entry.type === 'skipped' && (
+                            <span className="text-slate-400 ml-1">
+                              ({entry.reason === 'insufficient_data' ? 'need more data' : entry.reason === 'concurrent_lock' ? 'already training' : entry.reason})
+                            </span>
+                          )}
+                          {entry.type === 'error' && (
+                            <span className="text-red-500 ml-1">— {entry.error}</span>
+                          )}
+                        </div>
+                        {/* Elapsed time */}
+                        {entry.elapsed != null && (
+                          <span className="text-xs text-slate-400 flex-shrink-0">{(entry.elapsed / 1000).toFixed(1)}s</span>
+                        )}
+                        {/* Timestamp */}
+                        <span className="text-xs text-slate-400 flex-shrink-0">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {showAutoLog && autoLog.length === 0 && (
+                <div className="mt-4 text-center py-6 text-sm text-slate-400">
+                  No auto-training events yet. Events will appear here as you approve or reject applications.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Global Model Section */}
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
           <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-primary-50 to-blue-50">
@@ -419,8 +580,16 @@ const ModelTraining: React.FC = () => {
               <div className="flex items-center gap-2 mb-4">
                 <Star className="w-5 h-5 text-amber-500" />
                 <span className="font-medium text-slate-900">Active Global Model</span>
+                {model.triggerType && model.triggerType !== 'manual' ? (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                    <Bot className="w-3 h-3" />
+                    Auto-trained
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-full">Manual</span>
+                )}
                 <span className="text-sm text-slate-500">
-                  Trained {new Date(model.trainedAt).toLocaleDateString()}
+                  {new Date(model.trainedAt).toLocaleDateString()}
                 </span>
               </div>
 
@@ -593,9 +762,18 @@ const ModelTraining: React.FC = () => {
                           </div>
 
                           {/* Training Info */}
-                          <p className="text-xs text-slate-500">
-                            Trained {new Date(existingModel.trainedAt).toLocaleDateString()}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-slate-500">
+                              {new Date(existingModel.trainedAt).toLocaleDateString()}
+                            </p>
+                            {existingModel.triggerType && existingModel.triggerType !== 'manual' ? (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-medium rounded-full">
+                                <Bot className="w-2.5 h-2.5" />Auto
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[10px] font-medium rounded-full">Manual</span>
+                            )}
+                          </div>
 
                           {/* Actions */}
                           <div className="flex items-center gap-2 pt-2">

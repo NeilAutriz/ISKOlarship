@@ -18,6 +18,7 @@ const {
   getAdminScopeSummary 
 } = require('../middleware/adminScope.middleware');
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
+const { onApplicationDecision } = require('../services/autoTraining.service');
 
 // =============================================================================
 // Validation Rules
@@ -1202,6 +1203,16 @@ router.put('/:id/status',
       }
 
       await application.save();
+
+      // ── Auto-retrain ML model (non-blocking background task) ──────────
+      if ([ApplicationStatus.APPROVED, ApplicationStatus.REJECTED].includes(status)) {
+        onApplicationDecision(
+          application._id,
+          application.scholarship._id,
+          status,
+          req.user._id
+        );
+      }
 
       res.json({
         success: true,

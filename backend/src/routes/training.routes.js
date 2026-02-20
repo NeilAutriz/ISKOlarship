@@ -12,6 +12,7 @@ const {
   canManageScholarship,
   canManageTrainedModel
 } = require('../middleware/adminScope.middleware');
+const { getAutoTrainingStatus, getAutoTrainingLog } = require('../services/autoTraining.service');
 const {
   trainGlobalModel,
   trainScholarshipModel,
@@ -441,6 +442,41 @@ router.get('/scholarships/trainable', authMiddleware, requireRole('admin'), asyn
       success: false,
       message: 'Failed to fetch scholarships'
     });
+  }
+});
+
+// =============================================================================
+// Auto-Training Endpoints
+// =============================================================================
+
+/**
+ * @route   GET /api/training/auto-training/status
+ * @desc    Get auto-training system status and configuration
+ * @access  Admin
+ */
+router.get('/auto-training/status', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const status = getAutoTrainingStatus();
+    res.json({ success: true, data: status });
+  } catch (error) {
+    console.error('Error fetching auto-training status:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch auto-training status' });
+  }
+});
+
+/**
+ * @route   GET /api/training/auto-training/log
+ * @desc    Get recent auto-training activity log
+ * @access  Admin
+ */
+router.get('/auto-training/log', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const log = getAutoTrainingLog(limit);
+    res.json({ success: true, data: log });
+  } catch (error) {
+    console.error('Error fetching auto-training log:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch auto-training log' });
   }
 });
 

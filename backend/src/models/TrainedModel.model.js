@@ -185,6 +185,19 @@ const trainedModelSchema = new mongoose.Schema({
     ref: 'User'
   },
   
+  // Auto-training metadata
+  triggerType: {
+    type: String,
+    enum: ['manual', 'auto_status_change', 'auto_global_refresh'],
+    default: 'manual'
+  },
+  
+  triggerApplicationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Application',
+    default: null
+  },
+  
   // Notes
   notes: String
   

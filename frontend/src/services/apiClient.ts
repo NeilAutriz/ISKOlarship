@@ -1155,6 +1155,53 @@ export const trainingApi = {
     const response = await api.delete<ApiResponse<void>>(`/training/models/${modelId}`);
     return response.data;
   },
+
+  // Get auto-training system status
+  getAutoTrainingStatus: async () => {
+    const response = await api.get<ApiResponse<{
+      enabled: boolean;
+      config: {
+        minSamplesScholarship: number;
+        minSamplesGlobal: number;
+        globalRetrainInterval: number;
+      };
+      globalDecisionCounter: number;
+      decisionsUntilGlobalRetrain: number;
+      activeLocks: string[];
+      todaySummary: {
+        totalAutoTrains: number;
+        scholarshipTrains: number;
+        globalTrains: number;
+      };
+      lastEvent: {
+        timestamp: string;
+        type: string;
+        scope?: string;
+        scholarshipName?: string;
+        accuracy?: number;
+        error?: string;
+      } | null;
+    }>>('/training/auto-training/status');
+    return response.data;
+  },
+
+  // Get auto-training activity log
+  getAutoTrainingLog: async (limit: number = 50) => {
+    const response = await api.get<ApiResponse<Array<{
+      timestamp: string;
+      type: string;
+      scope?: string;
+      scholarshipId?: string;
+      scholarshipName?: string;
+      applicationId?: string;
+      modelId?: string;
+      accuracy?: number;
+      elapsed?: number;
+      error?: string;
+      reason?: string;
+    }>>>(`/training/auto-training/log?limit=${limit}`);
+    return response.data;
+  },
 };
 
 // ============================================================================
