@@ -64,6 +64,8 @@ const AdminScholarships: React.FC = () => {
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isScopeError, setIsScopeError] = useState(false);
   const [adminScope, setAdminScope] = useState<AdminScope | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Scholarship | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -127,18 +129,21 @@ const AdminScholarships: React.FC = () => {
           // Admin endpoint returned but with no scholarships - this is valid (admin has no scholarships in scope)
           setScholarships([]);
         }
-      } catch (error) {
+      } catch (error: any) {
         if (isMounted) {
           console.error('❌ Failed to fetch scholarships:', error);
+          if (error.isSessionExpired) {
+            setError('Your session has expired. Please log in again.');
+          } else if (error.response?.status === 403) {
+            setIsScopeError(true);
+            setError(error.response?.data?.message || 'You do not have permission to view these scholarships. They may be outside your administrative scope.');
+          } else {
+            setError('Failed to load scholarships. Please try again later.');
+          }
           // CRITICAL FIX: Do NOT fall back to public endpoint
           // This would bypass admin scope filtering and show ALL scholarships
           // Instead, show empty state with error indication
           setScholarships([]);
-          
-          // Log detailed error for debugging
-          if (error instanceof Error) {
-            console.error('Error details:', error.message);
-          }
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -277,20 +282,65 @@ const AdminScholarships: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to delete scholarship:', err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to delete scholarship. Please try again.', {
-        position: 'top-right',
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true
-      });
+      if (err.response?.status === 403) {
+        toast.error(err.response?.data?.message || 'You do not have permission to delete this scholarship. It is outside your administrative scope.', {
+          position: 'top-right',
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
+        });
+      } else {
+        toast.error(err.response?.data?.message || err.message || 'Failed to delete scholarship. Please try again.', {
+          position: 'top-right',
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
+        });
+      }
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
       setShowDropdown(null);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+          <p className="text-slate-600 font-medium">Loading scholarships...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className={`w-16 h-16 ${isScopeError ? 'bg-amber-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            {isScopeError ? <Shield className="w-8 h-8 text-amber-600" /> : <AlertTriangle className="w-8 h-8 text-red-600" />}
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{isScopeError ? 'Access Restricted' : 'Error'}</h2>
+          <p className="text-slate-600 mb-4">{error}</p>
+          {isScopeError && (
+            <p className="text-sm text-slate-500 mb-4">Your admin scope only allows viewing scholarships within your assigned college or academic unit. Contact a university-level admin for broader access.</p>
+          )}
+          <button
+            onClick={() => { setError(null); setIsScopeError(false); window.location.reload(); }}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

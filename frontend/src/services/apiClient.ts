@@ -220,8 +220,15 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         clearTokens();
-        window.location.href = '/';
-        return Promise.reject(refreshError);
+        // Dispatch custom event so React can handle session expiry gracefully
+        // instead of hard-redirecting which breaks error page display
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        
+        // Create an enhanced error so components can detect session expiry
+        const sessionError = new Error('Your session has expired. Please log in again.') as any;
+        sessionError.isSessionExpired = true;
+        sessionError.response = { status: 401, data: { message: 'Session expired' } };
+        return Promise.reject(sessionError);
       }
     }
     
@@ -1146,139 +1153,6 @@ export const trainingApi = {
   // Delete model (admin)
   deleteModel: async (modelId: string) => {
     const response = await api.delete<ApiResponse<void>>(`/training/models/${modelId}`);
-    return response.data;
-  },
-};
-
-// ============================================================================
-// Document Verification API (Admin)
-// ============================================================================
-
-export const verificationApi = {
-  // Get verification statistics
-  getStats: async () => {
-    const response = await api.get<ApiResponse<{
-      profileDocuments: { pending: number; verified: number; rejected: number };
-      applicationDocuments: { pending: number; verified: number };
-      total: { pending: number; verified: number; rejected: number };
-    }>>('/verification/stats');
-    return response.data;
-  },
-
-  // Get pending documents
-  getPending: async (params?: { page?: number; limit?: number; type?: string; role?: string }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.set('page', String(params.page));
-    if (params?.limit) queryParams.set('limit', String(params.limit));
-    if (params?.type) queryParams.set('type', params.type);
-    if (params?.role) queryParams.set('role', params.role);
-    const response = await api.get<ApiResponse<{
-      documents: Array<{
-        userId: string;
-        userEmail: string;
-        userName: string;
-        studentNumber?: string;
-        userRole: string;
-        documentId: string;
-        documentType: string;
-        documentName: string;
-        fileName: string;
-        fileSize: number;
-        mimeType: string;
-        fileId?: string;
-        uploadedAt: string;
-        verificationStatus: string;
-        ocrExtractedText?: string;
-        ocrConfidence?: number;
-      }>;
-      pagination: {
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-      };
-    }>>(`/verification/pending?${queryParams.toString()}`);
-    return response.data;
-  },
-
-  // Get all documents (with status filter)
-  getAll: async (params?: { page?: number; limit?: number; status?: string; type?: string }) => {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.set('page', String(params.page));
-    if (params?.limit) queryParams.set('limit', String(params.limit));
-    if (params?.status) queryParams.set('status', params.status);
-    if (params?.type) queryParams.set('type', params.type);
-    const response = await api.get<ApiResponse<{
-      documents: Array<{
-        userId: string;
-        userEmail: string;
-        userName: string;
-        studentNumber?: string;
-        userRole: string;
-        documentId: string;
-        documentType: string;
-        documentName: string;
-        fileName: string;
-        fileSize: number;
-        mimeType: string;
-        fileId?: string;
-        uploadedAt: string;
-        verificationStatus: string;
-        verifiedAt?: string;
-        verificationNotes?: string;
-        ocrExtractedText?: string;
-        ocrConfidence?: number;
-      }>;
-      pagination: {
-        total: number;
-        page: number;
-        limit: number;
-        totalPages: number;
-      };
-    }>>(`/verification/all?${queryParams.toString()}`);
-    return response.data;
-  },
-
-  // Verify or reject a document
-  verifyDocument: async (userId: string, documentId: string, status: 'verified' | 'rejected', notes?: string) => {
-    const response = await api.put<ApiResponse<{
-      documentId: string;
-      verificationStatus: string;
-      verifiedBy: string;
-      verifiedAt: string;
-      verificationNotes: string;
-    }>>(`/verification/${userId}/documents/${documentId}`, { status, notes });
-    return response.data;
-  },
-
-  // Run OCR on a document
-  runOcr: async (userId: string, documentId: string) => {
-    const response = await api.post<ApiResponse<{
-      ocrResult: {
-        text: string;
-        confidence: number;
-        isSuccess: boolean;
-        error?: string;
-      };
-      validation: {
-        isLikelyValid: boolean;
-        hints: string[];
-      };
-      documentType: string;
-      fileName: string;
-    }>>(`/verification/${userId}/documents/${documentId}/ocr`);
-    return response.data;
-  },
-
-  // Verify an application document
-  verifyApplicationDocument: async (applicationId: string, documentId: string, status: 'verified' | 'rejected', notes?: string) => {
-    const response = await api.put<ApiResponse<{
-      documentId: string;
-      verified: boolean;
-      verifiedBy: string;
-      verifiedAt: string;
-      verificationNotes: string;
-    }>>(`/applications/${applicationId}/documents/${documentId}/verify`, { status, notes });
     return response.data;
   },
 };

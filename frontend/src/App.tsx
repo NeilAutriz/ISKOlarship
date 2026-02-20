@@ -56,6 +56,7 @@ import { User, UserRole } from './types';
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isInitializing: boolean;
   user: User | null;
   userRole: UserRole;
   login: (user: User) => void;
@@ -140,6 +141,20 @@ const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  // Listen for session expiry events from the API interceptor
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      console.warn('Session expired - clearing auth state');
+      setUser(null);
+      setIsAuthenticated(false);
+      setUserRole(UserRole.GUEST);
+      showToast('Your session has expired. Please log in again.', 'error');
+    };
+
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
   }, []);
 
   const login = (userData: User) => {
@@ -541,6 +556,7 @@ const App: React.FC = () => {
 
   const authContextValue: AuthContextType = {
     isAuthenticated,
+    isInitializing,
     user,
     userRole,
     login,

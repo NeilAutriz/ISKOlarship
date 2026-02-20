@@ -9,6 +9,10 @@ const { body, param, validationResult } = require('express-validator');
 const { User, UserRole, UPLBCollege, YearLevel, STBracket } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
 const { uploadMultiple, handleUploadError, uploadFilesToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
+const {
+  getScholarshipScopeFilter,
+  getScopedScholarshipIds
+} = require('../middleware/adminScope.middleware');
 
 // =============================================================================
 // Validation Rules
@@ -424,7 +428,7 @@ router.put('/password',
 
 /**
  * @route   GET /api/users
- * @desc    Get all users (admin)
+ * @desc    Get all users (admin, scoped)
  * @access  Admin
  */
 router.get('/',
@@ -453,6 +457,20 @@ router.get('/',
           { lastName: { $regex: search, $options: 'i' } },
           { email: { $regex: search, $options: 'i' } }
         ];
+      }
+
+      // SCOPE CHECK: Non-university admins only see students who are applicants
+      // of scholarships within their scope
+      const isUniversity = req.user.adminProfile?.accessLevel === 'university';
+      if (!isUniversity) {
+        const scopedScholarshipIds = await getScopedScholarshipIds(req.user);
+        const { Application } = require('../models');
+        const applicantIds = await Application.distinct('applicant', {
+          scholarship: { $in: scopedScholarshipIds }
+        });
+        query._id = { $in: applicantIds };
+        // Non-university admins can only view students, not other admins
+        query.role = 'student';
       }
 
       const skip = (page - 1) * limit;
@@ -488,7 +506,7 @@ router.get('/',
 
 /**
  * @route   GET /api/users/stats/overview
- * @desc    Get user statistics
+ * @desc    Get user statistics (scoped for non-university admins)
  * @access  Admin
  * NOTE: Must be defined BEFORE /:id to avoid Express matching "stats" as an id parameter
  */
@@ -497,7 +515,21 @@ router.get('/stats/overview',
   requireRole('admin'),
   async (req, res, next) => {
     try {
+      const isUniversity = req.user.adminProfile?.accessLevel === 'university';
+      let userFilter = {};
+
+      // Non-university admins: scope to students who applied to their scholarships
+      if (!isUniversity) {
+        const scopedScholarshipIds = await getScopedScholarshipIds(req.user);
+        const { Application } = require('../models');
+        const applicantIds = await Application.distinct('applicant', {
+          scholarship: { $in: scopedScholarshipIds }
+        });
+        userFilter = { _id: { $in: applicantIds }, role: 'student' };
+      }
+
       const stats = await User.aggregate([
+        { $match: userFilter },
         {
           $facet: {
             byRole: [
@@ -539,7 +571,7 @@ router.get('/stats/overview',
 
 /**
  * @route   GET /api/users/:id
- * @desc    Get user by ID (admin)
+ * @desc    Get user by ID (admin, scope-checked)
  * @access  Admin
  */
 router.get('/:id',
@@ -557,6 +589,23 @@ router.get('/:id',
           success: false,
           message: 'User not found'
         });
+      }
+
+      // SCOPE CHECK: Non-university admins can only view students who applied to their scholarships
+      const isUniversity = req.user.adminProfile?.accessLevel === 'university';
+      if (!isUniversity) {
+        const scopedScholarshipIds = await getScopedScholarshipIds(req.user);
+        const { Application } = require('../models');
+        const hasRelation = await Application.exists({
+          applicant: req.params.id,
+          scholarship: { $in: scopedScholarshipIds }
+        });
+        if (!hasRelation) {
+          return res.status(403).json({
+            success: false,
+            message: 'This user is outside your administrative scope'
+          });
+        }
       }
 
       res.json({
@@ -819,6 +868,22 @@ router.get('/documents/:documentId',
               success: false,
               message: 'Student not found'
             });
+          }
+
+          // SCOPE CHECK: Non-university admins can only access documents of students in their scope
+          if (req.user.adminProfile?.accessLevel !== 'university') {
+            const scopedScholarshipIds = await getScopedScholarshipIds(req.user);
+            const { Application } = require('../models');
+            const hasRelation = await Application.exists({
+              applicant: studentId,
+              scholarship: { $in: scopedScholarshipIds }
+            });
+            if (!hasRelation) {
+              return res.status(403).json({
+                success: false,
+                message: 'This student is outside your administrative scope'
+              });
+            }
           }
           
           document = student.studentProfile?.documents?.id(documentId);

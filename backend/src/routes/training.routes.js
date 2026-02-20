@@ -5,7 +5,13 @@
 
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
+const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
+const {
+  getScholarshipScopeFilter,
+  getScopedScholarshipIds,
+  canManageScholarship,
+  canManageTrainedModel
+} = require('../middleware/adminScope.middleware');
 const {
   trainGlobalModel,
   trainScholarshipModel,
@@ -24,9 +30,9 @@ const { Application } = require('../models');
 /**
  * @route   POST /api/training/train
  * @desc    Train global model on all applications
- * @access  Admin only
+ * @access  Admin (University only — global model)
  */
-router.post('/train', authMiddleware, requireRole('admin'), async (req, res) => {
+router.post('/train', authMiddleware, requireRole('admin'), requireAdminLevel('university'), async (req, res) => {
   try {
     
     const result = await trainGlobalModel(req.user._id);
@@ -54,11 +60,23 @@ router.post('/train', authMiddleware, requireRole('admin'), async (req, res) => 
 /**
  * @route   POST /api/training/train/:scholarshipId
  * @desc    Train model for a specific scholarship
- * @access  Admin only
+ * @access  Admin (must have scope over the scholarship)
  */
 router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const { scholarshipId } = req.params;
+
+    // Scope check: admin must be able to manage this scholarship
+    const scholarship = await Scholarship.findById(scholarshipId);
+    if (!scholarship) {
+      return res.status(404).json({ success: false, message: 'Scholarship not found' });
+    }
+    if (!canManageScholarship(req.user, scholarship)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to train a model for this scholarship'
+      });
+    }
     
     const result = await trainScholarshipModel(scholarshipId, req.user._id);
     
@@ -84,9 +102,9 @@ router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async
 /**
  * @route   POST /api/training/train-all
  * @desc    Train models for all scholarships with sufficient data
- * @access  Admin only
+ * @access  Admin (University only)
  */
-router.post('/train-all', authMiddleware, requireRole('admin'), async (req, res) => {
+router.post('/train-all', authMiddleware, requireRole('admin'), requireAdminLevel('university'), async (req, res) => {
   try {
     
     const results = await trainAllScholarshipModels(req.user._id);
@@ -121,12 +139,25 @@ router.post('/train-all', authMiddleware, requireRole('admin'), async (req, res)
 
 /**
  * @route   GET /api/training/models
- * @desc    Get all trained models
- * @access  Admin only
+ * @desc    Get trained models (scoped to admin's scholarships)
+ * @access  Admin
  */
 router.get('/models', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    const models = await TrainedModel.find()
+    const isUniversity = req.user.adminProfile?.accessLevel === 'university';
+
+    let modelFilter = {};
+    if (!isUniversity) {
+      // Non-university admins: only see models for their scoped scholarships
+      const scopedIds = await getScopedScholarshipIds(req.user);
+      modelFilter = {
+        $or: [
+          { scholarshipId: { $in: scopedIds } }
+        ]
+      };
+    }
+
+    const models = await TrainedModel.find(modelFilter)
       .sort({ trainedAt: -1 })
       .populate('scholarshipId', 'name scholarshipType')
       .populate('trainedBy', 'email')
@@ -243,12 +274,26 @@ router.get('/models/scholarship/:scholarshipId', authMiddleware, async (req, res
 
 /**
  * @route   POST /api/training/models/:modelId/activate
- * @desc    Activate a specific model
- * @access  Admin only
+ * @desc    Activate a specific model (scope-checked)
+ * @access  Admin
  */
 router.post('/models/:modelId/activate', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const { modelId } = req.params;
+
+    // Load model with scholarship populated for scope check
+    const modelDoc = await TrainedModel.findById(modelId).populate('scholarshipId');
+    if (!modelDoc) {
+      return res.status(404).json({ success: false, message: 'Model not found' });
+    }
+
+    // Scope check
+    if (!canManageTrainedModel(req.user, modelDoc)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to activate this model'
+      });
+    }
     
     const model = await TrainedModel.activateModel(modelId);
     
@@ -272,19 +317,27 @@ router.post('/models/:modelId/activate', authMiddleware, requireRole('admin'), a
 
 /**
  * @route   DELETE /api/training/models/:modelId
- * @desc    Delete a model
- * @access  Admin only
+ * @desc    Delete a model (scope-checked)
+ * @access  Admin
  */
 router.delete('/models/:modelId', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const { modelId } = req.params;
     
-    const model = await TrainedModel.findById(modelId);
+    const model = await TrainedModel.findById(modelId).populate('scholarshipId');
     
     if (!model) {
       return res.status(404).json({
         success: false,
         message: 'Model not found'
+      });
+    }
+
+    // Scope check
+    if (!canManageTrainedModel(req.user, model)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete this model'
       });
     }
     
@@ -338,21 +391,25 @@ router.get('/stats', authMiddleware, requireRole('admin'), async (req, res) => {
 
 /**
  * @route   GET /api/training/scholarships/trainable
- * @desc    Get scholarships that can be trained (have enough data)
- * @access  Admin only
+ * @desc    Get scholarships that can be trained (scoped to admin's scholarships)
+ * @access  Admin
  */
 router.get('/scholarships/trainable', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // Get application counts per scholarship
+    // Scope: only show admin's scholarships
+    const scopeFilter = getScholarshipScopeFilter(req.user);
+
+    // Get application counts per scholarship (scoped)
+    const scopedIds = await getScopedScholarshipIds(req.user);
     const counts = await Application.aggregate([
-      { $match: { status: { $in: ['approved', 'rejected'] } } },
+      { $match: { status: { $in: ['approved', 'rejected'] }, scholarship: { $in: scopedIds } } },
       { $group: { _id: '$scholarship', count: { $sum: 1 } } }
     ]);
     
     const countMap = new Map(counts.map(c => [c._id.toString(), c.count]));
     
-    // Get all active scholarships
-    const scholarships = await Scholarship.find({ status: 'active' })
+    // Get admin's scoped active scholarships
+    const scholarships = await Scholarship.find({ ...scopeFilter, status: 'active' })
       .select('name scholarshipType scholarshipLevel')
       .lean();
     

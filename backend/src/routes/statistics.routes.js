@@ -10,6 +10,10 @@ const { User } = require('../models/User.model');
 const { Application } = require('../models/Application.model');
 const { PlatformStats } = require('../models/PlatformStats.model');
 const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
+const {
+  getScholarshipScopeFilter,
+  getScopedScholarshipIds
+} = require('../middleware/adminScope.middleware');
 
 // =============================================================================
 // Platform Statistics
@@ -17,26 +21,31 @@ const { authMiddleware, requireRole } = require('../middleware/auth.middleware')
 
 /**
  * @route   GET /api/statistics/overview
- * @desc    Get platform-wide statistics
- * @access  Public
+ * @desc    Get platform-wide statistics (scoped to admin's scholarships)
+ * @access  Admin (was previously public — now requires auth)
  */
-router.get('/overview', async (req, res) => {
+router.get('/overview', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // Basic counts
+    // Scope all queries to admin's visible scholarships
+    const scopeFilter = getScholarshipScopeFilter(req.user);
+    const scopedIds = await getScopedScholarshipIds(req.user);
+
+    // Basic counts — scoped
     const [
       totalScholarships,
       totalStudents,
       totalApplications,
       activeScholarships
     ] = await Promise.all([
-      Scholarship.countDocuments(),
+      Scholarship.countDocuments(scopeFilter),
       User.countDocuments({ role: 'student' }),
-      Application.countDocuments(),
-      Scholarship.countDocuments({ isActive: true, status: 'active' })
+      Application.countDocuments({ scholarship: { $in: scopedIds } }),
+      Scholarship.countDocuments({ ...scopeFilter, isActive: true, status: 'active' })
     ]);
 
-    // Application status breakdown
+    // Application status breakdown — scoped
     const applicationStats = await Application.aggregate([
+      { $match: { scholarship: { $in: scopedIds } } },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
 
@@ -49,9 +58,9 @@ router.get('/overview', async (req, res) => {
     const totalDecided = approved + rejected;
     const successRate = totalDecided > 0 ? approved / totalDecided : 0;
 
-    // Total funding available
+    // Total funding available — scoped
     const fundingStats = await Scholarship.aggregate([
-      { $match: { isActive: true } },
+      { $match: { ...scopeFilter, isActive: true } },
       { 
         $group: { 
           _id: null, 
@@ -61,14 +70,16 @@ router.get('/overview', async (req, res) => {
       }
     ]);
 
-    // Scholarship type distribution
+    // Scholarship type distribution — scoped
     const typeDistribution = await Scholarship.aggregate([
+      { $match: scopeFilter },
       { $group: { _id: '$type', count: { $sum: 1 }, totalAmount: { $sum: '$totalGrant' } } },
       { $sort: { count: -1 } }
     ]);
 
-    // College distribution of applicants
+    // College distribution of applicants — scoped
     const collegeDistribution = await Application.aggregate([
+      { $match: { scholarship: { $in: scopedIds } } },
       { $group: { _id: '$applicantSnapshot.college', count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]);
@@ -119,8 +130,13 @@ router.get('/overview', async (req, res) => {
  */
 router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // Applications by academic year
+    // Scope to admin's scholarships
+    const scopedIds = await getScopedScholarshipIds(req.user);
+    const scopeMatch = { scholarship: { $in: scopedIds } };
+
+    // Applications by academic year — scoped
     const yearlyTrends = await Application.aggregate([
+      { $match: scopeMatch },
       { 
         $group: { 
           _id: '$academicYear', 
@@ -136,8 +152,9 @@ router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => 
       { $sort: { _id: 1 } }
     ]);
 
-    // Applications by semester
+    // Applications by semester — scoped
     const semesterTrends = await Application.aggregate([
+      { $match: scopeMatch },
       { 
         $group: { 
           _id: { year: '$academicYear', semester: '$semester' }, 
@@ -147,9 +164,9 @@ router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => 
       { $sort: { '_id.year': 1, '_id.semester': 1 } }
     ]);
 
-    // GWA distribution of approved applications
+    // GWA distribution of approved applications — scoped
     const gwaDistribution = await Application.aggregate([
-      { $match: { status: 'approved' } },
+      { $match: { ...scopeMatch, status: 'approved' } },
       {
         $bucket: {
           groupBy: '$applicantSnapshot.gwa',
@@ -160,9 +177,9 @@ router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => 
       }
     ]);
 
-    // Income distribution of approved applications
+    // Income distribution of approved applications — scoped
     const incomeDistribution = await Application.aggregate([
-      { $match: { status: 'approved' } },
+      { $match: { ...scopeMatch, status: 'approved' } },
       {
         $bucket: {
           groupBy: '$applicantSnapshot.annualFamilyIncome',
@@ -215,8 +232,13 @@ router.get('/trends', authMiddleware, requireRole('admin'), async (req, res) => 
  */
 router.get('/scholarships', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // Top scholarships by application count
+    // Scope to admin's scholarships
+    const scopeFilter = getScholarshipScopeFilter(req.user);
+    const scopedIds = await getScopedScholarshipIds(req.user);
+
+    // Top scholarships by application count — scoped
     const topByApplications = await Application.aggregate([
+      { $match: { scholarship: { $in: scopedIds } } },
       { 
         $group: { 
           _id: '$scholarship', 
@@ -254,9 +276,9 @@ router.get('/scholarships', authMiddleware, requireRole('admin'), async (req, re
       }
     ]);
 
-    // Scholarships by funding amount
+    // Scholarships by funding amount — scoped
     const byFunding = await Scholarship.aggregate([
-      { $match: { isActive: true } },
+      { $match: { ...scopeFilter, isActive: true } },
       { $sort: { totalGrant: -1 } },
       { $limit: 10 },
       {
@@ -270,8 +292,9 @@ router.get('/scholarships', authMiddleware, requireRole('admin'), async (req, re
       }
     ]);
 
-    // Scholarships with upcoming deadlines
+    // Scholarships with upcoming deadlines — scoped
     const upcomingDeadlines = await Scholarship.find({
+      ...scopeFilter,
       isActive: true,
       applicationDeadline: { $gte: new Date() }
     })
@@ -303,8 +326,12 @@ router.get('/scholarships', authMiddleware, requireRole('admin'), async (req, re
  */
 router.get('/prediction-accuracy', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // Get applications with predictions that have final outcomes
+    // Scope to admin's scholarships
+    const scopedIds = await getScopedScholarshipIds(req.user);
+
+    // Get applications with predictions that have final outcomes — scoped
     const applicationsWithPredictions = await Application.find({
+      scholarship: { $in: scopedIds },
       'prediction.probability': { $exists: true },
       status: { $in: ['approved', 'rejected'] }
     }).select('prediction status');
@@ -367,18 +394,25 @@ router.get('/prediction-accuracy', authMiddleware, requireRole('admin'), async (
  */
 router.get('/analytics', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // Get cached platform stats
-    const platformStats = await PlatformStats.findOne({ recordType: 'current' });
+    // Scope to admin's scholarships
+    const scopeFilter = getScholarshipScopeFilter(req.user);
+    const scopedIds = await getScopedScholarshipIds(req.user);
+    const isUniversity = req.user.adminProfile?.accessLevel === 'university';
+
+    // Get cached platform stats (only used for university admins — it's global data)
+    const platformStats = isUniversity ? await PlatformStats.findOne({ recordType: 'current' }) : null;
     
-    // If no cached stats, calculate on the fly
+    // If no cached stats or non-university admin, calculate scoped stats
     if (!platformStats) {
-      // Fallback to calculating stats
-      const totalApplications = await Application.countDocuments();
-      const approved = await Application.countDocuments({ status: 'approved' });
-      const rejected = await Application.countDocuments({ status: 'rejected' });
-      const uniqueScholars = await Application.distinct('applicant', { status: 'approved' });
+      // Fallback to calculating scoped stats
+      const scopeAppFilter = { scholarship: { $in: scopedIds } };
+      const totalApplications = await Application.countDocuments(scopeAppFilter);
+      const approved = await Application.countDocuments({ ...scopeAppFilter, status: 'approved' });
+      const rejected = await Application.countDocuments({ ...scopeAppFilter, status: 'rejected' });
+      const uniqueScholars = await Application.distinct('applicant', { ...scopeAppFilter, status: 'approved' });
       
       const fundingStats = await Scholarship.aggregate([
+        { $match: scopeFilter },
         { $group: { _id: null, total: { $sum: '$totalGrant' } } }
       ]);
       

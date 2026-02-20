@@ -34,7 +34,8 @@ import {
   Image,
   Sparkles,
   Target,
-  BarChart2
+  BarChart2,
+  Shield
 } from 'lucide-react';
 import { applicationApi, API_SERVER_URL } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
@@ -115,6 +116,7 @@ const ApplicationReview: React.FC = () => {
   const [application, setApplication] = useState<ApplicationDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isScopeError, setIsScopeError] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
@@ -239,9 +241,18 @@ const ApplicationReview: React.FC = () => {
         } else {
           setError('Application not found');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to fetch application:', err);
-        setError('Failed to load application details');
+        if (err.isSessionExpired) {
+          setError('Your session has expired. Please log in again.');
+        } else if (err.response?.status === 403) {
+          setIsScopeError(true);
+          setError(err.response?.data?.message || 'This application is outside your administrative scope. You can only view applications for scholarships you manage.');
+        } else if (err.response?.status === 404) {
+          setError('Application not found. It may have been deleted or the link is incorrect.');
+        } else {
+          setError('Failed to load application details. Please try again later.');
+        }
       } finally {
         setLoading(false);
       }
@@ -393,7 +404,11 @@ const ApplicationReview: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to approve:', err);
-      toast.error(err.message || 'Failed to approve application');
+      if (err.response?.status === 403) {
+        toast.error(err.response?.data?.message || 'You do not have permission to approve this application. It is outside your administrative scope.');
+      } else {
+        toast.error(err.message || 'Failed to approve application');
+      }
     } finally {
       setProcessing(false);
     }
@@ -422,7 +437,11 @@ const ApplicationReview: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to reject:', err);
-      toast.error(err.message || 'Failed to reject application');
+      if (err.response?.status === 403) {
+        toast.error(err.response?.data?.message || 'You do not have permission to reject this application. It is outside your administrative scope.');
+      } else {
+        toast.error(err.message || 'Failed to reject application');
+      }
     } finally {
       setProcessing(false);
     }
@@ -447,7 +466,11 @@ const ApplicationReview: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to update status:', err);
-      toast.error(err.message || 'Failed to update application status');
+      if (err.response?.status === 403) {
+        toast.error(err.response?.data?.message || 'You do not have permission to update this application. It is outside your administrative scope.');
+      } else {
+        toast.error(err.message || 'Failed to update application status');
+      }
     } finally {
       setProcessing(false);
     }
@@ -522,12 +545,15 @@ const ApplicationReview: React.FC = () => {
   if (error || !application) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <XCircle className="w-8 h-8 text-red-600" />
+        <div className="text-center max-w-md">
+          <div className={`w-16 h-16 ${isScopeError ? 'bg-amber-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            {isScopeError ? <Shield className="w-8 h-8 text-amber-600" /> : <XCircle className="w-8 h-8 text-red-600" />}
           </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Error</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{isScopeError ? 'Access Restricted' : 'Error'}</h2>
           <p className="text-slate-600 mb-4">{error || 'Application not found'}</p>
+          {isScopeError && (
+            <p className="text-sm text-slate-500 mb-4">Your admin scope only allows viewing applications for scholarships within your assigned college or academic unit.</p>
+          )}
           <button
             onClick={() => navigate(-1)}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"

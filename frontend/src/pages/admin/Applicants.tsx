@@ -29,7 +29,8 @@ import {
   Users,
   BarChart3,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Shield
 } from 'lucide-react';
 import { applicationApi, scholarshipApi } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
@@ -68,6 +69,8 @@ const Applicants: React.FC = () => {
   const hasFetchedPredictions = useRef(false);
   const [adminScope, setAdminScope] = useState<{ level: string; description: string } | null>(null);
   const [scholarshipFilter, setScholarshipFilter] = useState<{ id: string; name: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isScopeError, setIsScopeError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -136,9 +139,17 @@ const Applicants: React.FC = () => {
         } else if (isMounted) {
           setApplications([]);
         }
-      } catch (error) {
+      } catch (error: any) {
         if (isMounted) {
           console.error('Failed to fetch applications:', error);
+          if (error.isSessionExpired) {
+            setError('Your session has expired. Please log in again.');
+          } else if (error.response?.status === 403) {
+            setIsScopeError(true);
+            setError(error.response?.data?.message || 'You do not have permission to view these applications. They may be outside your administrative scope.');
+          } else {
+            setError('Failed to load applications. Please try again later.');
+          }
           setApplications([]);
         }
       } finally {
@@ -292,6 +303,29 @@ const Applicants: React.FC = () => {
             <p className="text-slate-800 font-semibold">Loading Applications</p>
             <p className="text-slate-500 text-sm">Please wait...</p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className={`w-16 h-16 ${isScopeError ? 'bg-amber-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            {isScopeError ? <Shield className="w-8 h-8 text-amber-600" /> : <AlertCircle className="w-8 h-8 text-red-600" />}
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{isScopeError ? 'Access Restricted' : 'Error'}</h2>
+          <p className="text-slate-600 mb-4">{error}</p>
+          {isScopeError && (
+            <p className="text-sm text-slate-500 mb-4">Your admin scope only allows viewing applications within your assigned college or academic unit. Contact a university-level admin for broader access.</p>
+          )}
+          <button
+            onClick={() => { setError(null); setIsScopeError(false); window.location.reload(); }}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );

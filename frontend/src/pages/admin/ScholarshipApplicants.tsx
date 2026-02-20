@@ -23,7 +23,9 @@ import {
   FileText,
   TrendingUp,
   Building2,
-  Sparkles
+  Sparkles,
+  Shield,
+  AlertCircle
 } from 'lucide-react';
 import { applicationApi, scholarshipApi } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
@@ -65,6 +67,7 @@ const ScholarshipApplicants: React.FC = () => {
   const [scholarship, setScholarship] = useState<ScholarshipData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isScopeError, setIsScopeError] = useState(false);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
   const hasFetchedPredictions = useRef(false);
 
@@ -136,10 +139,17 @@ const ScholarshipApplicants: React.FC = () => {
         } else if (isMounted) {
           setApplications([]);
         }
-      } catch (err) {
+      } catch (err: any) {
         if (isMounted) {
           console.error('❌ Failed to fetch data:', err);
-          setError('Failed to load scholarship applicants');
+          if (err.response?.status === 403) {
+            setIsScopeError(true);
+            setError(err.response?.data?.message || 'This scholarship is outside your administrative scope. You can only view applicants for scholarships you manage.');
+          } else if (err.response?.status === 404) {
+            setError('Scholarship not found. It may have been removed or the link is incorrect.');
+          } else {
+            setError('Failed to load scholarship applicants. Please try again later.');
+          }
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -250,12 +260,15 @@ const ScholarshipApplicants: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <XCircle className="w-8 h-8 text-red-600" />
+        <div className="text-center max-w-md">
+          <div className={`w-16 h-16 ${isScopeError ? 'bg-amber-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            {isScopeError ? <Shield className="w-8 h-8 text-amber-600" /> : <XCircle className="w-8 h-8 text-red-600" />}
           </div>
-          <h2 className="text-xl font-bold text-slate-800 mb-2">Error</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{isScopeError ? 'Access Restricted' : 'Error'}</h2>
           <p className="text-slate-600 mb-4">{error}</p>
+          {isScopeError && (
+            <p className="text-sm text-slate-500 mb-4">Your admin scope only allows viewing applicants for scholarships within your assigned college or academic unit.</p>
+          )}
           <button
             onClick={() => navigate('/admin/scholarships')}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"

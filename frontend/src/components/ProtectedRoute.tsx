@@ -23,14 +23,27 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation();
   
   const isAuthenticated = authContext?.isAuthenticated ?? false;
+  const isInitializing = authContext?.isInitializing ?? true;
   const userRole = authContext?.user?.role;
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isInitializing && !isAuthenticated) {
       // Trigger auth modal when user tries to access protected route
       onRequireAuth();
     }
-  }, [isAuthenticated, onRequireAuth]);
+  }, [isAuthenticated, isInitializing, onRequireAuth]);
+
+  // Still checking auth state - show loading spinner instead of redirecting
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Not authenticated - redirect to home
   if (!isAuthenticated) {

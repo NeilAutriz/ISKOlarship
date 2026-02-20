@@ -46,6 +46,8 @@ interface ScholarshipSummary {
 const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'applications' | 'scholarships'>('applications');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isScopeError, setIsScopeError] = useState(false);
   const [recentApplications, setRecentApplications] = useState<Application[]>([]);
   const [topScholarships, setTopScholarships] = useState<ScholarshipSummary[]>([]);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
@@ -117,9 +119,17 @@ const AdminDashboard: React.FC = () => {
             deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A'
           })));
         }
-      } catch (error) {
+      } catch (error: any) {
         if (isMounted) {
           console.error('Failed to fetch dashboard data:', error);
+          if (error.isSessionExpired) {
+            setError('Your session has expired. Please log in again.');
+          } else if (error.response?.status === 403) {
+            setIsScopeError(true);
+            setError(error.response?.data?.message || 'You do not have permission to access this dashboard data. Your admin scope may restrict access to certain statistics.');
+          } else {
+            setError('Failed to load dashboard data. Please try again later.');
+          }
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -178,6 +188,29 @@ const AdminDashboard: React.FC = () => {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
           <p className="text-slate-600 font-medium">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className={`w-16 h-16 ${isScopeError ? 'bg-amber-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            {isScopeError ? <Shield className="w-8 h-8 text-amber-600" /> : <AlertCircle className="w-8 h-8 text-red-600" />}
+          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">{isScopeError ? 'Access Restricted' : 'Error'}</h2>
+          <p className="text-slate-600 mb-6">{error}</p>
+          {isScopeError && (
+            <p className="text-sm text-slate-500 mb-4">You can only view data within your assigned administrative scope. Contact a university-level admin if you need broader access.</p>
+          )}
+          <button
+            onClick={() => { setError(null); setIsScopeError(false); window.location.reload(); }}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );

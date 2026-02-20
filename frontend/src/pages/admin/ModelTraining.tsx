@@ -21,7 +21,8 @@ import {
   Trash2,
   Star,
   Globe,
-  Info
+  Info,
+  Shield
 } from 'lucide-react';
 import { trainingApi } from '../../services/apiClient';
 
@@ -73,6 +74,7 @@ const ModelTraining: React.FC = () => {
   const [training, setTraining] = useState(false);
   const [trainingTarget, setTrainingTarget] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isScopeError, setIsScopeError] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Feature display names
@@ -110,7 +112,14 @@ const ModelTraining: React.FC = () => {
       if (statsRes.success) setStats(statsRes.data as TrainingStats);
       if (scholarshipsRes.success) setTrainableScholarships(scholarshipsRes.data as any || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load training data');
+      if (err.isSessionExpired) {
+        setError('Your session has expired. Please log in again.');
+      } else if (err.response?.status === 403) {
+        setIsScopeError(true);
+        setError(err.response?.data?.message || 'You do not have permission to access training data. This may require university-level admin access.');
+      } else {
+        setError(err.message || 'Failed to load training data');
+      }
     } finally {
       setLoading(false);
     }
@@ -125,6 +134,7 @@ const ModelTraining: React.FC = () => {
     setTraining(true);
     setTrainingTarget('global');
     setError(null);
+    setIsScopeError(false);
     setSuccessMessage(null);
 
     try {
@@ -134,9 +144,14 @@ const ModelTraining: React.FC = () => {
         await loadData();
       }
     } catch (err: any) {
-      setError(err.code === 'ECONNABORTED'
-        ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
-        : err.response?.data?.message || 'Failed to train global model');
+      if (err.response?.status === 403) {
+        setIsScopeError(true);
+        setError(err.response?.data?.message || 'You do not have permission to train the global model. University-level admin access is required.');
+      } else {
+        setError(err.code === 'ECONNABORTED'
+          ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
+          : err.response?.data?.message || 'Failed to train global model');
+      }
     } finally {
       setTraining(false);
       setTrainingTarget(null);
@@ -148,6 +163,7 @@ const ModelTraining: React.FC = () => {
     setTraining(true);
     setTrainingTarget(scholarshipId);
     setError(null);
+    setIsScopeError(false);
     setSuccessMessage(null);
 
     try {
@@ -157,9 +173,14 @@ const ModelTraining: React.FC = () => {
         await loadData();
       }
     } catch (err: any) {
-      setError(err.code === 'ECONNABORTED'
-        ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
-        : err.response?.data?.message || 'Failed to train model');
+      if (err.response?.status === 403) {
+        setIsScopeError(true);
+        setError(err.response?.data?.message || 'You do not have permission to train a model for this scholarship. It may be outside your administrative scope.');
+      } else {
+        setError(err.code === 'ECONNABORTED'
+          ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
+          : err.response?.data?.message || 'Failed to train model');
+      }
     } finally {
       setTraining(false);
       setTrainingTarget(null);
@@ -171,6 +192,7 @@ const ModelTraining: React.FC = () => {
     setTraining(true);
     setTrainingTarget('all');
     setError(null);
+    setIsScopeError(false);
     setSuccessMessage(null);
 
     try {
@@ -181,9 +203,14 @@ const ModelTraining: React.FC = () => {
         await loadData();
       }
     } catch (err: any) {
-      setError(err.code === 'ECONNABORTED'
-        ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
-        : err.response?.data?.message || 'Failed to train models');
+      if (err.response?.status === 403) {
+        setIsScopeError(true);
+        setError(err.response?.data?.message || 'You do not have permission to train all models. University-level admin access is required.');
+      } else {
+        setError(err.code === 'ECONNABORTED'
+          ? 'Training request timed out. The model may still be training on the server — try refreshing in a moment.'
+          : err.response?.data?.message || 'Failed to train models');
+      }
     } finally {
       setTraining(false);
       setTrainingTarget(null);
@@ -197,7 +224,12 @@ const ModelTraining: React.FC = () => {
       await loadData();
       setSuccessMessage('Model activated successfully');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to activate model');
+      if (err.response?.status === 403) {
+        setIsScopeError(true);
+        setError(err.response?.data?.message || 'You do not have permission to activate this model. It may be outside your administrative scope.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to activate model');
+      }
     }
   };
 
@@ -210,7 +242,12 @@ const ModelTraining: React.FC = () => {
       await loadData();
       setSuccessMessage('Model deleted successfully');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete model');
+      if (err.response?.status === 403) {
+        setIsScopeError(true);
+        setError(err.response?.data?.message || 'You do not have permission to delete this model. It may be outside your administrative scope.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to delete model');
+      }
     }
   };
 
@@ -331,9 +368,13 @@ const ModelTraining: React.FC = () => {
       <div className="container-app pb-12 space-y-6">
         {/* Messages */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-            <p className="text-red-700 text-sm">{error}</p>
+          <div className={`${isScopeError ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'} border rounded-xl p-4 flex items-start gap-3`}>
+            {isScopeError ? <Shield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" /> : <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />}
+            <div>
+              <p className={`${isScopeError ? 'text-amber-800' : 'text-red-700'} text-sm font-medium`}>{isScopeError ? 'Access Restricted' : 'Error'}</p>
+              <p className={`${isScopeError ? 'text-amber-700' : 'text-red-600'} text-sm mt-1`}>{error}</p>
+              {isScopeError && <p className="text-amber-600 text-xs mt-2">Your admin scope may restrict access to certain models. Contact a university-level admin for broader access.</p>}
+            </div>
           </div>
         )}
 

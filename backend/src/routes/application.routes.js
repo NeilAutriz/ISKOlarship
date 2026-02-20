@@ -14,6 +14,7 @@ const {
   attachAdminScope, 
   getScholarshipScopeFilter, 
   canManageApplication,
+  canManageScholarship,
   getAdminScopeSummary 
 } = require('../middleware/adminScope.middleware');
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
@@ -565,7 +566,7 @@ router.get('/admin/review-queue',
         scholarship: { $in: accessibleScholarshipIds }
       })
         .populate('applicant', 'firstName lastName email studentProfile')
-        .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege managingAcademicUnit')
+        .populate('scholarship', 'name type applicationDeadline scholarshipLevel managingCollege managingAcademicUnit managingCollegeCode managingAcademicUnitCode')
         .sort({ submittedAt: 1 })
         .limit(parseInt(limit))
         .lean();
@@ -729,7 +730,7 @@ router.get('/:id',
     try {
       const application = await Application.findById(req.params.id)
         .populate('applicant', 'firstName lastName email studentProfile')
-        .populate('scholarship', 'name type sponsor applicationDeadline requirements eligibilityCriteria')
+        .populate('scholarship', 'name type sponsor applicationDeadline requirements eligibilityCriteria scholarshipLevel managingCollegeCode managingAcademicUnitCode managingCollege managingAcademicUnit')
         .populate('statusHistory.changedBy', 'firstName lastName')
         .lean();
 
@@ -738,6 +739,17 @@ router.get('/:id',
           success: false,
           message: 'Application not found'
         });
+      }
+
+      // SCOPE CHECK: If admin, verify they can manage this application's scholarship
+      if (req.user.role === 'admin') {
+        // Application already has scholarship populated from the query above
+        if (!canManageApplication(req.user, application)) {
+          return res.status(403).json({
+            success: false,
+            message: 'This application is outside your administrative scope'
+          });
+        }
       }
 
       // Build applicantSnapshot from populated applicant data if snapshot is empty/missing
@@ -1240,6 +1252,16 @@ router.get('/:applicationId/documents/:documentId',
           success: false,
           message: 'Not authorized to access this document'
         });
+      }
+
+      // SCOPE CHECK: If admin (not owner), verify they can manage this application's scholarship
+      if (isAdmin && !isOwner) {
+        if (!canManageApplication(req.user, application)) {
+          return res.status(403).json({
+            success: false,
+            message: 'This application\'s documents are outside your administrative scope'
+          });
+        }
       }
 
       // Find the document in the application

@@ -437,8 +437,8 @@ router.get('/admin',
 
 /**
  * @route   GET /api/scholarships/:id
- * @desc    Get scholarship by ID
- * @access  Public
+ * @desc    Get scholarship by ID (public for students; scope-checked for admin detail)
+ * @access  Public (with optional auth)
  */
 router.get('/:id', [
   param('id').isMongoId().withMessage('Invalid scholarship ID')
@@ -463,6 +463,16 @@ router.get('/:id', [
       });
     }
 
+    // SCOPE CHECK: If admin, verify they can view this scholarship
+    if (req.user && req.user.role === 'admin') {
+      if (!canViewScholarship(req.user, scholarship)) {
+        return res.status(403).json({
+          success: false,
+          message: 'This scholarship is outside your administrative scope'
+        });
+      }
+    }
+
     // Add computed fields
     const enrichedScholarship = {
       ...scholarship,
@@ -475,6 +485,12 @@ router.get('/:id', [
         : null,
       eligibilitySummary: getEligibilitySummary(scholarship.eligibilityCriteria)
     };
+
+    // Add management flags for admin
+    if (req.user && req.user.role === 'admin') {
+      enrichedScholarship.canManage = canManageScholarship(req.user, scholarship);
+      enrichedScholarship.canView = true;
+    }
 
     res.json({
       success: true,

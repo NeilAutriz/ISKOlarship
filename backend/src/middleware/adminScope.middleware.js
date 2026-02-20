@@ -414,6 +414,49 @@ function getAdminScopeDescription(adminLevel, collegeCode, academicUnitCode, col
   }
 }
 
+/**
+ * Get IDs of all scholarships within admin's scope.
+ * Utility for routes that need to scope other resources (statistics, users, models).
+ * @param {Object} user - The authenticated admin user
+ * @returns {Promise<Array>} Array of scholarship ObjectIds
+ */
+async function getScopedScholarshipIds(user) {
+  const { Scholarship } = require('../models');
+  const scopeFilter = getScholarshipScopeFilter(user);
+  // If filter denies all access, return empty
+  if (scopeFilter._id && scopeFilter._id.$exists === false) {
+    return [];
+  }
+  const scholarships = await Scholarship.find(scopeFilter).select('_id').lean();
+  return scholarships.map(s => s._id);
+}
+
+/**
+ * Check if admin can manage a trained model.
+ * Global models → university only. Scholarship-specific → check scholarship scope.
+ * @param {Object} user - The authenticated admin user
+ * @param {Object} model - The TrainedModel document (with populated scholarshipId or plain)
+ * @returns {boolean}
+ */
+function canManageTrainedModel(user, model) {
+  if (!user || user.role !== 'admin' || !model) return false;
+  const adminLevel = user.adminProfile?.accessLevel;
+  if (!adminLevel) return false;
+
+  // Global model — university admin only
+  if (!model.scholarshipId || model.modelType === 'global') {
+    return adminLevel === 'university';
+  }
+
+  // Scholarship-specific model — check via linked scholarship
+  const scholarship = typeof model.scholarshipId === 'object' ? model.scholarshipId : null;
+  if (!scholarship) {
+    // scholarshipId not populated — only university admin can proceed without scholarship data
+    return adminLevel === 'university';
+  }
+  return canManageScholarship(user, scholarship);
+}
+
 module.exports = {
   getScholarshipScopeFilter,
   getApplicationScopeFilter,
@@ -422,5 +465,7 @@ module.exports = {
   canViewScholarship,
   canManageApplication,
   requireScholarshipAccess,
-  getAdminScopeSummary
+  getAdminScopeSummary,
+  getScopedScholarshipIds,
+  canManageTrainedModel
 };

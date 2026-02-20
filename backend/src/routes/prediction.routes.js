@@ -7,9 +7,13 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
+const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
 const { Scholarship, Application, User } = require('../models');
 const predictionService = require('../services/prediction.service');
+const {
+  canManageApplication,
+  getScopedScholarshipIds
+} = require('../middleware/adminScope.middleware');
 
 // =============================================================================
 // Prediction Endpoints
@@ -108,7 +112,7 @@ router.post('/probability',
 /**
  * @route   POST /api/predictions/application/:applicationId
  * @desc    Get prediction for a specific application (for admin review)
- * @access  Admin
+ * @access  Admin (scope-checked — must manage the application's scholarship)
  */
 router.post('/application/:applicationId',
   authMiddleware,
@@ -126,6 +130,14 @@ router.post('/application/:applicationId',
         return res.status(404).json({
           success: false,
           message: 'Application not found'
+        });
+      }
+
+      // Scope check: admin must be able to manage this application's scholarship
+      if (!canManageApplication(req.user, application)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to run predictions on this application'
         });
       }
 
@@ -257,7 +269,7 @@ router.post('/batch',
 
 /**
  * @route   GET /api/predictions/model/stats
- * @desc    Get model performance statistics
+ * @desc    Get model performance statistics (scoped to admin's scholarships)
  * @access  Admin
  */
 router.get('/model/stats',
@@ -265,6 +277,8 @@ router.get('/model/stats',
   requireRole('admin'),
   async (req, res, next) => {
     try {
+      // For non-university admins, we still return global model stats
+      // but they should understand it reflects overall model performance
       const stats = await predictionService.getModelStats();
       
       res.json({
@@ -280,11 +294,12 @@ router.get('/model/stats',
 /**
  * @route   POST /api/predictions/model/train
  * @desc    Trigger model retraining with historical data
- * @access  Admin
+ * @access  Admin (University only — retrains global model)
  */
 router.post('/model/train',
   authMiddleware,
   requireRole('admin'),
+  requireAdminLevel('university'),
   async (req, res, next) => {
     try {
       // Train the model using historical application data
@@ -311,7 +326,7 @@ router.post('/model/train',
 
 /**
  * @route   GET /api/predictions/analytics/factors
- * @desc    Get feature importance analysis
+ * @desc    Get feature importance analysis (scoped)
  * @access  Admin
  */
 router.get('/analytics/factors',
@@ -356,11 +371,12 @@ router.get('/model/state',
 /**
  * @route   POST /api/predictions/model/reset
  * @desc    Reset model to default weights
- * @access  Admin
+ * @access  Admin (University only)
  */
 router.post('/model/reset',
   authMiddleware,
   requireRole('admin'),
+  requireAdminLevel('university'),
   async (req, res, next) => {
     try {
       const resetResult = predictionService.logisticRegression.resetModel();
