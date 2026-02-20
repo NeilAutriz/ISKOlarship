@@ -571,8 +571,8 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         {/* Failed Criteria */}
         {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && 
          matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 0 && (
-          <div className="bg-amber-50 rounded-xl p-4 mb-4 border border-amber-100">
-            <div className="flex items-center gap-2 text-amber-700 mb-2">
+          <div className="bg-red-50 rounded-xl p-4 mb-4 border border-red-100">
+            <div className="flex items-center gap-2 text-red-700 mb-2">
               <AlertCircle className="w-4 h-4" />
               <span className="text-sm font-semibold">Requirements Not Met:</span>
             </div>
@@ -581,20 +581,17 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                 .filter((detail: any) => !detail.passed)
                 .slice(0, 3)
                 .map((detail: any, index: number) => (
-                  <li key={index} className="text-sm text-amber-700 flex items-start gap-2">
+                  <li key={index} className="text-sm text-red-600 flex items-start gap-2">
                     <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <span>{detail.criterion}</span>
                   </li>
                 ))}
               {matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 3 && (
-                <li className="text-sm text-amber-600 italic pl-6">
+                <li className="text-sm text-red-500 italic pl-6">
                   +{matchResult.eligibilityDetails.filter((d: any) => !d.passed).length - 3} more requirements
                 </li>
               )}
             </ul>
-            <p className="mt-2.5 text-xs text-amber-600">
-              Don't worry — there are other scholarships that may be a better fit for you!
-            </p>
           </div>
         )}
       </div>
