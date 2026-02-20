@@ -30,6 +30,7 @@ interface ScholarshipCardProps {
   scholarship: Scholarship;
   matchResult?: MatchResult;
   showPrediction?: boolean;
+  predictionsLoading?: boolean;
   variant?: 'default' | 'compact' | 'detailed';
   applicationStatus?: ApplicationStatus | null;
 }
@@ -140,6 +141,7 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
   scholarship,
   matchResult,
   showPrediction = true,
+  predictionsLoading = false,
   variant = 'default',
   applicationStatus
 }) => {
@@ -469,11 +471,19 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         </div>
 
         {/* Success Prediction - ML Analysis */}
-        {showPrediction && matchResult?.predictionScore !== undefined && (
+        {showPrediction && matchResult?.predictionScore !== undefined && (() => {
+          // Normalize: if score > 1 it's already a percentage (0-100), convert to 0-1
+          const score = matchResult.predictionScore > 1
+            ? Math.min(matchResult.predictionScore / 100, 1)
+            : Math.min(matchResult.predictionScore, 1);
+          const isLoading = predictionsLoading;
+          return (
           <div className={`rounded-xl p-3.5 mb-4 border ${
-            matchResult.predictionScore >= 0.7 
+            isLoading
+              ? 'bg-slate-50 border-slate-200'
+              : score >= 0.7 
               ? 'bg-gradient-to-br from-green-50 to-emerald-50/50 border-green-200' 
-              : matchResult.predictionScore >= 0.4
+              : score >= 0.4
               ? 'bg-gradient-to-br from-amber-50 to-yellow-50/50 border-amber-200'
               : 'bg-gradient-to-br from-red-50 to-rose-50/50 border-red-200'
           }`}>
@@ -481,17 +491,19 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-1.5">
                 <div className={`w-5 h-5 rounded-md flex items-center justify-center ${
-                  matchResult.predictionScore >= 0.7 ? 'bg-green-100' :
-                  matchResult.predictionScore >= 0.4 ? 'bg-amber-100' : 'bg-red-100'
+                  isLoading ? 'bg-slate-100' :
+                  score >= 0.7 ? 'bg-green-100' :
+                  score >= 0.4 ? 'bg-amber-100' : 'bg-red-100'
                 }`}>
                   <Sparkles className={`w-3 h-3 ${
-                    matchResult.predictionScore >= 0.7 ? 'text-green-600' :
-                    matchResult.predictionScore >= 0.4 ? 'text-amber-600' : 'text-red-600'
+                    isLoading ? 'text-slate-400 animate-pulse' :
+                    score >= 0.7 ? 'text-green-600' :
+                    score >= 0.4 ? 'text-amber-600' : 'text-red-600'
                   }`} />
                 </div>
                 <span className="text-xs font-semibold text-slate-600">ML Prediction</span>
                 {/* Model Type Tag */}
-                {matchResult.predictionModelType && matchResult.predictionModelType !== 'none' && (
+                {!isLoading && matchResult.predictionModelType && matchResult.predictionModelType !== 'none' && (
                   <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${
                     matchResult.predictionModelType === 'scholarship_specific' 
                       ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
@@ -511,63 +523,78 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                   </span>
                 )}
               </div>
-              <span className={`text-base font-bold ${
-                matchResult.predictionScore >= 0.7 ? 'text-green-600' :
-                matchResult.predictionScore >= 0.4 ? 'text-amber-600' : 'text-red-600'
-              }`}>
-                {Math.round(matchResult.predictionScore * 100)}%
-              </span>
+              {isLoading ? (
+                <span className="text-xs font-semibold text-slate-400 animate-pulse">Calculating...</span>
+              ) : (
+                <span className={`text-base font-bold ${
+                  score >= 0.7 ? 'text-green-600' :
+                  score >= 0.4 ? 'text-amber-600' : 'text-red-600'
+                }`}>
+                  {Math.round(score * 100)}%
+                </span>
+              )}
             </div>
             
             {/* Progress Bar */}
             <div className="h-1.5 bg-white/80 rounded-full overflow-hidden shadow-inner">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  matchResult.predictionScore >= 0.7 ? 'bg-gradient-to-r from-green-400 to-green-500' :
-                  matchResult.predictionScore >= 0.4 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-red-400 to-red-500'
-                }`}
-                style={{ width: `${matchResult.predictionScore * 100}%` }}
-              />
+              {isLoading ? (
+                <div className="h-full w-full bg-slate-200 rounded-full animate-pulse" />
+              ) : (
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    score >= 0.7 ? 'bg-gradient-to-r from-green-400 to-green-500' :
+                    score >= 0.4 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-red-400 to-red-500'
+                  }`}
+                  style={{ width: `${score * 100}%` }}
+                />
+              )}
             </div>
             
             {/* Brief Message */}
             <p className={`mt-2 text-[11px] leading-relaxed ${
-              matchResult.predictionScore >= 0.7 ? 'text-green-700' :
-              matchResult.predictionScore >= 0.4 ? 'text-amber-700' : 'text-red-700'
+              isLoading ? 'text-slate-400' :
+              score >= 0.7 ? 'text-green-700' :
+              score >= 0.4 ? 'text-amber-700' : 'text-red-700'
             }`}>
-              {matchResult.predictionScore >= 0.7 
+              {isLoading
+                ? 'Analyzing your profile against scholarship criteria...'
+                : score >= 0.7 
                 ? 'Strong match with scholarship criteria'
-                : matchResult.predictionScore >= 0.4 
-                ? 'Moderate match - some areas to improve'
-                : 'Consider strengthening your profile'}
+                : score >= 0.4 
+                ? 'Moderate match — review the requirements to improve your chances'
+                : 'This scholarship may not be the best fit — consider applying for others that match your profile'}
             </p>
           </div>
-        )}
+          );
+        })()}
 
         {/* Failed Criteria */}
         {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && 
          matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 0 && (
-          <div className="bg-red-50 rounded-xl p-4 mb-4 border border-red-100">
-            <div className="flex items-center gap-2 text-red-700 mb-2">
+          <div className="bg-amber-50 rounded-xl p-4 mb-4 border border-amber-100">
+            <div className="flex items-center gap-2 text-amber-700 mb-2">
               <AlertCircle className="w-4 h-4" />
-              <span className="text-sm font-semibold">Why You're Not Eligible:</span>
+              <span className="text-sm font-semibold">Requirements Not Met:</span>
             </div>
             <ul className="space-y-1.5">
               {matchResult.eligibilityDetails
                 .filter((detail: any) => !detail.passed)
                 .slice(0, 3)
                 .map((detail: any, index: number) => (
-                  <li key={index} className="text-sm text-red-600 flex items-start gap-2">
+                  <li key={index} className="text-sm text-amber-700 flex items-start gap-2">
                     <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <span>{detail.criterion}</span>
                   </li>
                 ))}
               {matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 3 && (
-                <li className="text-sm text-red-500 italic pl-6">
+                <li className="text-sm text-amber-600 italic pl-6">
                   +{matchResult.eligibilityDetails.filter((d: any) => !d.passed).length - 3} more requirements
                 </li>
               )}
             </ul>
+            <p className="mt-2.5 text-xs text-amber-600">
+              Don't worry — there are other scholarships that may be a better fit for you!
+            </p>
           </div>
         )}
       </div>

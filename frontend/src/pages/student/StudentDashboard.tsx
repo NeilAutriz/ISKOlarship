@@ -33,7 +33,30 @@ import { Scholarship, MatchResult, isStudentProfile, EligibilityCheckResult, App
 const StudentDashboard: React.FC = () => {
   const authContext = useContext(AuthContext);
   const user = authContext?.user;
-  const studentUser = isStudentProfile(user) ? user : null;
+  const rawUser = isStudentProfile(user) ? user : null;
+  
+  // Normalize: backend returns studentProfile nested, but frontend types expect flat
+  const studentUser = useMemo(() => {
+    if (!rawUser) return null;
+    const sp = (rawUser as any).studentProfile || {};
+    return {
+      ...rawUser,
+      firstName: rawUser.firstName || sp.firstName || '',
+      lastName: rawUser.lastName || sp.lastName || '',
+      studentNumber: rawUser.studentNumber || sp.studentNumber || '',
+      college: rawUser.college || sp.college || '',
+      course: rawUser.course || sp.course || '',
+      major: rawUser.major || sp.major,
+      classification: rawUser.classification || sp.classification,
+      yearLevel: rawUser.yearLevel || sp.classification || sp.yearLevel || '',
+      gwa: rawUser.gwa ?? sp.gwa,
+      annualFamilyIncome: rawUser.annualFamilyIncome ?? sp.annualFamilyIncome,
+      unitsEnrolled: rawUser.unitsEnrolled ?? sp.unitsEnrolled,
+      stBracket: rawUser.stBracket || sp.stBracket,
+      studentProfile: sp, // keep original nested form for filterEngine
+    } as any;
+  }, [rawUser]);
+  
   const [activeTab, setActiveTab] = useState<'recommended' | 'all' | 'applied'>('recommended');
   
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
@@ -43,6 +66,7 @@ const StudentDashboard: React.FC = () => {
     probability: number; 
     modelType?: 'scholarship_specific' | 'global' | 'none' | 'unknown';
   }>>(new Map());
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
   
   useEffect(() => {
     let isMounted = true;
@@ -54,7 +78,7 @@ const StudentDashboard: React.FC = () => {
         if (isMounted && scholarshipRes.success && scholarshipRes.data?.scholarships) {
           setScholarships(scholarshipRes.data.scholarships);
         }
-        if (isMounted && studentUser?.studentNumber) {
+        if (isMounted) {
           try {
             const appRes = await applicationApi.getMyApplications();
             if (isMounted && appRes.success && appRes.data?.applications) {
@@ -80,13 +104,14 @@ const StudentDashboard: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [studentUser?.studentNumber]);
+  }, [studentUser]);
 
   // Fetch API predictions to get modelType
   useEffect(() => {
     if (!studentUser || scholarships.length === 0) return;
     
     const fetchPredictions = async () => {
+      setPredictionsLoading(true);
       try {
         const scholarshipIds = scholarships.map(s => s.id || (s as any)._id).filter(Boolean);
         if (scholarshipIds.length === 0) return;
@@ -100,7 +125,7 @@ const StudentDashboard: React.FC = () => {
           response.data.forEach((pred: any) => {
             if (pred.scholarshipId) {
               predictionsMap.set(pred.scholarshipId, {
-                probability: pred.probability?.probability ?? pred.probability?.probabilityPercentage ?? 0,
+                probability: pred.probability?.probability ?? (pred.probability?.probabilityPercentage != null ? pred.probability.probabilityPercentage / 100 : 0),
                 modelType: pred.probability?.modelType || 'unknown'
               });
             }
@@ -109,6 +134,8 @@ const StudentDashboard: React.FC = () => {
         }
       } catch (error) {
         console.error('Failed to fetch predictions:', error);
+      } finally {
+        setPredictionsLoading(false);
       }
     };
     
@@ -125,7 +152,7 @@ const StudentDashboard: React.FC = () => {
       const apiPred = apiPredictions.get(id);
       return {
         ...r,
-        predictionScore: apiPred?.probability ?? r.compatibilityScore,
+        predictionScore: apiPred?.probability ?? (r.compatibilityScore / 100),
         predictionModelType: apiPred?.modelType
       };
     });
@@ -165,10 +192,10 @@ const StudentDashboard: React.FC = () => {
           return (b.matchResult.predictionScore ?? 0) - (a.matchResult.predictionScore ?? 0);
         });
       case 'applied':
-        const appliedIds = new Set(userApplications.map(app => app.scholarship?._id || app.scholarshipId));
+        const appliedIds = new Set(userApplications.map(app => String(app.scholarship?._id || app.scholarship?.id || app.scholarshipId)));
         return results.filter((r: { scholarship: Scholarship | undefined }) => {
           const schol = r.scholarship as any;
-          return appliedIds.has(schol?.id) || appliedIds.has(schol?._id);
+          return appliedIds.has(String(schol?.id)) || appliedIds.has(String(schol?._id));
         });
       default:
         return results;
@@ -216,7 +243,7 @@ const StudentDashboard: React.FC = () => {
             alt="UPLB Freedom Park" 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-700/95 via-primary-600/90 to-primary-800/95" />
+          <div className="absolute inset-0 bg-primary-700/90" />
         </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
@@ -344,6 +371,7 @@ const StudentDashboard: React.FC = () => {
                       scholarship={scholarship}
                       matchResult={matchResult}
                       showPrediction={true}
+                      predictionsLoading={predictionsLoading}
                       applicationStatus={applicationStatuses.get(scholarshipId) || null}
                     />
                   );
@@ -396,24 +424,24 @@ const StudentDashboard: React.FC = () => {
               <div className="p-5 border-b border-slate-100"><h3 className="font-semibold text-slate-900">Match Overview</h3></div>
               <div className="p-5 space-y-4">
                 {[
-                  { label: 'High Match (70%+)', value: stats.highMatch, color: 'green', pct: stats.eligible > 0 ? (stats.highMatch / stats.eligible) * 100 : 0 },
-                  { label: 'Medium Match (40-70%)', value: stats.mediumMatch, color: 'amber', pct: stats.eligible > 0 ? (stats.mediumMatch / stats.eligible) * 100 : 0 },
-                  { label: 'Not Eligible', value: stats.total - stats.eligible, color: 'slate', pct: stats.total > 0 ? ((stats.total - stats.eligible) / stats.total) * 100 : 0 },
+                  { label: 'High Match (70%+)', value: stats.highMatch, textColor: 'text-green-600', barColor: 'bg-green-500', pct: stats.eligible > 0 ? (stats.highMatch / stats.eligible) * 100 : 0 },
+                  { label: 'Medium Match (40-70%)', value: stats.mediumMatch, textColor: 'text-amber-600', barColor: 'bg-amber-500', pct: stats.eligible > 0 ? (stats.mediumMatch / stats.eligible) * 100 : 0 },
+                  { label: 'Not Eligible', value: stats.total - stats.eligible, textColor: 'text-slate-600', barColor: 'bg-slate-400', pct: stats.total > 0 ? ((stats.total - stats.eligible) / stats.total) * 100 : 0 },
                 ].map((item, index) => (
                   <div key={index}>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-slate-600">{item.label}</span>
-                      <span className={`text-sm font-semibold text-${item.color}-600`}>{item.value}</span>
+                      <span className={`text-sm font-semibold ${item.textColor}`}>{item.value}</span>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className={`h-full bg-gradient-to-r from-${item.color}-400 to-${item.color}-600 rounded-full transition-all`} style={{ width: `${item.pct}%` }} />
+                      <div className={`h-full ${item.barColor} rounded-full transition-all`} style={{ width: `${item.pct}%` }} />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-gold-50 to-gold-100 rounded-2xl border border-gold-200 p-5">
+            <div className="bg-gold-50 rounded-2xl border border-gold-200 p-5">
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-xl bg-gold-200 flex items-center justify-center flex-shrink-0"><Bell className="w-5 h-5 text-gold-700" /></div>
                 <div>

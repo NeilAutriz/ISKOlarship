@@ -83,16 +83,21 @@ const AdminDashboard: React.FC = () => {
         try {
           const appsRes = await applicationApi.getAll({ limit: 5 });
           if (isMounted && appsRes.success && appsRes.data?.applications) {
-            setRecentApplications(appsRes.data.applications.map((app: any) => ({
+            setRecentApplications(appsRes.data.applications.map((app: any) => {
+              // Try multiple name sources: applicant.studentProfile, applicant top-level, applicantSnapshot
+              const sp = app.applicant?.studentProfile;
+              const snap = app.applicantSnapshot;
+              const firstName = sp?.firstName || app.applicant?.firstName || snap?.firstName || '';
+              const lastName = sp?.lastName || app.applicant?.lastName || snap?.lastName || '';
+              const fullName = `${firstName} ${lastName}`.trim();
+              return {
               id: app._id || app.id,
-              studentName: app.applicant?.studentProfile 
-                ? `${app.applicant.studentProfile.firstName} ${app.applicant.studentProfile.lastName}`
-                : 'Unknown Student',
+              studentName: fullName || 'Unknown Student',
               scholarshipName: app.scholarship?.name || 'Unknown Scholarship',
               status: app.status || 'pending',
               submittedDate: app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : 'N/A',
               matchScore: 0 // Placeholder - will be updated with fresh ML predictions
-            })));
+            };}));
           }
         } catch (err) {
           if (isMounted) {
@@ -189,7 +194,7 @@ const AdminDashboard: React.FC = () => {
             alt="UPLB Campus" 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />
+          <div className="absolute inset-0 bg-primary-800/90" />
         </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
@@ -403,7 +408,7 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Pending Actions */}
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-200 p-6">
+            <div className="bg-amber-50 rounded-2xl border border-amber-200 p-6">
               <h3 className="font-semibold text-amber-900 mb-3 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-amber-600" />Pending Actions
               </h3>
@@ -411,14 +416,6 @@ const AdminDashboard: React.FC = () => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-amber-800">Applications to review</span>
                   <span className="font-bold text-amber-900">{stats.pendingReviews}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-amber-800">Documents to verify</span>
-                  <span className="font-bold text-amber-900">18</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-amber-800">Expiring scholarships</span>
-                  <span className="font-bold text-amber-900">5</span>
                 </div>
               </div>
               <Link to="/admin/applicants" className="mt-4 inline-flex items-center gap-2 w-full justify-center py-2.5 bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-all text-sm">

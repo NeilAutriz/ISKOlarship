@@ -114,7 +114,7 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
       
       return [id, {
         ...r,
-        predictionScore: apiPred?.probability ?? r.compatibilityScore,
+        predictionScore: apiPred?.probability ?? (r.compatibilityScore / 100),
         predictionModelType: apiPred?.modelType,
         isEligible: finalEligible,
         eligibilityDetails: finalEligibilityDetails
@@ -152,7 +152,7 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
               })) || [];
               
               predictionsMap.set(pred.scholarshipId, {
-                probability: pred.probability?.probability ?? pred.probability?.probabilityPercentage ?? 0,
+                probability: pred.probability?.probability ?? (pred.probability?.probabilityPercentage != null ? pred.probability.probabilityPercentage / 100 : 0),
                 eligible: pred.eligibility?.passed ?? false,
                 eligibilityDetails,
                 modelType: pred.probability?.modelType || 'unknown'
@@ -486,6 +486,7 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
                 scholarship={scholarship}
                 matchResult={matchResults.get(scholarshipId)}
                 showPrediction={!!studentProfile}
+                predictionsLoading={predictionsLoading}
                 variant={viewMode === 'list' ? 'compact' : 'default'}
                 applicationStatus={applicationStatuses?.get(scholarshipId) || null}
               />
