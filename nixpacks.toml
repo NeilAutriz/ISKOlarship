@@ -1,0 +1,11 @@
+# Railway Nixpacks Configuration
+# Only install backend dependencies — frontend is deployed on Vercel separately
+
+[phases.install]
+cmds = ["cd backend && npm ci --production"]
+
+[phases.build]
+cmds = ["echo 'Backend build complete'"]
+
+[start]
+cmd = "cd backend && node src/server.js"
