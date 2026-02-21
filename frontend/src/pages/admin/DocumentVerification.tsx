@@ -985,165 +985,194 @@ const DocumentVerification: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="px-5 py-4 space-y-2">
+                      {/* Student Profile Summary */}
+                      <div className="px-5 pt-4 pb-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Student Number</div>
+                            <div className="text-sm font-semibold text-slate-800">{student.studentNumber || '—'}</div>
+                          </div>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">College</div>
+                            <div className="text-sm font-semibold text-slate-800">{student.college || '—'}</div>
+                          </div>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Course</div>
+                            <div className="text-sm font-semibold text-slate-800 truncate" title={student.course}>{student.course || '—'}</div>
+                          </div>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Documents</div>
+                            <div className="text-sm font-semibold text-slate-800">
+                              <span className="text-emerald-600">{student.verified}</span>
+                              <span className="text-slate-400 mx-0.5">/</span>
+                              <span>{student.totalDocuments}</span>
+                              <span className="text-xs font-medium text-slate-400 ml-1">verified</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-5 py-4 space-y-2.5">
                         {student.documents.map(doc => {
                           const isPDF = doc.mimeType?.includes('pdf');
                           const isImage = doc.mimeType?.startsWith('image/');
                           const isUpdating = updatingDoc === doc._id;
                           const docOcr = ocrResults[doc._id];
                           const isOcrExpanded = expandedOcr === doc._id;
+                          const docTypeColor = doc.documentType === 'student_id' ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : doc.documentType === 'latest_grades' || doc.documentType === 'transcript' ? 'bg-purple-100 text-purple-700 border-purple-200'
+                            : doc.documentType === 'certificate_of_registration' ? 'bg-teal-100 text-teal-700 border-teal-200'
+                            : doc.documentType === 'proof_of_enrollment' ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                            : doc.documentType === 'photo_id' ? 'bg-pink-100 text-pink-700 border-pink-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200';
 
                           return (
                             <div key={doc._id} className="space-y-0">
                               <div
-                                className={`rounded-xl border transition-all ${
+                                className={`rounded-xl border border-l-[3px] transition-all ${
                                   doc.verificationStatus === 'verified'
-                                    ? 'bg-emerald-50/50 border-emerald-200'
+                                    ? 'bg-emerald-50/30 border-emerald-200 border-l-emerald-500'
                                     : doc.verificationStatus === 'rejected'
-                                    ? 'bg-red-50/50 border-red-200'
+                                    ? 'bg-red-50/30 border-red-200 border-l-red-500'
                                     : doc.verificationStatus === 'resubmit'
-                                    ? 'bg-amber-50/50 border-amber-200'
-                                    : 'bg-white border-slate-200'
+                                    ? 'bg-amber-50/30 border-amber-200 border-l-amber-500'
+                                    : 'bg-white border-slate-200 border-l-slate-300'
                                 }`}
                               >
-                                {/* Document row */}
-                                <div className="flex items-center justify-between p-3.5">
-                                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                      isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-slate-100'
-                                    }`}>
-                                      {isPDF ? (
-                                        <FileText className="w-5 h-5 text-red-500" />
-                                      ) : isImage ? (
-                                        <Image className="w-5 h-5 text-blue-500" />
-                                      ) : (
-                                        <FileText className="w-5 h-5 text-slate-400" />
-                                      )}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="font-medium text-sm text-slate-800 flex items-center gap-2 flex-wrap">
-                                        <span className="truncate">{doc.name}</span>
-                                        <StatusBadge status={doc.verificationStatus} />
-                                        {docOcr && docOcr.status === 'completed' && docOcr.overallMatch && (
-                                          <OcrMatchBadge match={docOcr.overallMatch} />
-                                        )}
-                                      </div>
-                                      <div className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap mt-0.5">
-                                        <span>{doc.documentType.replace(/_/g, ' ')}</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span>{doc.fileName}</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span>{(doc.fileSize / 1024).toFixed(1)} KB</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
-                                        {docOcr && docOcr.status === 'completed' && docOcr.confidence !== undefined && (
-                                          <>
-                                            <span className="text-slate-300">·</span>
-                                            <span className={`font-semibold ${
-                                              docOcr.confidence >= 0.8 ? 'text-emerald-600' :
-                                              docOcr.confidence >= 0.5 ? 'text-amber-600' : 'text-red-600'
-                                            }`}>
-                                              OCR {Math.round(docOcr.confidence * 100)}%
-                                            </span>
-                                          </>
-                                        )}
-                                      </div>
-                                      {doc.verificationRemarks && (
-                                        <div className="mt-1 text-xs text-slate-600 italic flex items-start gap-1">
-                                          <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
-                                          {doc.verificationRemarks}
-                                        </div>
-                                      )}
-                                    </div>
+                                {/* Document info row */}
+                                <div className="flex items-center gap-3 p-3.5 min-w-0">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-slate-100'
+                                  }`}>
+                                    {isPDF ? (
+                                      <FileText className="w-5 h-5 text-red-500" />
+                                    ) : isImage ? (
+                                      <Image className="w-5 h-5 text-blue-500" />
+                                    ) : (
+                                      <FileText className="w-5 h-5 text-slate-400" />
+                                    )}
                                   </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-medium text-sm text-slate-800 flex items-center gap-2 flex-wrap">
+                                      <span className="truncate">{doc.name}</span>
+                                      <StatusBadge status={doc.verificationStatus} />
+                                      {docOcr && docOcr.status === 'completed' && docOcr.overallMatch && (
+                                        <OcrMatchBadge match={docOcr.overallMatch} />
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap mt-1">
+                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${docTypeColor}`}>
+                                        {doc.documentType.replace(/_/g, ' ')}
+                                      </span>
+                                      <span className="text-slate-300">·</span>
+                                      <span>{doc.fileName}</span>
+                                      <span className="text-slate-300">·</span>
+                                      <span>{(doc.fileSize / 1024).toFixed(1)} KB</span>
+                                      <span className="text-slate-300">·</span>
+                                      <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                                      {docOcr && docOcr.status === 'completed' && docOcr.confidence !== undefined && (
+                                        <>
+                                          <span className="text-slate-300">·</span>
+                                          <span className={`font-semibold ${
+                                            docOcr.confidence >= 0.8 ? 'text-emerald-600' :
+                                            docOcr.confidence >= 0.5 ? 'text-amber-600' : 'text-red-600'
+                                          }`}>
+                                            OCR {Math.round(docOcr.confidence * 100)}%
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                    {doc.verificationRemarks && (
+                                      <div className="mt-1.5 text-xs text-slate-600 italic flex items-start gap-1 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-100">
+                                        <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
+                                        {doc.verificationRemarks}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
 
-                                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
-                                    {/* Preview */}
+                                {/* Action toolbar */}
+                                <div className="flex items-center gap-1.5 px-3.5 pb-3 flex-wrap">
+                                  {/* Info actions */}
+                                  <button
+                                    onClick={() => handlePreview(student.studentId, doc)}
+                                    disabled={loadingPreview === doc._id || !doc.hasFile}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition-colors"
+                                    title="Preview document"
+                                  >
+                                    {loadingPreview === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                                    Preview
+                                  </button>
+
+                                  {ocrAvailable && doc.hasFile && (
                                     <button
-                                      onClick={() => handlePreview(student.studentId, doc)}
-                                      disabled={loadingPreview === doc._id || !doc.hasFile}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition-colors"
-                                      title="Preview document"
+                                      onClick={() => docOcr ? setExpandedOcr(isOcrExpanded ? null : doc._id) : handleOcrScan(student.studentId, doc)}
+                                      disabled={scanningDoc === doc._id}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"
+                                      title={docOcr ? 'View OCR results' : 'Run OCR scan'}
                                     >
-                                      {loadingPreview === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
-                                      Preview
+                                      {scanningDoc === doc._id ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : docOcr ? (
+                                        <FileSearch className="w-3.5 h-3.5" />
+                                      ) : (
+                                        <ScanLine className="w-3.5 h-3.5" />
+                                      )}
+                                      {docOcr ? 'OCR Results' : 'OCR Scan'}
                                     </button>
+                                  )}
 
-                                    {/* OCR Scan */}
-                                    {ocrAvailable && doc.hasFile && (
-                                      <button
-                                        onClick={() => docOcr ? setExpandedOcr(isOcrExpanded ? null : doc._id) : handleOcrScan(student.studentId, doc)}
-                                        disabled={scanningDoc === doc._id}
-                                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${
-                                          docOcr
-                                            ? 'bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100'
-                                            : 'bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100'
-                                        }`}
-                                        title={docOcr ? 'View OCR results' : 'Run OCR scan'}
-                                      >
-                                        {scanningDoc === doc._id ? (
-                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        ) : docOcr ? (
-                                          <FileSearch className="w-3.5 h-3.5" />
-                                        ) : (
-                                          <ScanLine className="w-3.5 h-3.5" />
-                                        )}
-                                        {docOcr ? 'OCR' : 'Scan'}
-                                      </button>
-                                    )}
+                                  {/* Divider */}
+                                  <div className="w-px h-5 bg-slate-200 mx-0.5" />
 
-                                    {/* Verify */}
-                                    {doc.verificationStatus !== 'verified' && (
-                                      <button
-                                        onClick={() => handleUpdateStatus(student.studentId, doc._id, 'verified')}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
-                                        title="Mark as verified"
-                                      >
-                                        {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                        Verify
-                                      </button>
-                                    )}
+                                  {/* Status actions */}
+                                  {doc.verificationStatus !== 'verified' && (
+                                    <button
+                                      onClick={() => handleUpdateStatus(student.studentId, doc._id, 'verified')}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                                      title="Mark as verified"
+                                    >
+                                      {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                      Verify
+                                    </button>
+                                  )}
 
-                                    {/* Reject (open remarks modal) */}
-                                    {doc.verificationStatus !== 'rejected' && (
-                                      <button
-                                        onClick={() => setRemarksModal({ targetId: student.studentId, docId: doc._id, action: 'rejected', isAdmin: false })}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-700 text-xs font-semibold rounded-lg border border-red-200 hover:bg-red-100 disabled:opacity-50 transition-colors"
-                                        title="Reject document"
-                                      >
-                                        <XCircle className="w-3.5 h-3.5" />
-                                        Reject
-                                      </button>
-                                    )}
+                                  {doc.verificationStatus !== 'rejected' && (
+                                    <button
+                                      onClick={() => setRemarksModal({ targetId: student.studentId, docId: doc._id, action: 'rejected', isAdmin: false })}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-700 text-xs font-semibold rounded-lg border border-red-200 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                                      title="Reject document"
+                                    >
+                                      <XCircle className="w-3.5 h-3.5" />
+                                      Reject
+                                    </button>
+                                  )}
 
-                                    {/* Request resubmit */}
-                                    {doc.verificationStatus !== 'resubmit' && doc.verificationStatus !== 'verified' && (
-                                      <button
-                                        onClick={() => setRemarksModal({ targetId: student.studentId, docId: doc._id, action: 'resubmit', isAdmin: false })}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors"
-                                        title="Request resubmission"
-                                      >
-                                        <RotateCcw className="w-3.5 h-3.5" />
-                                        Resubmit
-                                      </button>
-                                    )}
+                                  {doc.verificationStatus !== 'resubmit' && doc.verificationStatus !== 'verified' && (
+                                    <button
+                                      onClick={() => setRemarksModal({ targetId: student.studentId, docId: doc._id, action: 'resubmit', isAdmin: false })}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                                      title="Request resubmission"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" />
+                                      Resubmit
+                                    </button>
+                                  )}
 
-                                    {/* Reset to pending */}
-                                    {doc.verificationStatus !== 'pending' && (
-                                      <button
-                                        onClick={() => handleUpdateStatus(student.studentId, doc._id, 'pending')}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 text-slate-500 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 transition-colors"
-                                        title="Reset to pending"
-                                      >
-                                        <Clock className="w-3.5 h-3.5" />
-                                        Reset
-                                      </button>
-                                    )}
-                                  </div>
+                                  {doc.verificationStatus !== 'pending' && (
+                                    <button
+                                      onClick={() => handleUpdateStatus(student.studentId, doc._id, 'pending')}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 text-slate-500 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+                                      title="Reset to pending"
+                                    >
+                                      <Clock className="w-3.5 h-3.5" />
+                                      Reset
+                                    </button>
+                                  )}
                                 </div>
 
                                 {/* OCR Results Panel (expandable) */}
@@ -1461,161 +1490,194 @@ const DocumentVerification: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="px-5 py-4 space-y-2">
+                      {/* Admin Profile Summary */}
+                      <div className="px-5 pt-4 pb-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Access Level</div>
+                            <div className="text-sm font-semibold text-slate-800 capitalize">{admin.accessLevel.replace(/_/g, ' ')}</div>
+                          </div>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">College</div>
+                            <div className="text-sm font-semibold text-slate-800">{admin.college || '—'}</div>
+                          </div>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Position</div>
+                            <div className="text-sm font-semibold text-slate-800 truncate" title={admin.position}>{admin.position && admin.position !== 'N/A' ? admin.position : '—'}</div>
+                          </div>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Documents</div>
+                            <div className="text-sm font-semibold text-slate-800">
+                              <span className="text-emerald-600">{admin.verified}</span>
+                              <span className="text-slate-400 mx-0.5">/</span>
+                              <span>{admin.totalDocuments}</span>
+                              <span className="text-xs font-medium text-slate-400 ml-1">verified</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-5 py-4 space-y-2.5">
                         {admin.documents.map(doc => {
                           const isPDF = doc.mimeType?.includes('pdf');
                           const isImage = doc.mimeType?.startsWith('image/');
                           const isUpdating = updatingDoc === doc._id;
                           const docOcr = ocrResults[doc._id];
                           const isOcrExpanded = expandedOcr === doc._id;
+                          const docTypeColor = doc.documentType === 'student_id' ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : doc.documentType === 'latest_grades' || doc.documentType === 'transcript' ? 'bg-purple-100 text-purple-700 border-purple-200'
+                            : doc.documentType === 'certificate_of_registration' ? 'bg-teal-100 text-teal-700 border-teal-200'
+                            : doc.documentType === 'proof_of_enrollment' ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                            : doc.documentType === 'photo_id' ? 'bg-pink-100 text-pink-700 border-pink-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200';
 
                           return (
                             <div key={doc._id} className="space-y-0">
                               <div
-                                className={`rounded-xl border transition-all ${
+                                className={`rounded-xl border border-l-[3px] transition-all ${
                                   doc.verificationStatus === 'verified'
-                                    ? 'bg-emerald-50/50 border-emerald-200'
+                                    ? 'bg-emerald-50/30 border-emerald-200 border-l-emerald-500'
                                     : doc.verificationStatus === 'rejected'
-                                    ? 'bg-red-50/50 border-red-200'
+                                    ? 'bg-red-50/30 border-red-200 border-l-red-500'
                                     : doc.verificationStatus === 'resubmit'
-                                    ? 'bg-amber-50/50 border-amber-200'
-                                    : 'bg-white border-slate-200'
+                                    ? 'bg-amber-50/30 border-amber-200 border-l-amber-500'
+                                    : 'bg-white border-slate-200 border-l-slate-300'
                                 }`}
                               >
-                                {/* Document row */}
-                                <div className="flex items-center justify-between p-3.5">
-                                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                      isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-slate-100'
-                                    }`}>
-                                      {isPDF ? (
-                                        <FileText className="w-5 h-5 text-red-500" />
-                                      ) : isImage ? (
-                                        <Image className="w-5 h-5 text-blue-500" />
-                                      ) : (
-                                        <FileText className="w-5 h-5 text-slate-400" />
-                                      )}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="font-medium text-sm text-slate-800 flex items-center gap-2 flex-wrap">
-                                        <span className="truncate">{doc.name}</span>
-                                        <StatusBadge status={doc.verificationStatus} />
-                                        {docOcr && docOcr.status === 'completed' && docOcr.overallMatch && (
-                                          <OcrMatchBadge match={docOcr.overallMatch} />
-                                        )}
-                                      </div>
-                                      <div className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap mt-0.5">
-                                        <span>{doc.documentType.replace(/_/g, ' ')}</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span>{doc.fileName}</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span>{(doc.fileSize / 1024).toFixed(1)} KB</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
-                                        {docOcr && docOcr.status === 'completed' && docOcr.confidence !== undefined && (
-                                          <>
-                                            <span className="text-slate-300">·</span>
-                                            <span className={`font-semibold ${
-                                              docOcr.confidence >= 0.8 ? 'text-emerald-600' :
-                                              docOcr.confidence >= 0.5 ? 'text-amber-600' : 'text-red-600'
-                                            }`}>
-                                              OCR {Math.round(docOcr.confidence * 100)}%
-                                            </span>
-                                          </>
-                                        )}
-                                      </div>
-                                      {doc.verificationRemarks && (
-                                        <div className="mt-1 text-xs text-slate-600 italic flex items-start gap-1">
-                                          <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
-                                          {doc.verificationRemarks}
-                                        </div>
-                                      )}
-                                    </div>
+                                {/* Document info row */}
+                                <div className="flex items-center gap-3 p-3.5 min-w-0">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-slate-100'
+                                  }`}>
+                                    {isPDF ? (
+                                      <FileText className="w-5 h-5 text-red-500" />
+                                    ) : isImage ? (
+                                      <Image className="w-5 h-5 text-blue-500" />
+                                    ) : (
+                                      <FileText className="w-5 h-5 text-slate-400" />
+                                    )}
                                   </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-medium text-sm text-slate-800 flex items-center gap-2 flex-wrap">
+                                      <span className="truncate">{doc.name}</span>
+                                      <StatusBadge status={doc.verificationStatus} />
+                                      {docOcr && docOcr.status === 'completed' && docOcr.overallMatch && (
+                                        <OcrMatchBadge match={docOcr.overallMatch} />
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap mt-1">
+                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${docTypeColor}`}>
+                                        {doc.documentType.replace(/_/g, ' ')}
+                                      </span>
+                                      <span className="text-slate-300">·</span>
+                                      <span>{doc.fileName}</span>
+                                      <span className="text-slate-300">·</span>
+                                      <span>{(doc.fileSize / 1024).toFixed(1)} KB</span>
+                                      <span className="text-slate-300">·</span>
+                                      <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                                      {docOcr && docOcr.status === 'completed' && docOcr.confidence !== undefined && (
+                                        <>
+                                          <span className="text-slate-300">·</span>
+                                          <span className={`font-semibold ${
+                                            docOcr.confidence >= 0.8 ? 'text-emerald-600' :
+                                            docOcr.confidence >= 0.5 ? 'text-amber-600' : 'text-red-600'
+                                          }`}>
+                                            OCR {Math.round(docOcr.confidence * 100)}%
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                    {doc.verificationRemarks && (
+                                      <div className="mt-1.5 text-xs text-slate-600 italic flex items-start gap-1 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-100">
+                                        <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
+                                        {doc.verificationRemarks}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
 
-                                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
-                                    {/* Preview */}
+                                {/* Action toolbar */}
+                                <div className="flex items-center gap-1.5 px-3.5 pb-3 flex-wrap">
+                                  {/* Info actions */}
+                                  <button
+                                    onClick={() => handlePreview(admin.adminId, doc, true)}
+                                    disabled={loadingPreview === doc._id || !doc.hasFile}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition-colors"
+                                    title="Preview document"
+                                  >
+                                    {loadingPreview === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                                    Preview
+                                  </button>
+
+                                  {ocrAvailable && doc.hasFile && (
                                     <button
-                                      onClick={() => handlePreview(admin.adminId, doc, true)}
-                                      disabled={loadingPreview === doc._id || !doc.hasFile}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition-colors"
-                                      title="Preview document"
+                                      onClick={() => docOcr ? setExpandedOcr(isOcrExpanded ? null : doc._id) : handleOcrScan(admin.adminId, doc, true)}
+                                      disabled={scanningDoc === doc._id}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"
+                                      title={docOcr ? 'View OCR results' : 'Run OCR scan'}
                                     >
-                                      {loadingPreview === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
-                                      Preview
+                                      {scanningDoc === doc._id ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : docOcr ? (
+                                        <FileSearch className="w-3.5 h-3.5" />
+                                      ) : (
+                                        <ScanLine className="w-3.5 h-3.5" />
+                                      )}
+                                      {docOcr ? 'OCR Results' : 'OCR Scan'}
                                     </button>
+                                  )}
 
-                                    {/* OCR Scan */}
-                                    {ocrAvailable && doc.hasFile && (
-                                      <button
-                                        onClick={() => docOcr ? setExpandedOcr(isOcrExpanded ? null : doc._id) : handleOcrScan(admin.adminId, doc, true)}
-                                        disabled={scanningDoc === doc._id}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"
-                                        title={docOcr ? 'View OCR results' : 'Run OCR scan'}
-                                      >
-                                        {scanningDoc === doc._id ? (
-                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        ) : docOcr ? (
-                                          <FileSearch className="w-3.5 h-3.5" />
-                                        ) : (
-                                          <ScanLine className="w-3.5 h-3.5" />
-                                        )}
-                                        {docOcr ? 'OCR' : 'Scan'}
-                                      </button>
-                                    )}
+                                  {/* Divider */}
+                                  <div className="w-px h-5 bg-slate-200 mx-0.5" />
 
-                                    {/* Verify */}
-                                    {doc.verificationStatus !== 'verified' && (
-                                      <button
-                                        onClick={() => handleUpdateStatus(admin.adminId, doc._id, 'verified', undefined, true)}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
-                                        title="Mark as verified"
-                                      >
-                                        {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                        Verify
-                                      </button>
-                                    )}
+                                  {/* Status actions */}
+                                  {doc.verificationStatus !== 'verified' && (
+                                    <button
+                                      onClick={() => handleUpdateStatus(admin.adminId, doc._id, 'verified', undefined, true)}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                                      title="Mark as verified"
+                                    >
+                                      {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                      Verify
+                                    </button>
+                                  )}
 
-                                    {/* Reject */}
-                                    {doc.verificationStatus !== 'rejected' && (
-                                      <button
-                                        onClick={() => setRemarksModal({ targetId: admin.adminId, docId: doc._id, action: 'rejected', isAdmin: true })}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-700 text-xs font-semibold rounded-lg border border-red-200 hover:bg-red-100 disabled:opacity-50 transition-colors"
-                                        title="Reject document"
-                                      >
-                                        <XCircle className="w-3.5 h-3.5" />
-                                        Reject
-                                      </button>
-                                    )}
+                                  {doc.verificationStatus !== 'rejected' && (
+                                    <button
+                                      onClick={() => setRemarksModal({ targetId: admin.adminId, docId: doc._id, action: 'rejected', isAdmin: true })}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 text-red-700 text-xs font-semibold rounded-lg border border-red-200 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                                      title="Reject document"
+                                    >
+                                      <XCircle className="w-3.5 h-3.5" />
+                                      Reject
+                                    </button>
+                                  )}
 
-                                    {/* Request resubmit */}
-                                    {doc.verificationStatus !== 'resubmit' && doc.verificationStatus !== 'verified' && (
-                                      <button
-                                        onClick={() => setRemarksModal({ targetId: admin.adminId, docId: doc._id, action: 'resubmit', isAdmin: true })}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors"
-                                        title="Request resubmission"
-                                      >
+                                  {doc.verificationStatus !== 'resubmit' && doc.verificationStatus !== 'verified' && (
+                                    <button
+                                      onClick={() => setRemarksModal({ targetId: admin.adminId, docId: doc._id, action: 'resubmit', isAdmin: true })}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-lg border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                                      title="Request resubmission"
+                                    >
                                         <RotateCcw className="w-3.5 h-3.5" />
                                         Resubmit
                                       </button>
                                     )}
 
-                                    {/* Reset to pending */}
-                                    {doc.verificationStatus !== 'pending' && (
-                                      <button
-                                        onClick={() => handleUpdateStatus(admin.adminId, doc._id, 'pending', undefined, true)}
-                                        disabled={isUpdating}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 text-slate-500 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 transition-colors"
-                                        title="Reset to pending"
-                                      >
-                                        <Clock className="w-3.5 h-3.5" />
-                                        Reset
-                                      </button>
-                                    )}
-                                  </div>
+                                  {doc.verificationStatus !== 'pending' && (
+                                    <button
+                                      onClick={() => handleUpdateStatus(admin.adminId, doc._id, 'pending', undefined, true)}
+                                      disabled={isUpdating}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 text-slate-500 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 transition-colors"
+                                      title="Reset to pending"
+                                    >
+                                      <Clock className="w-3.5 h-3.5" />
+                                      Reset
+                                    </button>
+                                  )}
                                 </div>
 
                                 {/* OCR Results Panel (expandable) */}
