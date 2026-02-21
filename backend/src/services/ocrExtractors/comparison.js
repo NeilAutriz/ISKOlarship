@@ -575,11 +575,11 @@ function compareFields(extracted, applicantSnapshot, rawText) {
         const foundFirst = firstLower && rawLower.includes(firstLower);
         const foundLast = lastLower && rawLower.includes(lastLower);
         if (foundFirst && foundLast) {
-          results.push({ field: 'name', extracted: '(found in text)', expected: fullName, match: true, similarity: 0.85, severity: 'verified' });
+          results.push({ field: 'name', extracted: 'Found', expected: fullName, match: true, similarity: 0.85, severity: 'verified' });
         } else if (foundFirst || foundLast) {
-          results.push({ field: 'name', extracted: `(partial: ${foundFirst ? 'first' : 'last'} name found)`, expected: fullName, match: false, similarity: 0.5, severity: 'warning' });
+          results.push({ field: 'name', extracted: `Partial (${foundFirst ? 'first' : 'last'} name)`, expected: fullName, match: false, similarity: 0.5, severity: 'warning' });
         } else {
-          results.push({ field: 'name', extracted: '(not found)', expected: fullName, match: false, similarity: 0, severity: 'info' });
+          results.push({ field: 'name', extracted: 'Not found', expected: fullName, match: false, similarity: 0, severity: 'info' });
         }
         coveredFields.add('name');
       }
@@ -591,7 +591,7 @@ function compareFields(extracted, applicantSnapshot, rawText) {
       const found = normalizedRaw.includes(stripped) || normalizedRaw.includes(applicantSnapshot.studentNumber.toLowerCase());
       results.push({
         field: 'studentNumber',
-        extracted: found ? '(found in text)' : '(not found)',
+        extracted: found ? 'Found' : 'Not found',
         expected: applicantSnapshot.studentNumber,
         match: found,
         severity: found ? 'verified' : 'info',
@@ -612,7 +612,7 @@ function compareFields(extracted, applicantSnapshot, rawText) {
       }
       results.push({
         field: 'college',
-        extracted: found ? '(found in text)' : '(not found)',
+        extracted: found ? 'Found' : 'Not found',
         expected: applicantSnapshot.college,
         match: found,
         severity: found ? 'verified' : 'info',
@@ -627,7 +627,7 @@ function compareFields(extracted, applicantSnapshot, rawText) {
         courseLower.split(' ').filter(w => w.length > 2).every(w => normalizedRaw.includes(w));
       results.push({
         field: 'course',
-        extracted: found ? '(found in text)' : '(not found)',
+        extracted: found ? 'Found' : 'Not found',
         expected: applicantSnapshot.course,
         match: found,
         severity: found ? 'verified' : 'info',
@@ -641,7 +641,7 @@ function compareFields(extracted, applicantSnapshot, rawText) {
       const found = normalizedRaw.includes(gwaStr);
       results.push({
         field: 'gwa',
-        extracted: found ? '(found in text)' : '(not found)',
+        extracted: found ? 'Found' : 'Not found',
         expected: applicantSnapshot.gwa,
         match: found,
         severity: found ? 'verified' : 'info',
@@ -660,7 +660,7 @@ function compareFields(extracted, applicantSnapshot, rawText) {
         if (addr.province && normalizedRaw.includes(normalize(addr.province))) found = true;
         results.push({
           field: 'address',
-          extracted: found ? '(partial match in text)' : '(not found)',
+          extracted: found ? 'Partial match' : 'Not found',
           expected: fullAddr,
           match: found,
           severity: found ? 'verified' : 'info',
@@ -674,7 +674,7 @@ function compareFields(extracted, applicantSnapshot, rawText) {
       const found = normalizedRaw.includes(normalize(applicantSnapshot.position));
       results.push({
         field: 'position',
-        extracted: found ? '(found in text)' : '(not found)',
+        extracted: found ? 'Found' : 'Not found',
         expected: applicantSnapshot.position,
         match: found,
         severity: found ? 'verified' : 'info',
@@ -692,7 +692,7 @@ function compareFields(extracted, applicantSnapshot, rawText) {
       }
       results.push({
         field: 'department',
-        extracted: found ? '(found in text)' : '(not found)',
+        extracted: found ? 'Found' : 'Not found',
         expected: dept,
         match: found,
         severity: found ? 'verified' : 'info',
