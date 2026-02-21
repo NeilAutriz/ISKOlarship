@@ -13,14 +13,18 @@ function extract(rawText) {
   const text = rawText || '';
 
   // ── Name ──────────────────────────────────────────────────────────────────
+  // Common header/label words that should NOT be captured as names
+  const HEADER_WORDS = /^(BARANGAY|REPUBLIC|PHILIPPINES|OFFICE|PUNONG|CAPTAIN|CHAIRMAN|KAGAWAD|SECRETARY|TREASURER|LUPONG|TANOD|CERTIFICATE|CERTIFICATION|RESIDENCY)/i;
   const namePatterns = [
-    /certify\s*that\s+([A-Z][A-Za-z]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][A-Za-z]+){1,2})/i,
-    /(?:mr|ms|mrs|mx)[.\s]+([A-Z][A-Za-z]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][A-Za-z]+){1,2})/i,
-    /([A-Z]{2,}(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?)/,
+    // "certify that MR./MS. FIRSTNAME LASTNAME" — Filipino IDs often use this
+    /certify\s*that\s+(?:(?:MR|MS|MRS|MX)[.\s]+)?([A-Z][A-Za-z]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][A-Za-z]+){1,3})/i,
+    /(?:mr|ms|mrs|mx)[.\s]+([A-Z][A-Za-z]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][A-Za-z]+){1,3})/i,
+    // ALL-CAPS with Filipino compound names
+    /([A-Z]{2,}(?:\s(?:DE\s?LA|DELA|DEL|DE\sLOS|DELOS|SAN|STA))?(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?(?:\s[A-Z][a-z]+)*)/,
   ];
   for (const pat of namePatterns) {
     const m = text.match(pat);
-    if (m && m[1].trim().length > 5) {
+    if (m && m[1].trim().length > 5 && !HEADER_WORDS.test(m[1].trim())) {
       result.name = m[1].trim();
       break;
     }
@@ -29,6 +33,7 @@ function extract(rawText) {
   // ── Address / Barangay ────────────────────────────────────────────────────
   const addressPatterns = [
     /(?:resident|residing)\s*(?:of|at|in)\s*(?:barangay|brgy\.?)\s*([A-Za-z\s]+?)(?:,|\n|$)/i,
+    /(?:resident|residing)\s*(?:of|at|in)\s*(.+?)(?:,\s*(?:city|municipality)|\.|\n|$)/i,
     /barangay\s+([A-Za-z\s]+?)(?:,|\n|$)/i,
     /brgy\.?\s*([A-Za-z\s]+?)(?:,|\n|$)/i,
   ];

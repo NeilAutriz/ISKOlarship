@@ -16,6 +16,7 @@ function extract(rawText) {
   const studentNumPatterns = [
     /student\s*(?:no|number|#|id)[.:\s]*(\d{4}[-\s]?\d{5,6})/i,
     /(\d{4}-\d{5,6})/,
+    /(20\d{2}\d{5,6})/,  // Hyphenless format
   ];
   for (const pat of studentNumPatterns) {
     const m = text.match(pat);
@@ -26,14 +27,18 @@ function extract(rawText) {
   }
 
   // ── Name ──────────────────────────────────────────────────────────────────
+  const HEADER_WORDS = /^(UNIVERSITY|PHILIPPINES|LOS\sBAN|UPLB|COLLEGE|INSTITUTE|DEPARTMENT|OFFICE|REGISTRAR|CERTIFICATE|REGISTRATION)/i;
   const namePatterns = [
     /student\s*name[:\s]+(.+?)(?:\n|$)/i,
-    /name[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,3})/i,
-    /([A-Z]{2,}(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?(?:\s[A-Z][a-z]+)?)/,
+    /name[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,4})/i,
+    // ALL-CAPS with Filipino compound names
+    /([A-Z]{2,}(?:\s(?:DE\s?LA|DELA|DEL|DE\sLOS|DELOS|SAN|STA))?(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?(?:\s[A-Z][a-z]+)*)/,
+    // Standalone ALL CAPS name line
+    /^([A-Z]{2,}(?:\s[A-Z]{2,}){1,4})$/m,
   ];
   for (const pat of namePatterns) {
     const m = text.match(pat);
-    if (m && m[1].trim().length > 5) {
+    if (m && m[1].trim().length > 5 && !HEADER_WORDS.test(m[1].trim())) {
       result.name = m[1].trim();
       break;
     }

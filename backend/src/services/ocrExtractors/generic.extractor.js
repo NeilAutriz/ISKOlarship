@@ -13,20 +13,33 @@ function extract(rawText) {
   const result = {};
   const text = rawText || '';
 
-  // ── Student Number (UPLB format: YYYY-NNNNN) ─────────────────────────────
-  const studentNumMatch = text.match(/(\d{4}-\d{5,6})/);
-  if (studentNumMatch) {
-    result.studentNumber = studentNumMatch[1];
+  // ── Student Number (UPLB format: YYYY-NNNNN or YYYYNNNNN) ──────────────
+  const studentNumPatterns = [
+    /student\s*(?:no|number|#|id)[.:\s]*(\d{4}[-\s]?\d{5,6})/i,
+    /(\d{4}-\d{5,6})/,
+    /(20\d{2}\d{5,6})/,  // Hyphenless
+  ];
+  for (const pat of studentNumPatterns) {
+    const m = text.match(pat);
+    if (m) {
+      result.studentNumber = m[1].replace(/\s/g, '');
+      break;
+    }
   }
 
   // ── Name (look for typical patterns) ──────────────────────────────────────
+  const HEADER_WORDS = /^(UNIVERSITY|PHILIPPINES|LOS\sBAN|UPLB|COLLEGE|INSTITUTE|DEPARTMENT|OFFICE|REGISTRAR|CERTIFICATE|REPUBLIC|BARANGAY)/i;
   const namePatterns = [
-    /name[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,3})/i,
-    /([A-Z]{2,}(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?(?:\s[A-Z][a-z]+)?)/,
+    /name[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,4})/i,
+    /(?:certify\s*that|certifies\s*that)\s+(?:(?:MR|MS|MRS|MX)[.\s]+)?([A-Z][A-Za-z]+(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][A-Za-z]+){1,3})/i,
+    // ALL-CAPS with Filipino compound names
+    /([A-Z]{2,}(?:\s(?:DE\s?LA|DELA|DEL|DE\sLOS|DELOS|SAN|STA))?(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?(?:\s[A-Z][a-z]+)*)/,
+    // Standalone ALL CAPS name line (2-5 words)
+    /^([A-Z]{2,}(?:\s[A-Z]{2,}){1,4})$/m,
   ];
   for (const pat of namePatterns) {
     const m = text.match(pat);
-    if (m && m[1].trim().length > 5) {
+    if (m && m[1].trim().length > 5 && !HEADER_WORDS.test(m[1].trim())) {
       result.name = m[1].trim();
       break;
     }

@@ -420,4 +420,5 @@ module.exports = {
   getRawText,
   OCR_CONFIG,
   isOcrAvailable: () => visionAvailable && OCR_CONFIG.enabled,
+  getVisionClient: () => visionClient,
 };

@@ -37,6 +37,7 @@ function extract(rawText) {
   const studentNumPatterns = [
     /student\s*(?:no|number|#|id)[.:\s]*(\d{4}[-\s]?\d{5,6})/i,
     /(\d{4}-\d{5,6})/,
+    /(20\d{2}\d{5,6})/,  // Hyphenless format: 202203446
   ];
   for (const pat of studentNumPatterns) {
     const m = text.match(pat);
@@ -47,15 +48,19 @@ function extract(rawText) {
   }
 
   // ── Name ──────────────────────────────────────────────────────────────────
+  // Common UPLB header/label words that are NOT names
+  const HEADER_WORDS = /^(UNIVERSITY|PHILIPPINES|LOS\sBAN|UPLB|COLLEGE|INSTITUTE|DEPARTMENT|OFFICE|REGISTRAR|TRANSCRIPT|RECORDS|ACADEMIC|PROGRAM|DEGREE|SEMESTER|CAMPUS)/i;
   const namePatterns = [
-    /name[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,3})/i,
-    /student[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,3})/i,
-    // UPLB format: "LASTNAME, FIRSTNAME MIDDLENAME"
-    /([A-Z]{2,}(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?(?:\s[A-Z][a-z]+)?)/,
+    /name[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,4})/i,
+    /student[:\s]+([A-Z][A-Za-z]+(?:[,\s]+[A-Z][A-Za-z]+){1,4})/i,
+    // UPLB format: "LASTNAME, FIRSTNAME MIDDLENAME" (with Filipino compounds: DE LA CRUZ, DEL ROSARIO)
+    /([A-Z]{2,}(?:\s(?:DE\s?LA|DELA|DEL|DE\sLOS|DELOS|SAN|STA|SANTA|SANTO))?(?:\s[A-Z]{2,})*,\s*[A-Z][a-z]+(?:\s[A-Z]\.?\s*)?(?:\s[A-Z][a-z]+)*)/,
+    // ALL CAPS names (2-5 words)
+    /^([A-Z]{2,}(?:\s[A-Z]{2,}){1,4})$/m,
   ];
   for (const pat of namePatterns) {
     const m = text.match(pat);
-    if (m && m[1].length > 5) {
+    if (m && m[1].length > 5 && !HEADER_WORDS.test(m[1].trim())) {
       result.name = m[1].trim();
       break;
     }
@@ -64,7 +69,7 @@ function extract(rawText) {
   // ── College ───────────────────────────────────────────────────────────────
   const collegePatterns = [
     /college\s+of\s+([A-Za-z\s&]+?)(?:\n|$|degree)/i,
-    /(CAS|CAFS|CEM|CEAT|CDC|CFNR|CHE|CVM|SESAM|Graduate\s*School)/i,
+    /(CAS|CAFS|CEM|CEAT|CDC|CFNR|CHE|CVM|CPAF|SESAM|Graduate\s*School)/i,
     /college[:\s]+([A-Za-z\s&]+?)(?:\n|$)/i,
   ];
   for (const pat of collegePatterns) {

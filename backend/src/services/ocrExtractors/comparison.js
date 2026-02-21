@@ -64,6 +64,61 @@ function normalize(s) {
 }
 
 /**
+ * Split a full name into individual tokens, lowercased, stripped of punctuation.
+ * Handles commas, extra spaces, etc.
+ */
+function nameTokens(name) {
+  if (!name) return [];
+  return String(name)
+    .toLowerCase()
+    .replace(/[.,;:!'"\-()]/g, ' ')
+    .split(/\s+/)
+    .map(t => t.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Filipino title/suffix tokens to ignore during comparison.
+ */
+const NAME_NOISE = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v', 'mr', 'ms', 'mrs', 'dr', 'engr', 'atty']);
+
+/**
+ * Multi-word Filipino last-name prefixes.
+ * When OCR extracts "DE LA CRUZ", we should treat it as one last-name unit.
+ */
+const COMPOUND_PREFIXES = ['de la', 'dela', 'del', 'de los', 'delos', 'san', 'sta', 'santa', 'santo', 'van', 'von'];
+
+/**
+ * Remove noise tokens (suffixes, titles) from a token list.
+ */
+function stripNoise(tokens) {
+  return tokens.filter(t => !NAME_NOISE.has(t));
+}
+
+/**
+ * Calculate the percentage of expected name tokens found in the extracted tokens.
+ * Uses fuzzyMatch per-token so minor OCR typos are tolerated.
+ */
+function tokenOverlap(extractedTokens, expectedTokens) {
+  if (expectedTokens.length === 0) return 0;
+  let matched = 0;
+  const used = new Set();
+  for (const et of expectedTokens) {
+    for (let i = 0; i < extractedTokens.length; i++) {
+      if (used.has(i)) continue;
+      // Compare token lengths — only fuzzy-match tokens of similar length
+      const sim = fuzzyMatch(extractedTokens[i], et);
+      if (sim >= 0.8) {
+        matched++;
+        used.add(i);
+        break;
+      }
+    }
+  }
+  return matched / expectedTokens.length;
+}
+
+/**
  * Levenshtein edit distance.
  */
 function levenshtein(a, b) {
@@ -84,30 +139,69 @@ function levenshtein(a, b) {
 
 /**
  * Compare a name extracted from a document against profile name.
- * Handles "LAST, FIRST MIDDLE" vs "FIRST MIDDLE LAST" formats.
+ * Handles:
+ *  - "LAST, FIRST MIDDLE" vs "FIRST MIDDLE LAST" formats
+ *  - Middle names / initials (profile may or may not have one)
+ *  - Filipino compound last names (de la Cruz, del Rosario, San Juan, etc.)
+ *  - Suffixes (Jr., Sr., III, IV) – ignored during comparison
+ *  - Partial matches where OCR only picks up first+last but not middle
+ *  - Token-based overlap so word order doesn't matter as much
  */
 function compareName(extracted, snapshot) {
   if (!extracted) return null;
-  const expectedFull = `${snapshot.firstName || ''} ${snapshot.lastName || ''}`.trim();
-  const expectedReversed = `${snapshot.lastName || ''} ${snapshot.firstName || ''}`.trim();
-  const expectedLastCommaFirst = `${snapshot.lastName || ''}, ${snapshot.firstName || ''}`.trim();
 
-  const similarities = [
-    fuzzyMatch(extracted, expectedFull),
-    fuzzyMatch(extracted, expectedReversed),
-    fuzzyMatch(extracted, expectedLastCommaFirst),
-  ];
-  const bestSimilarity = Math.max(...similarities);
+  const first = (snapshot.firstName || '').trim();
+  const last = (snapshot.lastName || '').trim();
+  const middle = (snapshot.middleName || '').trim();
+
+  // Build multiple expected formats to try
+  const candidates = [];
+  candidates.push(`${first} ${last}`);
+  candidates.push(`${last} ${first}`);
+  candidates.push(`${last}, ${first}`);
+  if (middle) {
+    candidates.push(`${first} ${middle} ${last}`);
+    candidates.push(`${last}, ${first} ${middle}`);
+    candidates.push(`${last} ${first} ${middle}`);
+    // Middle initial only
+    const mi = middle.charAt(0);
+    candidates.push(`${first} ${mi} ${last}`);
+    candidates.push(`${first} ${mi}. ${last}`);
+    candidates.push(`${last}, ${first} ${mi}.`);
+  }
+
+  // 1. Fuzzy match against all candidate strings
+  let bestSimilarity = 0;
+  for (const c of candidates) {
+    const sim = fuzzyMatch(extracted, c);
+    if (sim > bestSimilarity) bestSimilarity = sim;
+  }
+
+  // 2. Token-based overlap — handles OCR word-order scrambles
+  const extTokens = stripNoise(nameTokens(extracted));
+  const expTokensFull = stripNoise(nameTokens(
+    middle ? `${first} ${middle} ${last}` : `${first} ${last}`
+  ));
+  const expTokensShort = stripNoise(nameTokens(`${first} ${last}`));
+
+  const overlapFull = tokenOverlap(extTokens, expTokensFull);
+  const overlapShort = tokenOverlap(extTokens, expTokensShort);
+  const bestOverlap = Math.max(overlapFull, overlapShort);
+
+  // Use the better of fuzzy-string and token-overlap approaches
+  // Token overlap of 1.0 (all expected tokens found) → treat as 0.95 similarity
+  const tokenSim = bestOverlap * 0.95;
+  bestSimilarity = Math.max(bestSimilarity, tokenSim);
 
   let severity = 'critical';
-  if (bestSimilarity >= 0.85) severity = 'verified';
-  else if (bestSimilarity >= 0.6) severity = 'warning';
+  if (bestSimilarity >= 0.80) severity = 'verified';
+  else if (bestSimilarity >= 0.55) severity = 'warning';
 
   return {
     field: 'name',
     extracted,
-    expected: expectedFull,
-    match: bestSimilarity >= 0.85,
+    expected: middle ? `${first} ${middle} ${last}` : `${first} ${last}`,
+    match: bestSimilarity >= 0.80,
     similarity: Math.round(bestSimilarity * 100) / 100,
     severity,
   };
@@ -339,6 +433,81 @@ function compareAddress(extracted, snapshot) {
 }
 
 /**
+ * Compare employee number (exact after stripping spaces/hyphens).
+ */
+function compareEmployeeNumber(extracted, snapshot) {
+  if (!extracted) return null;
+  const expected = snapshot.employeeNumber;
+  if (!expected) return null;
+  const strip = (s) => String(s).replace(/[\s\-\u2013\u2014]/g, '');
+  const a = strip(extracted);
+  const b = strip(expected);
+  const match = a === b;
+  return {
+    field: 'employeeNumber',
+    extracted,
+    expected,
+    match,
+    severity: match ? 'verified' : 'critical',
+  };
+}
+
+/**
+ * Compare position/designation.
+ */
+function comparePosition(extracted, snapshot) {
+  if (!extracted) return null;
+  const expected = snapshot.position || snapshot.designation;
+  if (!expected) return null;
+  const sim = fuzzyMatch(extracted, expected);
+  const match = sim >= 0.7;
+  return {
+    field: 'position',
+    extracted,
+    expected,
+    match,
+    similarity: Math.round(sim * 100) / 100,
+    severity: match ? 'verified' : 'warning',
+  };
+}
+
+/**
+ * Compare department.
+ */
+function compareDepartment(extracted, snapshot) {
+  if (!extracted) return null;
+  const expected = snapshot.department || snapshot.college;
+  if (!expected) return null;
+
+  // Try direct fuzzy match first
+  const sim = fuzzyMatch(extracted, expected);
+  if (sim >= 0.8) {
+    return { field: 'department', extracted, expected, match: true, severity: 'verified' };
+  }
+
+  // Try UPLB abbreviation resolution
+  const resolvedExtracted = resolveUPLBValue(extracted);
+  const resolvedExpected = resolveUPLBValue(expected);
+  let match = false;
+
+  if (resolvedExtracted && resolvedExpected) {
+    match = resolvedExtracted.code === resolvedExpected.code;
+  } else if (resolvedExtracted) {
+    match = fuzzyMatch(resolvedExtracted.fullName, normalize(expected)) >= 0.8;
+  } else if (resolvedExpected) {
+    match = fuzzyMatch(normalize(extracted), resolvedExpected.fullName) >= 0.8;
+  }
+
+  return {
+    field: 'department',
+    extracted,
+    expected,
+    match,
+    severity: match ? 'verified' : 'warning',
+  };
+}
+
+/**
  * Main comparison function.
  * Routes to appropriate comparators based on extracted fields.
  */
@@ -371,6 +540,18 @@ function compareFields(extracted, applicantSnapshot) {
   }
   if (extracted.address) {
     const r = compareAddress(extracted.address, applicantSnapshot);
+    if (r) results.push(r);
+  }
+  if (extracted.employeeNumber) {
+    const r = compareEmployeeNumber(extracted.employeeNumber, applicantSnapshot);
+    if (r) results.push(r);
+  }
+  if (extracted.position) {
+    const r = comparePosition(extracted.position, applicantSnapshot);
+    if (r) results.push(r);
+  }
+  if (extracted.department) {
+    const r = compareDepartment(extracted.department, applicantSnapshot);
     if (r) results.push(r);
   }
 
@@ -413,7 +594,13 @@ module.exports = {
   compareCourse,
   compareIncome,
   compareAddress,
+  compareEmployeeNumber,
+  comparePosition,
+  compareDepartment,
   fuzzyMatch,
   normalize,
   resolveUPLBValue,
+  tokenOverlap,
+  nameTokens,
+  stripNoise,
 };

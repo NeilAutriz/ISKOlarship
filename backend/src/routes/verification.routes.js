@@ -10,7 +10,7 @@ const { User, UserRole } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
 const { getSignedUrl } = require('../middleware/upload.middleware');
 const { getStudentScopeFilter, canManageStudent, getAdminScopeSummary } = require('../middleware/adminScope.middleware');
-const { isOcrAvailable } = require('../services/ocrVerification.service');
+const { isOcrAvailable, getVisionClient } = require('../services/ocrVerification.service');
 const { extractFields, SKIP_TYPES } = require('../services/ocrExtractors');
 const { compareFields, determineOverallMatch, calculateConfidence } = require('../services/ocrExtractors/comparison');
 
@@ -515,17 +515,8 @@ router.post('/students/:studentId/documents/:docId/ocr-scan', async (req, res) =
       return res.status(500).json({ success: false, message: 'Document file is empty' });
     }
 
-    // Run Google Cloud Vision OCR
-    const vision = require('@google-cloud/vision');
-    let visionClient;
-    if (process.env.GOOGLE_CLOUD_VISION_KEY) {
-      const credentials = JSON.parse(
-        Buffer.from(process.env.GOOGLE_CLOUD_VISION_KEY, 'base64').toString('utf8')
-      );
-      visionClient = new vision.ImageAnnotatorClient({ credentials });
-    } else {
-      visionClient = new vision.ImageAnnotatorClient();
-    }
+    // Run Google Cloud Vision OCR — use shared visionClient from service
+    const visionClient = getVisionClient();
 
     let rawText = '';
     const isPdf = doc.mimeType && doc.mimeType.includes('pdf');
@@ -572,7 +563,7 @@ router.post('/students/:studentId/documents/:docId/ocr-scan', async (req, res) =
     // Extract fields using document-type extractor
     // Map profile document types to extractor types
     const typeMapping = {
-      student_id: 'photo_id',
+      student_id: 'student_id',
       latest_grades: 'transcript',
       certificate_of_registration: 'certificate_of_registration',
       proof_of_enrollment: 'proof_of_enrollment',
@@ -587,6 +578,7 @@ router.post('/students/:studentId/documents/:docId/ocr-scan', async (req, res) =
     const profileSnapshot = {
       firstName: sp.firstName || student.firstName || '',
       lastName: sp.lastName || student.lastName || '',
+      middleName: sp.middleName || '',
       studentNumber: sp.studentNumber || '',
       gwa: sp.gwa || null,
       college: sp.college || '',
@@ -703,15 +695,8 @@ router.post('/students/:studentId/ocr-scan-all', async (req, res) => {
         const arrayBuffer = await fetchRes.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // Run OCR
-        const vision = require('@google-cloud/vision');
-        let visionClient;
-        if (process.env.GOOGLE_CLOUD_VISION_KEY) {
-          const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CLOUD_VISION_KEY, 'base64').toString('utf8'));
-          visionClient = new vision.ImageAnnotatorClient({ credentials });
-        } else {
-          visionClient = new vision.ImageAnnotatorClient();
-        }
+        // Run OCR — use shared visionClient from service
+        const visionClient = getVisionClient();
 
         let rawText = '';
         const isPdf = doc.mimeType && doc.mimeType.includes('pdf');
@@ -740,7 +725,7 @@ router.post('/students/:studentId/ocr-scan-all', async (req, res) => {
         }
 
         const typeMapping = {
-          student_id: 'photo_id', latest_grades: 'transcript',
+          student_id: 'student_id', latest_grades: 'transcript',
           certificate_of_registration: 'certificate_of_registration',
           proof_of_enrollment: 'proof_of_enrollment', photo_id: 'photo_id', other: 'other',
         };
@@ -751,6 +736,7 @@ router.post('/students/:studentId/ocr-scan-all', async (req, res) => {
         const profileSnapshot = {
           firstName: sp.firstName || student.firstName || '',
           lastName: sp.lastName || student.lastName || '',
+          middleName: sp.middleName || '',
           studentNumber: sp.studentNumber || '',
           gwa: sp.gwa || null,
           college: sp.college || '',
@@ -1258,17 +1244,8 @@ router.post('/admin/admins/:adminId/documents/:docId/ocr-scan', async (req, res)
       return res.status(500).json({ success: false, message: 'Document file is empty' });
     }
 
-    // Run Google Cloud Vision OCR
-    const vision = require('@google-cloud/vision');
-    let visionClient;
-    if (process.env.GOOGLE_CLOUD_VISION_KEY) {
-      const credentials = JSON.parse(
-        Buffer.from(process.env.GOOGLE_CLOUD_VISION_KEY, 'base64').toString('utf8')
-      );
-      visionClient = new vision.ImageAnnotatorClient({ credentials });
-    } else {
-      visionClient = new vision.ImageAnnotatorClient();
-    }
+    // Run Google Cloud Vision OCR — use shared visionClient from service
+    const visionClient = getVisionClient();
 
     let rawText = '';
     const isPdf = doc.mimeType && doc.mimeType.includes('pdf');
@@ -1314,9 +1291,9 @@ router.post('/admin/admins/:adminId/documents/:docId/ocr-scan', async (req, res)
 
     // Map admin document types to extractor types
     const typeMapping = {
-      employee_id: 'photo_id',
+      employee_id: 'employee_id',
       authorization_letter: 'other',
-      proof_of_employment: 'other',
+      proof_of_employment: 'proof_of_employment',
       other: 'other',
     };
     const extractorType = typeMapping[doc.documentType] || 'other';
@@ -1327,9 +1304,11 @@ router.post('/admin/admins/:adminId/documents/:docId/ocr-scan', async (req, res)
     const profileSnapshot = {
       firstName: target.firstName || '',
       lastName: target.lastName || '',
+      middleName: ap.middleName || '',
       college: ap.college || '',
       collegeCode: ap.collegeCode || '',
       position: ap.position || '',
+      department: ap.academicUnit || ap.college || '',
       academicUnit: ap.academicUnit || '',
     };
 
@@ -1433,14 +1412,8 @@ router.post('/admin/admins/:adminId/ocr-scan-all', async (req, res) => {
         const arrayBuffer = await fetchRes.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const vision = require('@google-cloud/vision');
-        let visionClient;
-        if (process.env.GOOGLE_CLOUD_VISION_KEY) {
-          const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CLOUD_VISION_KEY, 'base64').toString('utf8'));
-          visionClient = new vision.ImageAnnotatorClient({ credentials });
-        } else {
-          visionClient = new vision.ImageAnnotatorClient();
-        }
+        // Run OCR — use shared visionClient from service
+        const visionClient = getVisionClient();
 
         let rawText = '';
         const isPdf = doc.mimeType && doc.mimeType.includes('pdf');
@@ -1469,8 +1442,8 @@ router.post('/admin/admins/:adminId/ocr-scan-all', async (req, res) => {
         }
 
         const typeMapping = {
-          employee_id: 'photo_id', authorization_letter: 'other',
-          proof_of_employment: 'other', other: 'other',
+          employee_id: 'employee_id', authorization_letter: 'other',
+          proof_of_employment: 'proof_of_employment', other: 'other',
         };
         const extractorType = typeMapping[doc.documentType] || 'other';
         const extractedFields = extractFields(rawText, extractorType);
@@ -1479,8 +1452,10 @@ router.post('/admin/admins/:adminId/ocr-scan-all', async (req, res) => {
         const profileSnapshot = {
           firstName: target.firstName || '',
           lastName: target.lastName || '',
+          middleName: ap.middleName || '',
           college: ap.college || '',
           position: ap.position || '',
+          department: ap.academicUnit || ap.college || '',
           academicUnit: ap.academicUnit || '',
         };
 
