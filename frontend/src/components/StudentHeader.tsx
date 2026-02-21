@@ -16,6 +16,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 const StudentHeader: React.FC = () => {
   const location = useLocation();
@@ -73,6 +74,8 @@ const StudentHeader: React.FC = () => {
 
           {/* Right Section */}
           <div className="hidden md:flex items-center gap-2">
+            {/* Notification Bell */}
+            <NotificationBell />
             <Link
               to="/my-profile"
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
@@ -94,16 +97,19 @@ const StudentHeader: React.FC = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            {isMobileMenuOpen ? (
-              <X className="w-6 h-6 text-slate-700" />
-            ) : (
-              <Menu className="w-6 h-6 text-slate-700" />
-            )}
-          </button>
+          <div className="flex md:hidden items-center gap-1">
+            <NotificationBell />
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {isMobileMenuOpen ? (
+                <X className="w-6 h-6 text-slate-700" />
+              ) : (
+                <Menu className="w-6 h-6 text-slate-700" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}

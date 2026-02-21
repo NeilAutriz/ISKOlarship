@@ -24,6 +24,7 @@ const statisticsRoutes = require('./routes/statistics.routes');
 const trainingRoutes = require('./routes/training.routes');
 const ocrRoutes = require('./routes/ocr.routes');
 const verificationRoutes = require('./routes/verification.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Initialize Express App
 const app = express();
@@ -131,6 +132,9 @@ app.use('/api/training', checkDatabaseConnection, trainingRoutes);
 // OCR Verification Routes (with DB check)
 app.use('/api/ocr', checkDatabaseConnection, ocrRoutes);
 app.use('/api/verification', checkDatabaseConnection, verificationRoutes);
+
+// Notification Routes (with DB check)
+app.use('/api/notifications', checkDatabaseConnection, notificationRoutes);
 
 // =============================================================================
 // Error Handling Middleware

@@ -4,6 +4,7 @@
 // =============================================================================
 
 const { User } = require('../models');
+const { Notification } = require('../models/Notification.model');
 const emailService = require('./email.service');
 const templates = require('./emailTemplates');
 
@@ -82,6 +83,29 @@ const sendNotification = async (userId, category, templateFn, templateData) => {
 };
 
 // =============================================================================
+// In-App Notification Helper
+// =============================================================================
+
+/**
+ * Create an in-app notification record (fire-and-forget).
+ * Never throws — errors are logged and swallowed.
+ */
+const createInAppNotification = async (userId, type, title, message, metadata = {}) => {
+  try {
+    await Notification.create({
+      user: userId,
+      type,
+      title,
+      message,
+      metadata,
+    });
+    console.log(`🔔 In-app notification created → user ${userId} | ${type}`);
+  } catch (err) {
+    console.error(`🔔 In-app notification error (user ${userId}): ${err.message}`);
+  }
+};
+
+// =============================================================================
 // Public API — Application Status Notifications
 // =============================================================================
 
@@ -106,11 +130,46 @@ const notifyApplicationStatusChange = (applicantId, status, scholarshipName, rea
     return;
   }
 
-  // Fire and forget
+  const name = scholarshipName || 'a scholarship';
+
+  // In-app notification titles & messages
+  const inAppMap = {
+    approved: {
+      type: 'application_approved',
+      title: 'Application Approved',
+      message: `Your application for ${name} has been approved! Check your email for details.`,
+    },
+    rejected: {
+      type: 'application_rejected',
+      title: 'Application Not Approved',
+      message: `Your application for ${name} was not approved.${reason ? ' Reason: ' + reason : ''}`,
+    },
+    under_review: {
+      type: 'application_under_review',
+      title: 'Application Under Review',
+      message: `Your application for ${name} is now being reviewed by the scholarship committee.`,
+    },
+    waitlisted: {
+      type: 'application_waitlisted',
+      title: 'Application Waitlisted',
+      message: `Your application for ${name} has been waitlisted. You'll be notified if a slot becomes available.`,
+    },
+  };
+
+  // Fire and forget — email
   sendNotification(applicantId, 'application', templateFn, {
-    scholarshipName: scholarshipName || 'a scholarship',
+    scholarshipName: name,
     reason: reason || '',
   }).catch(() => {}); // extra safety
+
+  // Fire and forget — in-app
+  const inApp = inAppMap[status];
+  if (inApp) {
+    createInAppNotification(applicantId, inApp.type, inApp.title, inApp.message, {
+      scholarshipName: name,
+      reason: reason || '',
+    }).catch(() => {});
+  }
 };
 
 // =============================================================================
@@ -134,10 +193,40 @@ const notifyDocumentStatusChange = (userId, status, documentName, remarks) => {
   const templateFn = templateMap[status];
   if (!templateFn) return;
 
+  const docName = documentName || 'a document';
+
+  // Email
   sendNotification(userId, 'document', templateFn, {
-    documentName: documentName || 'a document',
+    documentName: docName,
     remarks: remarks || '',
   }).catch(() => {});
+
+  // In-app
+  const inAppDocMap = {
+    verified: {
+      type: 'document_verified',
+      title: 'Document Verified',
+      message: `Your document "${docName}" has been verified successfully.`,
+    },
+    rejected: {
+      type: 'document_rejected',
+      title: 'Document Rejected',
+      message: `Your document "${docName}" was rejected.${remarks ? ' Remarks: ' + remarks : ''}`,
+    },
+    resubmit: {
+      type: 'document_resubmit',
+      title: 'Document Needs Resubmission',
+      message: `Your document "${docName}" needs to be resubmitted.${remarks ? ' Remarks: ' + remarks : ''}`,
+    },
+  };
+
+  const inApp = inAppDocMap[status];
+  if (inApp) {
+    createInAppNotification(userId, inApp.type, inApp.title, inApp.message, {
+      documentName: docName,
+      remarks: remarks || '',
+    }).catch(() => {});
+  }
 };
 
 /**
@@ -152,7 +241,17 @@ const notifyAllDocumentsVerified = (userId, documents) => {
   const allVerified = documents.every(d => d.verificationStatus === 'verified');
   if (!allVerified) return;
 
+  // Email
   sendNotification(userId, 'document', templates.allDocumentsVerified, {}).catch(() => {});
+
+  // In-app
+  createInAppNotification(
+    userId,
+    'all_documents_verified',
+    'All Documents Verified',
+    'All your documents have been verified! You are now eligible to apply for scholarships.',
+    {}
+  ).catch(() => {});
 };
 
 // =============================================================================

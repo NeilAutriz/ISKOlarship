@@ -1353,6 +1353,70 @@ export const verificationApi = {
 };
 
 // ============================================================================
+// Notification API
+// In-app notification bell endpoints
+// ============================================================================
+
+export interface InAppNotification {
+  _id: string;
+  user: string;
+  type: string;
+  title: string;
+  message: string;
+  metadata?: {
+    scholarshipName?: string;
+    documentName?: string;
+    applicationId?: string;
+    reason?: string;
+    remarks?: string;
+  };
+  read: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const notificationApi = {
+  /** Fetch paginated notifications */
+  getAll: async (params?: { unreadOnly?: boolean; limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.unreadOnly) query.set('unreadOnly', 'true');
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.offset) query.set('offset', String(params.offset));
+    const response = await api.get<ApiResponse<{
+      notifications: InAppNotification[];
+      total: number;
+      unreadCount: number;
+      hasMore: boolean;
+    }>>(`/notifications?${query.toString()}`);
+    return response.data;
+  },
+
+  /** Quick unread count for the badge */
+  getUnreadCount: async () => {
+    const response = await api.get<ApiResponse<{ unreadCount: number }>>('/notifications/unread-count');
+    return response.data;
+  },
+
+  /** Mark a single notification as read */
+  markAsRead: async (id: string) => {
+    const response = await api.patch<ApiResponse<InAppNotification>>(`/notifications/${id}/read`);
+    return response.data;
+  },
+
+  /** Mark all notifications as read */
+  markAllAsRead: async () => {
+    const response = await api.patch<ApiResponse<{ modifiedCount: number }>>('/notifications/mark-all-read');
+    return response.data;
+  },
+
+  /** Delete a single notification */
+  delete: async (id: string) => {
+    const response = await api.delete<ApiResponse<unknown>>(`/notifications/${id}`);
+    return response.data;
+  },
+};
+
+// ============================================================================
 // Export Default API Instance
 // ============================================================================
 

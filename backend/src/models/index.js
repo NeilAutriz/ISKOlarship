@@ -32,6 +32,8 @@ const { PlatformStats } = require('./PlatformStats.model');
 
 const { TrainedModel } = require('./TrainedModel.model');
 
+const { Notification, NotificationType } = require('./Notification.model');
+
 module.exports = {
   // Models
   User,
@@ -39,6 +41,7 @@ module.exports = {
   Application,
   PlatformStats,
   TrainedModel,
+  Notification,
   
   // User Enums
   UserRole,
@@ -56,5 +59,8 @@ module.exports = {
   ScholarshipStatus,
   
   // Application Enums
-  ApplicationStatus
+  ApplicationStatus,
+  
+  // Notification Enums
+  NotificationType
 };
