@@ -988,7 +988,7 @@ const StudentProfile: React.FC = () => {
                         <Award className="w-5 h-5 text-blue-500" />
                         <div>
                           <p className="font-medium text-slate-900">Application Updates</p>
-                          <p className="text-sm text-slate-500">When your scholarship application is approved, rejected, waitlisted, or under review</p>
+                          <p className="text-sm text-slate-500">When your scholarship application is approved, rejected, or under review</p>
                         </div>
                       </div>
                       <button

@@ -19,7 +19,6 @@ const ApplicationStatus = {
   INTERVIEW_SCHEDULED: 'interview_scheduled',
   APPROVED: 'approved',
   REJECTED: 'rejected',
-  WAITLISTED: 'waitlisted',
   WITHDRAWN: 'withdrawn'
 };
 

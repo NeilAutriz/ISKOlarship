@@ -131,28 +131,6 @@ const applicationUnderReview = ({ firstName, scholarshipName = 'a scholarship' }
   `),
 });
 
-const applicationWaitlisted = ({ firstName, scholarshipName = 'a scholarship' }) => ({
-  subject: `Your ${scholarshipName} application has been waitlisted`,
-  html: layout('Application Waitlisted', `
-    <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
-    <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">
-      Your application has been placed on the <strong>waitlist</strong>. This means you may still be selected if a slot becomes available.
-    </p>
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;text-align:center;margin:0 0 20px;">
-      <p style="margin:0 0 8px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Application Status</p>
-      ${badge('Waitlisted', '#fef3c7', '#92400e')}
-      <p style="margin:12px 0 0;color:#92400e;font-size:15px;font-weight:600;">${scholarshipName}</p>
-    </div>
-    <p style="margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.6;">
-      We will notify you if the status of your application changes. Keep an eye on your dashboard for updates.
-    </p>
-    <div style="text-align:center;margin:0 0 20px;">
-      <a href="${process.env.FRONTEND_URL || 'https://iskolarship.vercel.app'}/applications" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
-        View My Applications
-      </a>
-    </div>
-  `),
-});
 
 // =============================================================================
 // Document Verification Templates
@@ -259,7 +237,6 @@ module.exports = {
   applicationApproved,
   applicationRejected,
   applicationUnderReview,
-  applicationWaitlisted,
   documentVerified,
   documentRejected,
   documentResubmit,

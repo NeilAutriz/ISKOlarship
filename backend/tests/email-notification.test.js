@@ -63,13 +63,12 @@ test('emailTemplates module loads without errors', () => {
   assert.ok(mod, 'Module should load');
 });
 
-test('emailTemplates exports all 8 template functions', () => {
+test('emailTemplates exports all 7 template functions', () => {
   const t = require('../src/services/emailTemplates');
   const expected = [
     'applicationApproved',
     'applicationRejected',
     'applicationUnderReview',
-    'applicationWaitlisted',
     'documentVerified',
     'documentRejected',
     'documentResubmit',
@@ -158,17 +157,6 @@ test('applicationUnderReview template generates correct content', () => {
   assert.ok(result.html.includes('Under Review'), 'HTML should include status badge');
 });
 
-test('applicationWaitlisted template generates correct content', () => {
-  const t = require('../src/services/emailTemplates');
-  const result = t.applicationWaitlisted({
-    firstName: 'Carlos',
-    scholarshipName: 'UPLB Foundation',
-  });
-  assert.ok(result.subject.includes('waitlisted'), 'Subject should mention waitlisted');
-  assert.ok(result.html.includes('Carlos'), 'HTML should include name');
-  assert.ok(result.html.includes('Waitlisted'), 'HTML should include status badge');
-});
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 3. Document Email Templates — Content Validation
 // ═══════════════════════════════════════════════════════════════════════════
@@ -239,7 +227,6 @@ test('all templates produce valid HTML with DOCTYPE', () => {
     t.applicationApproved({ firstName: 'X', scholarshipName: 'S' }),
     t.applicationRejected({ firstName: 'X', scholarshipName: 'S', reason: '' }),
     t.applicationUnderReview({ firstName: 'X', scholarshipName: 'S' }),
-    t.applicationWaitlisted({ firstName: 'X', scholarshipName: 'S' }),
     t.documentVerified({ firstName: 'X', documentName: 'D' }),
     t.documentRejected({ firstName: 'X', documentName: 'D', remarks: '' }),
     t.documentResubmit({ firstName: 'X', documentName: 'D', remarks: '' }),
@@ -336,7 +323,6 @@ test('notifyApplicationStatusChange handles mapped statuses without throwing', (
   ns.notifyApplicationStatusChange('000000000000000000000001', 'approved', 'DOST');
   ns.notifyApplicationStatusChange('000000000000000000000001', 'rejected', 'DOST', 'reason');
   ns.notifyApplicationStatusChange('000000000000000000000001', 'under_review', 'DOST');
-  ns.notifyApplicationStatusChange('000000000000000000000001', 'waitlisted', 'DOST');
   assert.ok(true, 'No synchronous errors for mapped statuses');
 });
 
@@ -457,7 +443,6 @@ test('templates never contain "undefined" in output', () => {
     t.applicationApproved({ firstName: undefined, scholarshipName: undefined }),
     t.applicationRejected({ firstName: undefined, scholarshipName: undefined, reason: undefined }),
     t.applicationUnderReview({ firstName: undefined, scholarshipName: undefined }),
-    t.applicationWaitlisted({ firstName: undefined, scholarshipName: undefined }),
     t.documentVerified({ firstName: undefined, documentName: undefined }),
     t.documentRejected({ firstName: undefined, documentName: undefined, remarks: undefined }),
     t.documentResubmit({ firstName: undefined, documentName: undefined, remarks: undefined }),
@@ -512,7 +497,6 @@ test('all template functions return { subject: string, html: string }', () => {
     () => t.applicationApproved({ firstName: 'A', scholarshipName: 'B' }),
     () => t.applicationRejected({ firstName: 'A', scholarshipName: 'B', reason: '' }),
     () => t.applicationUnderReview({ firstName: 'A', scholarshipName: 'B' }),
-    () => t.applicationWaitlisted({ firstName: 'A', scholarshipName: 'B' }),
     () => t.documentVerified({ firstName: 'A', documentName: 'B' }),
     () => t.documentRejected({ firstName: 'A', documentName: 'B', remarks: '' }),
     () => t.documentResubmit({ firstName: 'A', documentName: 'B', remarks: '' }),
@@ -571,10 +555,6 @@ test('all 4 notifiable application statuses map to correct templates', () => {
   // under_review
   const underReview = t.applicationUnderReview({ firstName: 'X', scholarshipName: 'S' });
   assert.ok(underReview.html.includes('Under Review'), 'under_review → Under Review badge');
-
-  // waitlisted
-  const waitlisted = t.applicationWaitlisted({ firstName: 'X', scholarshipName: 'S' });
-  assert.ok(waitlisted.html.includes('Waitlisted'), 'waitlisted → Waitlisted badge');
 });
 
 test('all 3 notifiable document statuses map to correct templates', () => {
@@ -626,11 +606,9 @@ test('rejected templates use red color scheme', () => {
   assert.ok(docRejected.html.includes('#fee2e2') || docRejected.html.includes('#991b1b'), 'Doc rejected should use red');
 });
 
-test('waitlisted and resubmit templates use amber/yellow scheme', () => {
+test('resubmit template uses amber/yellow scheme', () => {
   const t = require('../src/services/emailTemplates');
-  const waitlisted = t.applicationWaitlisted({ firstName: 'X', scholarshipName: 'S' });
   const resubmit = t.documentResubmit({ firstName: 'X', documentName: 'D', remarks: '' });
-  assert.ok(waitlisted.html.includes('#fef3c7') || waitlisted.html.includes('#92400e'), 'Waitlisted should use amber');
   assert.ok(resubmit.html.includes('#fef3c7') || resubmit.html.includes('#92400e'), 'Resubmit should use amber');
 });
 
@@ -650,7 +628,6 @@ test('application templates have clickable CTA buttons with ISKOlarship domain',
     t.applicationApproved({ firstName: 'X', scholarshipName: 'S' }),
     t.applicationRejected({ firstName: 'X', scholarshipName: 'S', reason: '' }),
     t.applicationUnderReview({ firstName: 'X', scholarshipName: 'S' }),
-    t.applicationWaitlisted({ firstName: 'X', scholarshipName: 'S' }),
   ];
   for (const { html } of templates) {
     assert.ok(html.includes('iskolarship.vercel.app') || html.includes('FRONTEND_URL'), 'Should link to frontend');
@@ -665,7 +642,7 @@ test('application templates have clickable CTA buttons with ISKOlarship domain',
 
 test('notifiable statuses match ApplicationStatus enum values', () => {
   const { ApplicationStatus } = require('../src/models/Application.model');
-  const notifiable = ['approved', 'rejected', 'under_review', 'waitlisted'];
+  const notifiable = ['approved', 'rejected', 'under_review'];
 
   for (const status of notifiable) {
     const enumVal = Object.values(ApplicationStatus).find(v => v === status);

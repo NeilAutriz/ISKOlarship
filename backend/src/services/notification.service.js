@@ -112,7 +112,7 @@ const createInAppNotification = async (userId, type, title, message, metadata = 
 /**
  * Notify student when their application status changes.
  * @param {string} applicantId - User ID of the student
- * @param {string} status - New status (approved, rejected, under_review, waitlisted, etc.)
+ * @param {string} status - New status (approved, rejected, under_review, etc.)
  * @param {string} scholarshipName - Name of the scholarship
  * @param {string} [reason] - Rejection reason (if applicable)
  */
@@ -121,7 +121,6 @@ const notifyApplicationStatusChange = (applicantId, status, scholarshipName, rea
     approved: templates.applicationApproved,
     rejected: templates.applicationRejected,
     under_review: templates.applicationUnderReview,
-    waitlisted: templates.applicationWaitlisted,
   };
 
   const templateFn = templateMap[status];
@@ -148,11 +147,6 @@ const notifyApplicationStatusChange = (applicantId, status, scholarshipName, rea
       type: 'application_under_review',
       title: 'Application Under Review',
       message: `Your application for ${name} is now being reviewed by the scholarship committee.`,
-    },
-    waitlisted: {
-      type: 'application_waitlisted',
-      title: 'Application Waitlisted',
-      message: `Your application for ${name} has been waitlisted. You'll be notified if a slot becomes available.`,
     },
   };
 

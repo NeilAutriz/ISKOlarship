@@ -9,7 +9,6 @@ const NotificationType = {
   APPLICATION_APPROVED: 'application_approved',
   APPLICATION_REJECTED: 'application_rejected',
   APPLICATION_UNDER_REVIEW: 'application_under_review',
-  APPLICATION_WAITLISTED: 'application_waitlisted',
   DOCUMENT_VERIFIED: 'document_verified',
   DOCUMENT_REJECTED: 'document_rejected',
   DOCUMENT_RESUBMIT: 'document_resubmit',
