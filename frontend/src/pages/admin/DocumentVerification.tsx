@@ -903,17 +903,21 @@ const DocumentVerification: React.FC = () => {
                         <User className="w-6 h-6 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
-                          {student.firstName} {student.lastName}
+                        <div className="font-bold text-slate-900 text-[15px] flex items-center gap-2 flex-wrap leading-tight">
+                          {(student.firstName || student.lastName)
+                            ? <>{student.firstName} {student.lastName}</>
+                            : <span>{student.studentNumber || student.email}</span>
+                          }
                           {isAllVerified && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                               <CheckCircle className="w-3 h-3" /> All Verified
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-slate-500 flex items-center gap-2 flex-wrap">
-                          <span>{student.studentNumber}</span>
-                          <span className="text-slate-300">|</span>
+                        <div className="text-[13px] text-slate-500 flex items-center gap-2 flex-wrap mt-0.5">
+                          {(student.firstName || student.lastName) && (
+                            <><span className="font-semibold text-slate-600">{student.studentNumber}</span><span className="text-slate-300">|</span></>
+                          )}
                           <span>{student.college}</span>
                           <span className="text-slate-300">|</span>
                           <span className="truncate">{student.email}</span>
@@ -1012,7 +1016,7 @@ const DocumentVerification: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="px-5 py-4 space-y-2.5">
+                      <div className="px-5 py-4 space-y-3">
                         {student.documents.map(doc => {
                           const isPDF = doc.mimeType?.includes('pdf');
                           const isImage = doc.mimeType?.startsWith('image/');
@@ -1027,9 +1031,9 @@ const DocumentVerification: React.FC = () => {
                             : 'bg-slate-100 text-slate-600 border-slate-200';
 
                           return (
-                            <div key={doc._id} className="space-y-0">
+                            <div key={doc._id}>
                               <div
-                                className={`rounded-xl border border-l-[3px] transition-all ${
+                                className={`rounded-xl border border-l-[3px] transition-all hover:shadow-md ${
                                   doc.verificationStatus === 'verified'
                                     ? 'bg-emerald-50/30 border-emerald-200 border-l-emerald-500'
                                     : doc.verificationStatus === 'rejected'
@@ -1040,7 +1044,7 @@ const DocumentVerification: React.FC = () => {
                                 }`}
                               >
                                 {/* Document info row */}
-                                <div className="flex items-center gap-3 p-3.5 min-w-0">
+                                <div className="flex items-center gap-3 px-4 pt-4 pb-3 min-w-0">
                                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                     isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-slate-100'
                                   }`}>
@@ -1053,7 +1057,7 @@ const DocumentVerification: React.FC = () => {
                                     )}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <div className="font-medium text-sm text-slate-800 flex items-center gap-2 flex-wrap">
+                                    <div className="font-semibold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
                                       <span className="truncate">{doc.name}</span>
                                       <StatusBadge status={doc.verificationStatus} />
                                       {docOcr && docOcr.status === 'completed' && docOcr.overallMatch && (
@@ -1083,7 +1087,7 @@ const DocumentVerification: React.FC = () => {
                                       )}
                                     </div>
                                     {doc.verificationRemarks && (
-                                      <div className="mt-1.5 text-xs text-slate-600 italic flex items-start gap-1 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-100">
+                                      <div className="mt-2 text-xs text-slate-600 italic flex items-start gap-1.5 bg-slate-50 rounded-lg px-2.5 py-2 border border-slate-100">
                                         <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
                                         {doc.verificationRemarks}
                                       </div>
@@ -1092,12 +1096,12 @@ const DocumentVerification: React.FC = () => {
                                 </div>
 
                                 {/* Action toolbar */}
-                                <div className="flex items-center gap-1.5 px-3.5 pb-3 flex-wrap">
+                                <div className="flex items-center gap-2 px-4 py-2.5 border-t border-slate-100 bg-slate-50/70 flex-wrap">
                                   {/* Info actions */}
                                   <button
                                     onClick={() => handlePreview(student.studentId, doc)}
                                     disabled={loadingPreview === doc._id || !doc.hasFile}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 transition-colors shadow-sm"
                                     title="Preview document"
                                   >
                                     {loadingPreview === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
@@ -1108,7 +1112,7 @@ const DocumentVerification: React.FC = () => {
                                     <button
                                       onClick={() => docOcr ? setExpandedOcr(isOcrExpanded ? null : doc._id) : handleOcrScan(student.studentId, doc)}
                                       disabled={scanningDoc === doc._id}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 bg-white text-primary-700 border-primary-200 hover:bg-primary-50 shadow-sm"
                                       title={docOcr ? 'View OCR results' : 'Run OCR scan'}
                                     >
                                       {scanningDoc === doc._id ? (
@@ -1123,7 +1127,7 @@ const DocumentVerification: React.FC = () => {
                                   )}
 
                                   {/* Divider */}
-                                  <div className="w-px h-5 bg-slate-200 mx-0.5" />
+                                  <div className="w-px h-6 bg-slate-300 mx-1" />
 
                                   {/* Status actions */}
                                   {doc.verificationStatus !== 'verified' && (
@@ -1403,16 +1407,19 @@ const DocumentVerification: React.FC = () => {
                         <Briefcase className="w-6 h-6 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <div className="font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
-                          {admin.firstName} {admin.lastName}
+                        <div className="font-bold text-slate-900 text-[15px] flex items-center gap-2 flex-wrap leading-tight">
+                          {(admin.firstName || admin.lastName)
+                            ? <>{admin.firstName} {admin.lastName}</>
+                            : <span>{admin.email}</span>
+                          }
                           {isAllVerified && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                               <CheckCircle className="w-3 h-3" /> All Verified
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-slate-500 flex items-center gap-2 flex-wrap">
-                          <span className="capitalize">{admin.accessLevel.replace(/_/g, ' ')}</span>
+                        <div className="text-[13px] text-slate-500 flex items-center gap-2 flex-wrap mt-0.5">
+                          <span className="capitalize font-semibold text-slate-600">{admin.accessLevel.replace(/_/g, ' ')}</span>
                           <span className="text-slate-300">|</span>
                           <span>{admin.college}</span>
                           {admin.position && admin.position !== 'N/A' && (
@@ -1421,8 +1428,12 @@ const DocumentVerification: React.FC = () => {
                               <span>{admin.position}</span>
                             </>
                           )}
-                          <span className="text-slate-300">|</span>
-                          <span className="truncate">{admin.email}</span>
+                          {(admin.firstName || admin.lastName) && (
+                            <>
+                              <span className="text-slate-300">|</span>
+                              <span className="truncate">{admin.email}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1517,7 +1528,7 @@ const DocumentVerification: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="px-5 py-4 space-y-2.5">
+                      <div className="px-5 py-4 space-y-3">
                         {admin.documents.map(doc => {
                           const isPDF = doc.mimeType?.includes('pdf');
                           const isImage = doc.mimeType?.startsWith('image/');
@@ -1532,9 +1543,9 @@ const DocumentVerification: React.FC = () => {
                             : 'bg-slate-100 text-slate-600 border-slate-200';
 
                           return (
-                            <div key={doc._id} className="space-y-0">
+                            <div key={doc._id}>
                               <div
-                                className={`rounded-xl border border-l-[3px] transition-all ${
+                                className={`rounded-xl border border-l-[3px] transition-all hover:shadow-md ${
                                   doc.verificationStatus === 'verified'
                                     ? 'bg-emerald-50/30 border-emerald-200 border-l-emerald-500'
                                     : doc.verificationStatus === 'rejected'
@@ -1545,7 +1556,7 @@ const DocumentVerification: React.FC = () => {
                                 }`}
                               >
                                 {/* Document info row */}
-                                <div className="flex items-center gap-3 p-3.5 min-w-0">
+                                <div className="flex items-center gap-3 px-4 pt-4 pb-3 min-w-0">
                                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                     isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-slate-100'
                                   }`}>
@@ -1558,7 +1569,7 @@ const DocumentVerification: React.FC = () => {
                                     )}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <div className="font-medium text-sm text-slate-800 flex items-center gap-2 flex-wrap">
+                                    <div className="font-semibold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
                                       <span className="truncate">{doc.name}</span>
                                       <StatusBadge status={doc.verificationStatus} />
                                       {docOcr && docOcr.status === 'completed' && docOcr.overallMatch && (
@@ -1588,7 +1599,7 @@ const DocumentVerification: React.FC = () => {
                                       )}
                                     </div>
                                     {doc.verificationRemarks && (
-                                      <div className="mt-1.5 text-xs text-slate-600 italic flex items-start gap-1 bg-slate-50 rounded-lg px-2 py-1.5 border border-slate-100">
+                                      <div className="mt-2 text-xs text-slate-600 italic flex items-start gap-1.5 bg-slate-50 rounded-lg px-2.5 py-2 border border-slate-100">
                                         <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
                                         {doc.verificationRemarks}
                                       </div>
@@ -1597,12 +1608,12 @@ const DocumentVerification: React.FC = () => {
                                 </div>
 
                                 {/* Action toolbar */}
-                                <div className="flex items-center gap-1.5 px-3.5 pb-3 flex-wrap">
+                                <div className="flex items-center gap-2 px-4 py-2.5 border-t border-slate-100 bg-slate-50/70 flex-wrap">
                                   {/* Info actions */}
                                   <button
                                     onClick={() => handlePreview(admin.adminId, doc, true)}
                                     disabled={loadingPreview === doc._id || !doc.hasFile}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-100 hover:border-slate-300 disabled:opacity-40 transition-colors shadow-sm"
                                     title="Preview document"
                                   >
                                     {loadingPreview === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
@@ -1613,7 +1624,7 @@ const DocumentVerification: React.FC = () => {
                                     <button
                                       onClick={() => docOcr ? setExpandedOcr(isOcrExpanded ? null : doc._id) : handleOcrScan(admin.adminId, doc, true)}
                                       disabled={scanningDoc === doc._id}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 bg-white text-primary-700 border-primary-200 hover:bg-primary-50 shadow-sm"
                                       title={docOcr ? 'View OCR results' : 'Run OCR scan'}
                                     >
                                       {scanningDoc === doc._id ? (
@@ -1628,7 +1639,7 @@ const DocumentVerification: React.FC = () => {
                                   )}
 
                                   {/* Divider */}
-                                  <div className="w-px h-5 bg-slate-200 mx-0.5" />
+                                  <div className="w-px h-6 bg-slate-300 mx-1" />
 
                                   {/* Status actions */}
                                   {doc.verificationStatus !== 'verified' && (
