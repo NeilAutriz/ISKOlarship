@@ -1215,5 +1215,78 @@ router.get('/uplb-structure/university-units', authMiddleware, async (req, res) 
   }
 });
 
+// =============================================================================
+// Notification Preferences
+// =============================================================================
+
+/**
+ * @route   GET /api/users/notification-preferences
+ * @desc    Get current user's notification preferences
+ * @access  Private
+ */
+router.get('/notification-preferences', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('notificationPreferences');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        emailEnabled: user.notificationPreferences?.emailEnabled !== false,
+        applicationUpdates: user.notificationPreferences?.applicationUpdates !== false,
+        documentUpdates: user.notificationPreferences?.documentUpdates !== false,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching notification preferences:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch notification preferences' });
+  }
+});
+
+/**
+ * @route   PATCH /api/users/notification-preferences
+ * @desc    Update current user's notification preferences
+ * @access  Private
+ */
+router.patch('/notification-preferences', authMiddleware, async (req, res) => {
+  try {
+    const { emailEnabled, applicationUpdates, documentUpdates } = req.body;
+
+    const update = {};
+    if (typeof emailEnabled === 'boolean') update['notificationPreferences.emailEnabled'] = emailEnabled;
+    if (typeof applicationUpdates === 'boolean') update['notificationPreferences.applicationUpdates'] = applicationUpdates;
+    if (typeof documentUpdates === 'boolean') update['notificationPreferences.documentUpdates'] = documentUpdates;
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ success: false, message: 'No valid preference fields provided' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: update },
+      { new: true, select: 'notificationPreferences' }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Notification preferences updated',
+      data: {
+        emailEnabled: user.notificationPreferences?.emailEnabled !== false,
+        applicationUpdates: user.notificationPreferences?.applicationUpdates !== false,
+        documentUpdates: user.notificationPreferences?.documentUpdates !== false,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating notification preferences:', error);
+    res.status(500).json({ success: false, message: 'Failed to update notification preferences' });
+  }
+});
+
 module.exports = router;
 

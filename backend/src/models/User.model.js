@@ -195,6 +195,24 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: Date,
   
   // =========================================================================
+  // Email Notification Preferences
+  // =========================================================================
+  notificationPreferences: {
+    emailEnabled: {
+      type: Boolean,
+      default: true
+    },
+    applicationUpdates: {
+      type: Boolean,
+      default: true
+    },
+    documentUpdates: {
+      type: Boolean,
+      default: true
+    }
+  },
+  
+  // =========================================================================
   // STUDENT Entity Fields (from ERD - IS A relationship with USER)
   // student_id: auto-generated, user_id: reference to this document
   // =========================================================================

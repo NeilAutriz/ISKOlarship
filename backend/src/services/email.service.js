@@ -472,6 +472,7 @@ if (type === 'brevo') {
 
 module.exports = {
   generateOTP,
+  sendEmail,
   sendOTPEmail,
   sendVerificationEmail,
   sendPasswordResetEmail,

@@ -13,6 +13,7 @@ const { getStudentScopeFilter, canManageStudent, getAdminScopeSummary } = requir
 const { isOcrAvailable, getVisionClient } = require('../services/ocrVerification.service');
 const { extractFields, SKIP_TYPES } = require('../services/ocrExtractors');
 const { compareFields, determineOverallMatch, calculateConfidence } = require('../services/ocrExtractors/comparison');
+const { notifyDocumentStatusChange, notifyAllDocumentsVerified } = require('../services/notification.service');
 
 // All verification routes require admin authentication
 router.use(authMiddleware);
@@ -341,6 +342,12 @@ router.put('/students/:studentId/documents/:docId', async (req, res) => {
 
     await student.save();
 
+    // ── Email notification (fire-and-forget) ──────────────────────────
+    notifyDocumentStatusChange(student._id.toString(), status, doc.name || doc.documentType, remarks);
+    if (status === 'verified') {
+      notifyAllDocumentsVerified(student._id.toString(), student.studentProfile?.documents);
+    }
+
     res.json({
       success: true,
       message: `Document ${status}`,
@@ -403,6 +410,18 @@ router.put('/students/:studentId/verify-all', async (req, res) => {
     }
 
     await student.save();
+
+    // ── Email notification for batch verification (fire-and-forget) ───
+    if (updated > 0) {
+      // Notify per-document only for small batches; for large just send allDocsVerified
+      if (status === 'verified') {
+        notifyAllDocumentsVerified(student._id.toString(), student.studentProfile?.documents);
+      }
+      // For rejection batch, send one notification
+      if (status === 'rejected') {
+        notifyDocumentStatusChange(student._id.toString(), status, `${updated} document(s)`, remarks);
+      }
+    }
 
     res.json({
       success: true,
@@ -1110,6 +1129,12 @@ router.put('/admin/admins/:adminId/documents/:docId', async (req, res) => {
 
     await target.save();
 
+    // ── Email notification (fire-and-forget) ──────────────────────────
+    notifyDocumentStatusChange(target._id.toString(), status, doc.name || doc.documentType, remarks);
+    if (status === 'verified') {
+      notifyAllDocumentsVerified(target._id.toString(), target.adminProfile?.documents);
+    }
+
     res.json({
       success: true,
       message: `Admin document ${status}`,
@@ -1170,6 +1195,16 @@ router.put('/admin/admins/:adminId/verify-all', async (req, res) => {
     }
 
     await target.save();
+
+    // ── Email notification for admin batch verification (fire-and-forget)
+    if (updated > 0) {
+      if (status === 'verified') {
+        notifyAllDocumentsVerified(target._id.toString(), target.adminProfile?.documents);
+      }
+      if (status === 'rejected') {
+        notifyDocumentStatusChange(target._id.toString(), status, `${updated} document(s)`, remarks);
+      }
+    }
 
     res.json({
       success: true,

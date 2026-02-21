@@ -19,6 +19,7 @@ const {
 } = require('../middleware/adminScope.middleware');
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
 const { onApplicationDecision } = require('../services/autoTraining.service');
+const { notifyApplicationStatusChange } = require('../services/notification.service');
 
 // =============================================================================
 // Validation Rules
@@ -1217,6 +1218,14 @@ router.put('/:id/status',
           req.user._id
         );
       }
+
+      // ── Email notification to student (fire-and-forget) ───────────────
+      notifyApplicationStatusChange(
+        application.applicant.toString(),
+        status,
+        application.scholarship?.name || application.scholarship?.title || 'a scholarship',
+        reason
+      );
 
       res.json({
         success: true,

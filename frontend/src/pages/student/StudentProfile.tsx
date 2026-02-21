@@ -31,7 +31,8 @@ import {
   Clock,
   XCircle,
   RotateCcw,
-  MessageSquare
+  MessageSquare,
+  Bell
 } from 'lucide-react';
 import { userApi, API_SERVER_URL } from '../../services/apiClient';
 
@@ -156,7 +157,7 @@ const REQUIRED_DOCUMENTS = [
 ];
 
 const StudentProfile: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<'personal' | 'academic' | 'financial' | 'documents'>('personal');
+  const [activeSection, setActiveSection] = useState<'personal' | 'academic' | 'financial' | 'documents' | 'notifications'>('personal');
   const [profile, setProfile] = useState<StudentProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +173,10 @@ const StudentProfile: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState({ emailEnabled: true, applicationUpdates: true, documentUpdates: true });
+  const [notifLoading, setNotifLoading] = useState(false);
 
   // Fetch profile data on mount
   useEffect(() => {
@@ -211,6 +216,61 @@ const StudentProfile: React.FC = () => {
 
     fetchProfile();
   }, []);
+
+  // Fetch notification preferences
+  useEffect(() => {
+    const fetchNotifPrefs = async () => {
+      try {
+        const res = await fetch(`${API_SERVER_URL}/api/users/notification-preferences`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setNotifPrefs(data.data);
+        }
+      } catch {
+        // Silently fail — defaults are fine
+      }
+    };
+    fetchNotifPrefs();
+  }, []);
+
+  const updateNotifPref = async (key: string, value: boolean) => {
+    const prev = { ...notifPrefs };
+    const updated = { ...notifPrefs, [key]: value };
+    // If master toggle is off, disable sub-toggles in the UI
+    if (key === 'emailEnabled' && !value) {
+      updated.applicationUpdates = false;
+      updated.documentUpdates = false;
+    }
+    setNotifPrefs(updated);
+    setNotifLoading(true);
+    try {
+      const res = await fetch(`${API_SERVER_URL}/api/users/notification-preferences`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(key === 'emailEnabled' && !value
+          ? { emailEnabled: false, applicationUpdates: false, documentUpdates: false }
+          : { [key]: value }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotifPrefs(data.data);
+        toast.success('Notification preferences updated');
+      } else {
+        setNotifPrefs(prev);
+        toast.error('Failed to update preferences');
+      }
+    } catch {
+      setNotifPrefs(prev);
+      toast.error('Failed to update preferences');
+    } finally {
+      setNotifLoading(false);
+    }
+  };
 
   // Load document preview with authentication (backend streams file from Cloudinary)
   const loadDocumentPreview = async (document: Document) => {
@@ -563,6 +623,7 @@ const StudentProfile: React.FC = () => {
                   { id: 'academic', label: 'Academic Info', icon: GraduationCap },
                   { id: 'financial', label: 'Financial Info', icon: Wallet },
                   { id: 'documents', label: 'Documents', icon: FileText },
+                  { id: 'notifications', label: 'Notifications', icon: Bell },
                 ].map((item) => (
                   <button
                     key={item.id}
@@ -880,6 +941,93 @@ const StudentProfile: React.FC = () => {
                           <li>Maximum file size: 5MB per document</li>
                           <li>Documents must be clear and readable</li>
                         </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ====== Notifications Section ====== */}
+            {activeSection === 'notifications' && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+                    <Bell className="w-5 h-5 text-primary-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Email Notifications</h2>
+                    <p className="text-sm text-slate-500">Choose which email notifications you'd like to receive</p>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-5">
+                  {/* Master toggle */}
+                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 text-slate-600" />
+                      <div>
+                        <p className="font-semibold text-slate-900">Email Notifications</p>
+                        <p className="text-sm text-slate-500">Receive email updates about your account activity</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => updateNotifPref('emailEnabled', !notifPrefs.emailEnabled)}
+                      disabled={notifLoading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${notifPrefs.emailEnabled ? 'bg-primary-600' : 'bg-slate-300'} ${notifLoading ? 'opacity-50' : ''}`}
+                    >
+                      <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${notifPrefs.emailEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
+                  {/* Sub-toggles */}
+                  <div className={`space-y-4 transition-opacity ${notifPrefs.emailEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                    {/* Application updates */}
+                    <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Award className="w-5 h-5 text-blue-500" />
+                        <div>
+                          <p className="font-medium text-slate-900">Application Updates</p>
+                          <p className="text-sm text-slate-500">When your scholarship application is approved, rejected, waitlisted, or under review</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => updateNotifPref('applicationUpdates', !notifPrefs.applicationUpdates)}
+                        disabled={notifLoading}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${notifPrefs.applicationUpdates ? 'bg-primary-600' : 'bg-slate-300'} ${notifLoading ? 'opacity-50' : ''}`}
+                      >
+                        <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${notifPrefs.applicationUpdates ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+
+                    {/* Document updates */}
+                    <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-emerald-500" />
+                        <div>
+                          <p className="font-medium text-slate-900">Document Updates</p>
+                          <p className="text-sm text-slate-500">When your profile documents are verified, rejected, or need resubmission</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => updateNotifPref('documentUpdates', !notifPrefs.documentUpdates)}
+                        disabled={notifLoading}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${notifPrefs.documentUpdates ? 'bg-primary-600' : 'bg-slate-300'} ${notifLoading ? 'opacity-50' : ''}`}
+                      >
+                        <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${notifPrefs.documentUpdates ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Info note */}
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <div className="flex gap-3">
+                      <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">About Notifications</p>
+                        <p className="text-blue-700">
+                          Important security emails (password reset, email verification) will always be sent regardless of these settings.
+                        </p>
                       </div>
                     </div>
                   </div>
