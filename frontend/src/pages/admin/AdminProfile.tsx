@@ -220,7 +220,11 @@ const AdminProfile: React.FC = () => {
 
       const responseBlob = await fileRes.blob();
       // Explicitly type the blob so the PDF viewer recognises the format
-      const contentType = fileRes.headers.get('content-type') || document.mimeType || 'application/octet-stream';
+      const fetchedType = fileRes.headers.get('content-type');
+      // Cloudinary raw resources return 'application/octet-stream' — ignore it
+      const contentType = (fetchedType && fetchedType !== 'application/octet-stream')
+        ? fetchedType
+        : document.mimeType || 'application/octet-stream';
       const blob = new Blob([responseBlob], { type: contentType });
       const blobUrl = URL.createObjectURL(blob);
       

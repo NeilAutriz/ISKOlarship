@@ -238,7 +238,11 @@ const StudentProfile: React.FC = () => {
 
       const responseBlob = await response.blob();
       // Explicitly type the blob so the PDF viewer recognises the format
-      const contentType = response.headers.get('content-type') || document.mimeType || 'application/octet-stream';
+      const fetchedType = response.headers.get('content-type');
+      // Cloudinary raw resources return 'application/octet-stream' — ignore it
+      const contentType = (fetchedType && fetchedType !== 'application/octet-stream')
+        ? fetchedType
+        : document.mimeType || 'application/octet-stream';
       const blob = new Blob([responseBlob], { type: contentType });
       const blobUrl = URL.createObjectURL(blob);
 
