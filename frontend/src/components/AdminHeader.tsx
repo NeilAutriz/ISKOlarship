@@ -15,7 +15,8 @@ import {
   GraduationCap,
   Menu,
   X,
-  Brain
+  Brain,
+  ShieldCheck
 } from 'lucide-react';
 
 const AdminHeader: React.FC = () => {
@@ -28,6 +29,7 @@ const AdminHeader: React.FC = () => {
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/applicants', label: 'Applicants', icon: Users },
     { path: '/admin/scholarships', label: 'Scholarships', icon: Award },
+    { path: '/admin/verifications', label: 'Verifications', icon: ShieldCheck },
     { path: '/admin/model-training', label: 'ML Models', icon: Brain },
   ];
 

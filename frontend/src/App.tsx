@@ -45,6 +45,7 @@ import {
 import ScholarshipApplicants from './pages/admin/ScholarshipApplicants';
 import ApplicationReview from './pages/admin/ApplicationReview';
 import ModelTraining from './pages/admin/ModelTraining';
+import DocumentVerification from './pages/admin/DocumentVerification';
 
 import './styles/globals.css';
 
@@ -811,6 +812,11 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           <Route path="/admin/model-training" element={
             <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
               <ModelTraining />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/verifications" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
+              <DocumentVerification />
             </ProtectedRoute>
           } />
           

@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import { 
   User,
   Shield,
@@ -28,7 +29,12 @@ import {
   X,
   Briefcase,
   Landmark,
-  Info
+  Info,
+  XCircle,
+  RotateCcw,
+  Clock,
+  Upload,
+  Eye
 } from 'lucide-react';
 import { userApi, API_SERVER_URL } from '../../services/apiClient';
 import { 
@@ -70,6 +76,7 @@ interface AdminProfileData {
       fullAddress?: string;
     };
     documents?: Array<{
+      _id?: string;
       name?: string;
       documentType: string;
       fileName: string;
@@ -77,6 +84,9 @@ interface AdminProfileData {
       fileSize: number;
       mimeType: string;
       uploadedAt: string;
+      verificationStatus?: 'pending' | 'verified' | 'rejected' | 'resubmit';
+      verifiedAt?: string;
+      verificationRemarks?: string;
     }>;
   };
   createdAt?: string;
@@ -124,6 +134,20 @@ const getPermissionsDisplay = (userPermissions: string[] = []) => {
   }));
 };
 
+// Verification status display helper
+const getVerificationDisplay = (status?: string) => {
+  switch (status) {
+    case 'verified':
+      return { label: 'Verified', color: 'emerald', icon: CheckCircle, bgClass: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+    case 'rejected':
+      return { label: 'Rejected', color: 'red', icon: XCircle, bgClass: 'bg-red-100 text-red-700 border-red-200' };
+    case 'resubmit':
+      return { label: 'Resubmit Required', color: 'amber', icon: RotateCcw, bgClass: 'bg-amber-100 text-amber-700 border-amber-200' };
+    default:
+      return { label: 'Pending Review', color: 'slate', icon: Clock, bgClass: 'bg-slate-100 text-slate-600 border-slate-200' };
+  }
+};
+
 const AdminProfile: React.FC = () => {
   const [activeSection, setActiveSection] = useState<'profile' | 'permissions' | 'security' | 'documents'>('profile');
   const [admin, setAdmin] = useState<AdminProfileData | null>(null);
@@ -138,6 +162,7 @@ const AdminProfile: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<any>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [reuploadingDoc, setReuploadingDoc] = useState<string | null>(null);
 
   // Fetch admin profile on mount
   useEffect(() => {
@@ -174,7 +199,7 @@ const AdminProfile: React.FC = () => {
       const token = localStorage.getItem('accessToken');
       
       if (!token) {
-        alert('Authentication required. Please log in again.');
+        toast.warning('Authentication required. Please log in again.');
         return;
       }
 
@@ -204,7 +229,7 @@ const AdminProfile: React.FC = () => {
       setIsPreviewOpen(true);
     } catch (error: any) {
       console.error('Preview load error:', error);
-      alert(`Failed to load document preview: ${error.message}`);
+      toast.error(`Failed to load document preview: ${error.message}`);
     } finally {
       setLoadingPreview(false);
     }
@@ -217,6 +242,49 @@ const AdminProfile: React.FC = () => {
       setPreviewUrl(null);
     }
   }, [isPreviewOpen]);
+
+  // Handle document reupload (replace existing file)
+  const handleDocumentReupload = async (e: React.ChangeEvent<HTMLInputElement>, doc: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.warning('File size must be less than 5MB');
+      return;
+    }
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.warning('Only PDF, JPG, and PNG files are allowed');
+      return;
+    }
+
+    try {
+      setReuploadingDoc(doc._id);
+
+      const { reuploadDocument } = await import('../../services/documentUpload');
+      const result = await reuploadDocument(doc._id, file);
+
+      if (result.success) {
+        // Refresh profile to get updated documents
+        const profileResponse = await userApi.getProfile();
+        if (profileResponse.success && profileResponse.data) {
+          setAdmin(profileResponse.data as unknown as AdminProfileData);
+        }
+        toast.success('Document reuploaded successfully! It will be reviewed again.');
+      } else {
+        toast.error(result.message || 'Failed to reupload document');
+      }
+    } catch (error: any) {
+      console.error('Document reupload error:', error);
+      toast.error(error.message || 'Failed to reupload document');
+    } finally {
+      setReuploadingDoc(null);
+      e.target.value = '';
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -564,42 +632,117 @@ const AdminProfile: React.FC = () => {
                           month: 'short',
                           day: 'numeric'
                         });
+                        const verification = getVerificationDisplay(doc.verificationStatus);
+                        const VerifIcon = verification.icon;
                         
                         return (
-                          <div key={doc._id || index} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50/50 transition-all group">
-                            <div className="flex items-center gap-4 flex-1">
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <FileText className="w-6 h-6 text-white" />
+                          <div key={doc._id || index} className={`p-4 rounded-xl transition-all border ${
+                            doc.verificationStatus === 'verified'
+                              ? 'bg-emerald-50/50 border-emerald-200 hover:bg-emerald-50'
+                              : doc.verificationStatus === 'rejected'
+                              ? 'bg-red-50/50 border-red-200 hover:bg-red-50'
+                              : doc.verificationStatus === 'resubmit'
+                              ? 'bg-amber-50/50 border-amber-200 hover:bg-amber-50'
+                              : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border-2 ${
+                                  doc.verificationStatus === 'verified'
+                                    ? 'bg-emerald-50 border-emerald-300'
+                                    : doc.verificationStatus === 'rejected'
+                                    ? 'bg-red-50 border-red-300'
+                                    : doc.verificationStatus === 'resubmit'
+                                    ? 'bg-amber-50 border-amber-300'
+                                    : 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400'
+                                }`}>
+                                  {doc.verificationStatus === 'verified'
+                                    ? <CheckCircle className="w-6 h-6 text-emerald-600" />
+                                    : doc.verificationStatus === 'rejected'
+                                    ? <XCircle className="w-6 h-6 text-red-500" />
+                                    : doc.verificationStatus === 'resubmit'
+                                    ? <RotateCcw className="w-6 h-6 text-amber-500" />
+                                    : <FileText className="w-6 h-6 text-white" />
+                                  }
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-slate-900 mb-0.5 truncate">
+                                    {doc.name || doc.documentType.replace('_', ' ').toUpperCase()}
+                                  </div>
+                                  <div className="text-sm text-slate-600 truncate mb-1">{doc.fileName}</div>
+                                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      {uploadDate}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{fileSize} KB</span>
+                                    <span>•</span>
+                                    <span className="uppercase">{doc.mimeType.split('/')[1]}</span>
+                                  </div>
+                                  {/* Verification remarks */}
+                                  {doc.verificationRemarks && (doc.verificationStatus === 'rejected' || doc.verificationStatus === 'resubmit') && (
+                                    <div className={`mt-2 text-xs px-2 py-1 rounded ${
+                                      doc.verificationStatus === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
+                                    }`}>
+                                      <strong>Remarks:</strong> {doc.verificationRemarks}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-slate-900 mb-0.5 truncate">
-                                  {doc.name || doc.documentType.replace('_', ' ').toUpperCase()}
-                                </div>
-                                <div className="text-sm text-slate-600 truncate mb-1">{doc.fileName}</div>
-                                <div className="flex items-center gap-3 text-xs text-slate-500">
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {uploadDate}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{fileSize} KB</span>
-                                  <span>•</span>
-                                  <span className="uppercase">{doc.mimeType.split('/')[1]}</span>
-                                </div>
+                              <div className="flex items-center gap-2 ml-4">
+                                {/* Verification Status Badge */}
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${verification.bgClass}`}>
+                                  <VerifIcon className="w-3.5 h-3.5" />
+                                  {verification.label}
+                                </span>
+                                {/* View button */}
+                                <button
+                                  onClick={() => loadDocumentPreview(doc)}
+                                  disabled={loadingPreview}
+                                  className="p-2 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                                  title="View document"
+                                >
+                                  {loadingPreview && previewDoc?._id === doc._id ? (
+                                    <Loader2 className="w-4 h-4 text-slate-600 animate-spin" />
+                                  ) : (
+                                    <Eye className="w-4 h-4 text-slate-600" />
+                                  )}
+                                </button>
+                                {/* Reupload button — show for rejected, resubmit, or pending docs */}
+                                {doc.verificationStatus !== 'verified' && (
+                                  <label
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 font-medium rounded-lg text-xs cursor-pointer transition-all ${
+                                      doc.verificationStatus === 'rejected'
+                                        ? 'bg-red-600 text-white hover:bg-red-700'
+                                        : doc.verificationStatus === 'resubmit'
+                                        ? 'bg-amber-500 text-white hover:bg-amber-600'
+                                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                    } ${reuploadingDoc === doc._id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    title={doc.verificationStatus === 'rejected' || doc.verificationStatus === 'resubmit' ? 'Reupload to address feedback' : 'Replace with a new file'}
+                                  >
+                                    {reuploadingDoc === doc._id ? (
+                                      <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        Uploading...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="w-3.5 h-3.5" />
+                                        Reupload
+                                      </>
+                                    )}
+                                    <input
+                                      type="file"
+                                      accept=".pdf,.jpg,.jpeg,.png"
+                                      className="hidden"
+                                      disabled={reuploadingDoc === doc._id}
+                                      onChange={(e) => handleDocumentReupload(e, doc)}
+                                    />
+                                  </label>
+                                )}
                               </div>
                             </div>
-                            <button
-                              onClick={() => loadDocumentPreview(doc)}
-                              disabled={loadingPreview}
-                              className="ml-4 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-2 opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                            >
-                              {loadingPreview ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <FileText className="w-4 h-4" />
-                              )}
-                              View
-                            </button>
                           </div>
                         );
                       })}

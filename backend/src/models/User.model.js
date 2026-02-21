@@ -404,7 +404,16 @@ const userSchema = new mongoose.Schema({
         default: Date.now
       },
       // URL field — now stores Cloudinary secure_url
-      url: String
+      url: String,
+      // Document Verification (admin review)
+      verificationStatus: {
+        type: String,
+        enum: ['pending', 'verified', 'rejected', 'resubmit'],
+        default: 'pending'
+      },
+      verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      verifiedAt: Date,
+      verificationRemarks: String
     }],
     
     // =====================================================================
@@ -551,7 +560,16 @@ const userSchema = new mongoose.Schema({
       uploadedAt: {
         type: Date,
         default: Date.now
-      }
+      },
+      // Document Verification (super-admin review)
+      verificationStatus: {
+        type: String,
+        enum: ['pending', 'verified', 'rejected', 'resubmit'],
+        default: 'pending'
+      },
+      verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      verifiedAt: Date,
+      verificationRemarks: String
     }]
   }
 }, {

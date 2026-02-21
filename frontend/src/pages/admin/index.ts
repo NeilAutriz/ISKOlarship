@@ -8,3 +8,4 @@ export { default as Applicants } from './Applicants';
 export { default as AdminScholarships } from './AdminScholarships';
 export { default as AdminProfile } from './AdminProfile';
 export { default as AddScholarship } from './AddScholarship';
+export { default as DocumentVerification } from './DocumentVerification';

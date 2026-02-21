@@ -415,6 +415,96 @@ function getAdminScopeDescription(adminLevel, collegeCode, academicUnitCode, col
 }
 
 /**
+ * Build student query filter based on admin's scope.
+ * For document verification and student management features.
+ * Uses direct college/unit matching (not scholarship-based).
+ * 
+ * | Admin Level    | Can See Students                                        |
+ * |----------------|---------------------------------------------------------|
+ * | University     | ALL students                                            |
+ * | College        | Students in their college (studentProfile.collegeCode)  |
+ * | Academic Unit  | Students in their college AND unit                      |
+ * 
+ * @param {Object} user - The authenticated admin user
+ * @returns {Object} MongoDB query filter for User collection (students)
+ */
+function getStudentScopeFilter(user) {
+  if (!user || user.role !== 'admin') {
+    return { _id: { $exists: false } };
+  }
+
+  const adminLevel = user.adminProfile?.accessLevel;
+  const adminCollegeCode = user.adminProfile?.collegeCode || null;
+  const adminAcademicUnitCode = user.adminProfile?.academicUnitCode || null;
+  // Legacy fallbacks
+  const adminCollege = user.adminProfile?.college || null;
+
+  if (!adminLevel) {
+    return { _id: { $exists: false } };
+  }
+
+  switch (adminLevel) {
+    case 'university':
+      return {}; // See all students
+
+    case 'college':
+      if (!adminCollegeCode && !adminCollege) {
+        return { _id: { $exists: false } };
+      }
+      // Match by code first, fallback to legacy name
+      if (adminCollegeCode) {
+        return { 'studentProfile.collegeCode': adminCollegeCode };
+      }
+      return { 'studentProfile.college': adminCollege };
+
+    case 'academic_unit':
+      if (!adminCollegeCode || !adminAcademicUnitCode) {
+        return { _id: { $exists: false } };
+      }
+      return {
+        'studentProfile.collegeCode': adminCollegeCode,
+        'studentProfile.academicUnitCode': adminAcademicUnitCode,
+      };
+
+    default:
+      return { _id: { $exists: false } };
+  }
+}
+
+/**
+ * Check if an admin can manage a specific student (for individual operations).
+ * @param {Object} user - The authenticated admin user
+ * @param {Object} student - The student user document
+ * @returns {boolean}
+ */
+function canManageStudent(user, student) {
+  if (!user || user.role !== 'admin' || !student) return false;
+
+  const adminLevel = user.adminProfile?.accessLevel;
+  if (!adminLevel) return false;
+
+  if (adminLevel === 'university') return true;
+
+  const adminCollegeCode = user.adminProfile?.collegeCode || null;
+  const adminAcademicUnitCode = user.adminProfile?.academicUnitCode || null;
+  const studentCollegeCode = student.studentProfile?.collegeCode || null;
+  const studentAcademicUnitCode = student.studentProfile?.academicUnitCode || null;
+
+  if (adminLevel === 'college') {
+    if (!adminCollegeCode || !studentCollegeCode) return false;
+    return adminCollegeCode === studentCollegeCode;
+  }
+
+  if (adminLevel === 'academic_unit') {
+    if (!adminCollegeCode || !adminAcademicUnitCode) return false;
+    if (!studentCollegeCode || !studentAcademicUnitCode) return false;
+    return adminCollegeCode === studentCollegeCode && adminAcademicUnitCode === studentAcademicUnitCode;
+  }
+
+  return false;
+}
+
+/**
  * Get IDs of all scholarships within admin's scope.
  * Utility for routes that need to scope other resources (statistics, users, models).
  * @param {Object} user - The authenticated admin user
@@ -467,5 +557,7 @@ module.exports = {
   requireScholarshipAccess,
   getAdminScopeSummary,
   getScopedScholarshipIds,
-  canManageTrainedModel
+  canManageTrainedModel,
+  getStudentScopeFilter,
+  canManageStudent
 };

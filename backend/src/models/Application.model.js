@@ -76,7 +76,39 @@ const documentSchema = new mongoose.Schema({
     ref: 'User'
   },
   verifiedAt: Date,
-  verificationNotes: String
+  verificationNotes: String,
+  // OCR Verification Results
+  ocrResult: {
+    status: {
+      type: String,
+      enum: ['pending', 'processing', 'completed', 'failed', 'skipped'],
+      default: 'pending',
+    },
+    rawText: { type: String },
+    extractedFields: { type: mongoose.Schema.Types.Mixed },
+    comparisonResults: [{
+      field: { type: String },
+      extracted: { type: mongoose.Schema.Types.Mixed },
+      expected: { type: mongoose.Schema.Types.Mixed },
+      match: { type: Boolean },
+      similarity: { type: Number },
+      difference: { type: Number },
+      percentDifference: { type: String },
+      severity: {
+        type: String,
+        enum: ['verified', 'warning', 'critical', 'unreadable'],
+      },
+    }],
+    confidence: { type: Number, min: 0, max: 1 },
+    overallMatch: {
+      type: String,
+      enum: ['verified', 'mismatch', 'partial', 'unreadable'],
+    },
+    processedAt: { type: Date },
+    processedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    ocrProvider: { type: String, default: 'google_cloud_vision' },
+    error: { type: String },
+  }
 }, { _id: true });
 
 // =============================================================================

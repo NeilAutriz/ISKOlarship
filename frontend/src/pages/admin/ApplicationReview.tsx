@@ -35,11 +35,14 @@ import {
   Sparkles,
   Target,
   BarChart2,
-  Shield
+  Shield,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
-import { applicationApi, API_SERVER_URL } from '../../services/apiClient';
+import { applicationApi, ocrApi, API_SERVER_URL } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
 import { PredictionResult } from '../../types';
+import { OcrFieldResult, OcrVerificationStatus, OcrDocumentResult } from '../../types/ocr.types';
 
 interface ApplicationDetails {
   id: string;
@@ -131,6 +134,99 @@ const ApplicationReview: React.FC = () => {
   // Fresh ML prediction data
   const [freshPrediction, setFreshPrediction] = useState<PredictionResult | null>(null);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
+
+  // OCR Verification state
+  const [ocrStatus, setOcrStatus] = useState<OcrVerificationStatus | null>(null);
+  const [ocrAvailable, setOcrAvailable] = useState(false);
+  const [loadingOcr, setLoadingOcr] = useState(false);
+  const [verifyingDocId, setVerifyingDocId] = useState<string | null>(null);
+  const [expandedOcrDoc, setExpandedOcrDoc] = useState<string | null>(null);
+  const [rawTextDoc, setRawTextDoc] = useState<{ docId: string; text: string } | null>(null);
+
+  // Load OCR verification status
+  const loadOcrStatus = async (appId: string) => {
+    try {
+      const [serviceRes, statusRes] = await Promise.all([
+        ocrApi.getServiceStatus(),
+        ocrApi.getVerificationStatus(appId),
+      ]);
+      if (serviceRes.success) setOcrAvailable((serviceRes.data as { available: boolean }).available);
+      if (statusRes.success) setOcrStatus(statusRes.data as OcrVerificationStatus);
+    } catch {
+      // OCR not available — that's fine
+    }
+  };
+
+  // Verify a single document
+  const handleVerifyDocument = async (docId: string) => {
+    if (!id) return;
+    setVerifyingDocId(docId);
+    try {
+      const res = await ocrApi.verifyDocument(id, docId);
+      if (res.success) {
+        toast.success('Document verified via OCR');
+        await loadOcrStatus(id);
+      } else {
+        toast.error('OCR verification failed');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'OCR verification failed';
+      toast.error(message);
+    } finally {
+      setVerifyingDocId(null);
+    }
+  };
+
+  // Verify all documents
+  const handleVerifyAll = async () => {
+    if (!id) return;
+    setLoadingOcr(true);
+    try {
+      const res = await ocrApi.verifyAllDocuments(id);
+      if (res.success) {
+        const data = res.data as { summary?: { completed?: number; failed?: number } };
+        toast.success(`OCR verification complete: ${data.summary?.completed || 0} processed, ${data.summary?.failed || 0} failed`);
+        await loadOcrStatus(id);
+      } else {
+        toast.error('OCR batch verification failed');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'OCR batch verification failed';
+      toast.error(message);
+    } finally {
+      setLoadingOcr(false);
+    }
+  };
+
+  // View raw OCR text
+  const handleViewRawText = async (docId: string) => {
+    if (!id) return;
+    if (rawTextDoc?.docId === docId) { setRawTextDoc(null); return; }
+    try {
+      const res = await ocrApi.getRawText(id, docId);
+      if (res.success) {
+        const data = res.data as { rawText: string | null };
+        setRawTextDoc({ docId, text: data.rawText || 'No text extracted' });
+      }
+    } catch {
+      toast.error('Failed to load raw text');
+    }
+  };
+
+  // Helper: get OCR result for a specific document
+  const getDocOcrStatus = (docId: string) => {
+    return ocrStatus?.documents.find(d => d.documentId === docId) || null;
+  };
+
+  // Helper: severity badge
+  const severityBadge = (severity: string) => {
+    switch (severity) {
+      case 'verified': return <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" /> Match</span>;
+      case 'warning': return <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Mismatch</span>;
+      case 'critical': return <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full"><XCircle className="w-3 h-3" /> Critical</span>;
+      default: return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">Unknown</span>;
+    }
+  };
 
   // Fetch application details
   useEffect(() => {
@@ -260,6 +356,13 @@ const ApplicationReview: React.FC = () => {
 
     fetchApplication();
   }, [id]);
+
+  // Fetch OCR status when application loads
+  useEffect(() => {
+    if (id && application) {
+      loadOcrStatus(id);
+    }
+  }, [id, application]);
 
   // Fetch fresh ML prediction when application is loaded
   useEffect(() => {
@@ -821,10 +924,91 @@ const ApplicationReview: React.FC = () => {
             {application.documents.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
-                  <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary-600" />
-                    Submitted Documents ({application.documents.length})
-                  </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-primary-600" />
+                      Submitted Documents ({application.documents.length})
+                    </h2>
+                    {ocrAvailable && (
+                      <button
+                        onClick={handleVerifyAll}
+                        disabled={loadingOcr}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                      >
+                        {loadingOcr ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                        {loadingOcr ? 'Verifying...' : 'Verify All Documents'}
+                      </button>
+                    )}
+                  </div>
+                  {/* OCR Summary Banner */}
+                  {ocrStatus && ocrStatus.summary && (() => {
+                    const s = ocrStatus.summary;
+                    const total = (s.verified || 0) + (s.mismatches || 0) + (s.partial || 0) + (s.pending || 0);
+                    const scanned = total - (s.pending || 0);
+                    return (
+                      <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-indigo-50/60 border border-indigo-100">
+                        {/* Progress bar */}
+                        <div className="flex items-center justify-between mb-2.5">
+                          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">OCR Verification Progress</span>
+                          <span className="text-xs font-bold text-indigo-700">{scanned}/{total} scanned</span>
+                        </div>
+                        <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden mb-3.5">
+                          <div className="h-full flex">
+                            {s.verified > 0 && <div className="bg-emerald-500 transition-all duration-500" style={{ width: `${(s.verified / total) * 100}%` }} />}
+                            {s.mismatches > 0 && <div className="bg-red-500 transition-all duration-500" style={{ width: `${(s.mismatches / total) * 100}%` }} />}
+                            {s.partial > 0 && <div className="bg-amber-400 transition-all duration-500" style={{ width: `${(s.partial / total) * 100}%` }} />}
+                          </div>
+                        </div>
+                        {/* Stat chips */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {s.verified > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-200">
+                              <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
+                                <CheckCircle className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-lg font-bold text-emerald-700 leading-tight">{s.verified}</div>
+                                <div className="text-[10px] font-medium text-emerald-600 uppercase">Verified</div>
+                              </div>
+                            </div>
+                          )}
+                          {s.mismatches > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
+                              <div className="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center">
+                                <XCircle className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-lg font-bold text-red-700 leading-tight">{s.mismatches}</div>
+                                <div className="text-[10px] font-medium text-red-600 uppercase">Mismatch</div>
+                              </div>
+                            </div>
+                          )}
+                          {s.partial > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200">
+                              <div className="w-7 h-7 rounded-full bg-amber-400 flex items-center justify-center">
+                                <AlertTriangle className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-lg font-bold text-amber-700 leading-tight">{s.partial}</div>
+                                <div className="text-[10px] font-medium text-amber-600 uppercase">Partial</div>
+                              </div>
+                            </div>
+                          )}
+                          {(s.pending || 0) > 0 && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                              <div className="w-7 h-7 rounded-full bg-slate-300 flex items-center justify-center">
+                                <Clock className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <div className="text-lg font-bold text-slate-600 leading-tight">{s.pending}</div>
+                                <div className="text-[10px] font-medium text-slate-500 uppercase">Pending</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="p-6">
                   <div className="space-y-3">
@@ -861,56 +1045,251 @@ const ApplicationReview: React.FC = () => {
                         );
                       }
                       
-                      // File document - show preview/download buttons
+                      // File document - show preview/download buttons + OCR
+                      const docOcr = doc._id ? getDocOcrStatus(doc._id) : null;
+                      const isExpanded = expandedOcrDoc === doc._id;
+                      const isVerifying = verifyingDocId === doc._id;
+
                       return (
-                        <div 
-                          key={index}
-                          className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                              isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-primary-100'
-                            }`}>
-                              {isPDF ? (
-                                <FileText className="w-6 h-6 text-red-600" />
-                              ) : isImage ? (
-                                <Image className="w-6 h-6 text-blue-600" />
-                              ) : (
-                                <FileText className="w-6 h-6 text-primary-600" />
-                              )}
-                            </div>
-                            <div>
-                              <div className="font-medium text-slate-800">{doc.name}</div>
-                              <div className="text-sm text-slate-500">
-                                {doc.type} • {doc.uploadedAt}
-                                {isPDF && <span className="ml-2 text-red-600 font-medium">PDF</span>}
-                                {isImage && <span className="ml-2 text-blue-600 font-medium">Image</span>}
+                        <div key={index} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                          <div className="flex items-center justify-between p-4 hover:bg-slate-100 transition-colors">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-primary-100'
+                              }`}>
+                                {isPDF ? (
+                                  <FileText className="w-6 h-6 text-red-600" />
+                                ) : isImage ? (
+                                  <Image className="w-6 h-6 text-blue-600" />
+                                ) : (
+                                  <FileText className="w-6 h-6 text-primary-600" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-slate-800 flex items-center gap-2 flex-wrap">
+                                  <span className="truncate">{doc.name}</span>
+                                  {/* OCR Status Badge */}
+                                  {docOcr && docOcr.ocrStatus === 'completed' && docOcr.overallMatch === 'verified' && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-gradient-to-r from-emerald-100 to-emerald-50 border border-emerald-300 px-2.5 py-1 rounded-lg shadow-sm shadow-emerald-100">
+                                      <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center"><CheckCircle className="w-3 h-3 text-white" /></span>
+                                      Verified
+                                    </span>
+                                  )}
+                                  {docOcr && docOcr.ocrStatus === 'completed' && docOcr.overallMatch === 'mismatch' && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-800 bg-gradient-to-r from-red-100 to-red-50 border border-red-300 px-2.5 py-1 rounded-lg shadow-sm shadow-red-100 animate-pulse">
+                                      <span className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center"><XCircle className="w-3 h-3 text-white" /></span>
+                                      Mismatch
+                                    </span>
+                                  )}
+                                  {docOcr && docOcr.ocrStatus === 'completed' && docOcr.overallMatch === 'partial' && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-gradient-to-r from-amber-100 to-amber-50 border border-amber-300 px-2.5 py-1 rounded-lg shadow-sm shadow-amber-100">
+                                      <span className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center"><AlertTriangle className="w-3 h-3 text-white" /></span>
+                                      Partial Match
+                                    </span>
+                                  )}
+                                  {docOcr && docOcr.ocrStatus === 'completed' && docOcr.overallMatch === 'unreadable' && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-gradient-to-r from-slate-150 to-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg shadow-sm">
+                                      <span className="w-5 h-5 rounded-full bg-slate-400 flex items-center justify-center"><Eye className="w-3 h-3 text-white" /></span>
+                                      Unreadable
+                                    </span>
+                                  )}
+                                  {docOcr && docOcr.ocrStatus === 'failed' && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg">
+                                      <XCircle className="w-3.5 h-3.5" /> OCR Failed
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-slate-500 flex items-center gap-1.5 flex-wrap">
+                                  <span>{doc.type} • {doc.uploadedAt}</span>
+                                  {isPDF && <span className="ml-1 text-red-600 font-medium">PDF</span>}
+                                  {isImage && <span className="ml-1 text-blue-600 font-medium">Image</span>}
+                                  {docOcr?.confidence != null && (() => {
+                                    const pct = Math.round(docOcr.confidence * 100);
+                                    const color = pct >= 75 ? 'emerald' : pct >= 40 ? 'amber' : 'red';
+                                    return (
+                                      <span className="inline-flex items-center gap-1.5 ml-1">
+                                        <span className="text-xs font-semibold text-slate-500">OCR</span>
+                                        <span className="relative inline-flex items-center">
+                                          <span className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                            <span
+                                              className={`block h-full rounded-full transition-all duration-700 ${
+                                                color === 'emerald' ? 'bg-emerald-500' :
+                                                color === 'amber' ? 'bg-amber-400' : 'bg-red-500'
+                                              }`}
+                                              style={{ width: `${pct}%` }}
+                                            />
+                                          </span>
+                                        </span>
+                                        <span className={`text-xs font-bold ${
+                                          color === 'emerald' ? 'text-emerald-600' :
+                                          color === 'amber' ? 'text-amber-600' : 'text-red-600'
+                                        }`}>{pct}%</span>
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {/* Preview Button */}
-                            <button
-                              onClick={() => loadDocumentPreview(doc)}
-                              disabled={loadingPreview}
-                              className="inline-flex items-center gap-2 px-3 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
-                            >
-                              {loadingPreview ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {/* OCR Verify Button */}
+                              {ocrAvailable && doc._id && (
+                                <button
+                                  onClick={() => handleVerifyDocument(doc._id!)}
+                                  disabled={isVerifying}
+                                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-700 text-sm font-medium rounded-lg border border-indigo-200 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                                  title="Verify with OCR"
+                                >
+                                  {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                                  {isVerifying ? 'Scanning...' : docOcr ? 'Re-scan' : 'OCR'}
+                                </button>
                               )}
-                              Preview
-                            </button>
-                            {/* Download Button */}
-                            <button
-                              onClick={() => handleDownloadDocument(doc)}
-                              className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors"
-                            >
-                              <Download className="w-4 h-4" />
-                              Download
-                            </button>
+                              {/* Preview Button */}
+                              <button
+                                onClick={() => loadDocumentPreview(doc)}
+                                disabled={loadingPreview}
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+                              >
+                                {loadingPreview ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
+                                Preview
+                              </button>
+                              {/* Download Button */}
+                              <button
+                                onClick={() => handleDownloadDocument(doc)}
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download
+                              </button>
+                              {/* Expand OCR Details */}
+                              {docOcr && docOcr.ocrStatus === 'completed' && doc._id && (
+                                <button
+                                  onClick={() => setExpandedOcrDoc(isExpanded ? null : doc._id!)}
+                                  className="inline-flex items-center justify-center w-9 h-9 bg-slate-100 text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors"
+                                  title={isExpanded ? 'Hide OCR details' : 'Show OCR details'}
+                                >
+                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                </button>
+                              )}
+                            </div>
                           </div>
+
+                          {/* Expanded OCR Comparison Panel */}
+                          {isExpanded && docOcr && docOcr.ocrStatus === 'completed' && (
+                            <div className="border-t border-indigo-100 bg-gradient-to-b from-indigo-50/50 to-white">
+                              <div className="px-5 py-4 space-y-4">
+                                {/* Overall result header inside panel */}
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                    <Shield className="w-4 h-4 text-indigo-500" />
+                                    OCR Verification Details
+                                  </h4>
+                                  {docOcr.confidence != null && (() => {
+                                    const pct = Math.round(docOcr.confidence * 100);
+                                    const color = pct >= 75 ? 'emerald' : pct >= 40 ? 'amber' : 'red';
+                                    return (
+                                      <div className={`px-3 py-1.5 rounded-lg border font-bold text-sm ${
+                                        color === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                                        color === 'amber' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                                        'bg-red-50 border-red-200 text-red-700'
+                                      }`}>
+                                        {pct}% Confidence
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+
+                                {/* Field-by-field comparison */}
+                                {docOcr.comparisonResults && docOcr.comparisonResults.length > 0 && (
+                                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                                    {/* Table header */}
+                                    <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-slate-100 border-b border-slate-200">
+                                      <div className="col-span-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Field</div>
+                                      <div className="col-span-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">OCR Extracted</div>
+                                      <div className="col-span-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Application</div>
+                                      <div className="col-span-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Result</div>
+                                    </div>
+                                    {/* Table rows */}
+                                    {docOcr.comparisonResults.map((field: OcrFieldResult, fi: number) => {
+                                      const isMatch = field.match;
+                                      const isCritical = field.severity === 'critical';
+                                      const rowBg = isMatch ? '' : isCritical ? 'bg-red-50/60' : 'bg-amber-50/40';
+                                      const leftBorder = isMatch ? 'border-l-emerald-400' : isCritical ? 'border-l-red-400' : 'border-l-amber-400';
+                                      return (
+                                        <div
+                                          key={fi}
+                                          className={`grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-100 last:border-b-0 border-l-[3px] ${leftBorder} ${rowBg} hover:bg-slate-50 transition-colors`}
+                                        >
+                                          <div className="col-span-3">
+                                            <span className="text-sm font-semibold text-slate-700 capitalize">
+                                              {field.field.replace(/([A-Z])/g, ' $1').trim()}
+                                            </span>
+                                          </div>
+                                          <div className="col-span-4">
+                                            <span className="text-sm font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded">
+                                              {String(field.extracted ?? '—')}
+                                            </span>
+                                          </div>
+                                          <div className="col-span-3">
+                                            <span className="text-sm font-mono text-slate-600">
+                                              {String(field.expected ?? '—')}
+                                            </span>
+                                          </div>
+                                          <div className="col-span-2 flex justify-end">
+                                            {severityBadge(isMatch ? 'verified' : (isCritical ? 'critical' : 'warning'))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {/* Extracted fields (no comparison) */}
+                                {docOcr.extractedFields && (!docOcr.comparisonResults || docOcr.comparisonResults.length === 0) && (
+                                  <div>
+                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Extracted Fields</h4>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {Object.entries(docOcr.extractedFields).map(([key, val]) => (
+                                        <div key={key} className="text-sm p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+                                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                                          </span>
+                                          <span className="font-semibold text-slate-800">{String(val)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Raw Text Button */}
+                                {doc._id && (
+                                  <button
+                                    onClick={() => handleViewRawText(doc._id!)}
+                                    className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg border border-indigo-200 transition-colors"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    {rawTextDoc?.docId === doc._id ? 'Hide Raw Text' : 'View Raw OCR Text'}
+                                  </button>
+                                )}
+
+                                {/* Raw Text Display */}
+                                {rawTextDoc && rawTextDoc.docId === doc._id && (
+                                  <div className="mt-2 p-4 bg-slate-900 text-emerald-300 rounded-xl text-xs font-mono max-h-72 overflow-auto whitespace-pre-wrap border border-slate-700 shadow-inner">
+                                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-700">
+                                      <span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                      <span className="text-[10px] text-slate-500 ml-2">Raw OCR Output</span>
+                                    </div>
+                                    {rawTextDoc.text}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

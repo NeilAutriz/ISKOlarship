@@ -1205,6 +1205,154 @@ export const trainingApi = {
 };
 
 // ============================================================================
+// OCR Document Verification API
+// ============================================================================
+
+export const ocrApi = {
+  // Check if OCR service is available
+  getServiceStatus: async () => {
+    const response = await api.get<ApiResponse<{ available: boolean; provider: string }>>('/ocr/status');
+    return response.data;
+  },
+
+  // Verify a single document via OCR
+  verifyDocument: async (applicationId: string, documentId: string) => {
+    const response = await api.post<ApiResponse<unknown>>(`/ocr/applications/${applicationId}/documents/${documentId}/verify`);
+    return response.data;
+  },
+
+  // Verify all documents in an application
+  verifyAllDocuments: async (applicationId: string) => {
+    const response = await api.post<ApiResponse<unknown>>(`/ocr/applications/${applicationId}/verify-all`);
+    return response.data;
+  },
+
+  // Get OCR verification status for all documents in an application
+  getVerificationStatus: async (applicationId: string) => {
+    const response = await api.get<ApiResponse<unknown>>(`/ocr/applications/${applicationId}/status`);
+    return response.data;
+  },
+
+  // Get raw OCR-extracted text for a specific document
+  getRawText: async (applicationId: string, documentId: string) => {
+    const response = await api.get<ApiResponse<unknown>>(`/ocr/applications/${applicationId}/documents/${documentId}/raw-text`);
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Document Verification API (Admin manual verification of student profile docs)
+// ============================================================================
+
+export const verificationApi = {
+  // Get admin's verification scope info
+  getScope: async () => {
+    const response = await api.get<ApiResponse<unknown>>('/verification/scope');
+    return response.data;
+  },
+
+  // Get students with pending documents
+  getPending: async (params: { page?: number; limit?: number; search?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.append('page', String(params.page));
+    if (params.limit) query.append('limit', String(params.limit));
+    if (params.search) query.append('search', params.search);
+    const response = await api.get<ApiResponse<unknown>>(`/verification/pending?${query.toString()}`);
+    return response.data;
+  },
+
+  // Get verification statistics
+  getStats: async () => {
+    const response = await api.get<ApiResponse<unknown>>('/verification/stats');
+    return response.data;
+  },
+
+  // Get document preview URL
+  getDocumentPreview: async (studentId: string, docId: string) => {
+    const response = await api.get<ApiResponse<{ url: string; fileName: string; mimeType: string; fileSize: number }>>(`/verification/students/${studentId}/documents/${docId}/preview`);
+    return response.data;
+  },
+
+  // Verify or reject a document
+  updateDocumentStatus: async (studentId: string, docId: string, status: string, remarks?: string) => {
+    const response = await api.put<ApiResponse<unknown>>(`/verification/students/${studentId}/documents/${docId}`, { status, remarks });
+    return response.data;
+  },
+
+  // Verify all documents for a student
+  verifyAllForStudent: async (studentId: string, status: string, remarks?: string) => {
+    const response = await api.put<ApiResponse<unknown>>(`/verification/students/${studentId}/verify-all`, { status, remarks });
+    return response.data;
+  },
+
+  // Check if OCR service is available for document verification
+  getOcrStatus: async () => {
+    const response = await api.get<ApiResponse<{ available: boolean; provider: string }>>('/verification/ocr/status');
+    return response.data;
+  },
+
+  // Run OCR scan on a single student profile document
+  ocrScanDocument: async (studentId: string, docId: string) => {
+    const response = await api.post<ApiResponse<unknown>>(`/verification/students/${studentId}/documents/${docId}/ocr-scan`);
+    return response.data;
+  },
+
+  // Run OCR scan on all pending student profile documents
+  ocrScanAll: async (studentId: string) => {
+    const response = await api.post<ApiResponse<unknown>>(`/verification/students/${studentId}/ocr-scan-all`);
+    return response.data;
+  },
+
+  // ---- Admin Document Verification ----
+
+  // Get admins with pending documents
+  getAdminPending: async (params: { page?: number; limit?: number; search?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.append('page', String(params.page));
+    if (params.limit) query.append('limit', String(params.limit));
+    if (params.search) query.append('search', params.search);
+    const response = await api.get<ApiResponse<unknown>>(`/verification/admin/pending?${query.toString()}`);
+    return response.data;
+  },
+
+  // Get admin document verification statistics
+  getAdminStats: async () => {
+    const response = await api.get<ApiResponse<unknown>>('/verification/admin/stats');
+    return response.data;
+  },
+
+  // Get admin document preview URL
+  getAdminDocumentPreview: async (adminId: string, docId: string) => {
+    const response = await api.get<ApiResponse<{ url: string; fileName: string; mimeType: string; fileSize: number }>>(`/verification/admin/admins/${adminId}/documents/${docId}/preview`);
+    return response.data;
+  },
+
+  // Verify or reject an admin document
+  updateAdminDocumentStatus: async (adminId: string, docId: string, status: string, remarks?: string) => {
+    const response = await api.put<ApiResponse<unknown>>(`/verification/admin/admins/${adminId}/documents/${docId}`, { status, remarks });
+    return response.data;
+  },
+
+  // Verify all documents for an admin
+  verifyAllForAdmin: async (adminId: string, status: string, remarks?: string) => {
+    const response = await api.put<ApiResponse<unknown>>(`/verification/admin/admins/${adminId}/verify-all`, { status, remarks });
+    return response.data;
+  },
+
+  // Run OCR scan on a single admin document
+  ocrScanAdminDocument: async (adminId: string, docId: string) => {
+    const response = await api.post<ApiResponse<unknown>>(`/verification/admin/admins/${adminId}/documents/${docId}/ocr-scan`);
+    return response.data;
+  },
+
+  // Run OCR scan on all pending admin documents
+  ocrScanAllAdmin: async (adminId: string) => {
+    const response = await api.post<ApiResponse<unknown>>(`/verification/admin/admins/${adminId}/ocr-scan-all`);
+    return response.data;
+  },
+};
+
+// ============================================================================
 // Export Default API Instance
 // ============================================================================
 

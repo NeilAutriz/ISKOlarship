@@ -20,9 +20,10 @@ import {
   BarChart3,
   AlertCircle,
   ChevronRight,
-  Loader2
+  Loader2,
+  ShieldCheck
 } from 'lucide-react';
-import { statisticsApi, scholarshipApi, applicationApi } from '../../services/apiClient';
+import { statisticsApi, scholarshipApi, applicationApi, verificationApi } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
 
 interface Application {
@@ -60,6 +61,7 @@ const AdminDashboard: React.FC = () => {
     approvedThisMonth: 0,
     conversionRate: 0
   });
+  const [pendingDocVerifications, setPendingDocVerifications] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -118,6 +120,26 @@ const AdminDashboard: React.FC = () => {
             slots: s.slots || s.maxSlots || s.totalSlots || 0,
             deadline: s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : 'N/A'
           })));
+        }
+        
+        // Fetch document verification stats (student + admin)
+        try {
+          const [verRes, adminVerRes] = await Promise.all([
+            verificationApi.getStats(),
+            verificationApi.getAdminStats(),
+          ]);
+          let totalPending = 0;
+          if (isMounted && verRes.success && verRes.data) {
+            const verData = verRes.data as { pending?: number };
+            totalPending += verData.pending || 0;
+          }
+          if (isMounted && adminVerRes.success && adminVerRes.data) {
+            const adminVerData = adminVerRes.data as { pending?: number };
+            totalPending += adminVerData.pending || 0;
+          }
+          if (isMounted) setPendingDocVerifications(totalPending);
+        } catch (err) {
+          if (isMounted) console.warn('Could not fetch verification stats:', err);
         }
       } catch (error: any) {
         if (isMounted) {
@@ -450,10 +472,21 @@ const AdminDashboard: React.FC = () => {
                   <span className="text-amber-800">Applications to review</span>
                   <span className="font-bold text-amber-900">{stats.pendingReviews}</span>
                 </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-amber-800">Documents to verify</span>
+                  <span className="font-bold text-amber-900">{pendingDocVerifications}</span>
+                </div>
               </div>
-              <Link to="/admin/applicants" className="mt-4 inline-flex items-center gap-2 w-full justify-center py-2.5 bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-all text-sm">
+              <div className="mt-4 space-y-2">
+              <Link to="/admin/applicants" className="inline-flex items-center gap-2 w-full justify-center py-2.5 bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-all text-sm">
                 Start Reviewing<ArrowUpRight className="w-4 h-4" />
               </Link>
+              {pendingDocVerifications > 0 && (
+                <Link to="/admin/verifications" className="inline-flex items-center gap-2 w-full justify-center py-2.5 bg-amber-500 text-white font-medium rounded-xl hover:bg-amber-600 transition-all text-sm">
+                  <ShieldCheck className="w-4 h-4" />Verify Documents<ArrowUpRight className="w-4 h-4" />
+                </Link>
+              )}
+              </div>
             </div>
           </div>
         </div>

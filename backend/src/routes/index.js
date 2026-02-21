@@ -10,6 +10,8 @@ const applicationRoutes = require('./application.routes');
 const predictionRoutes = require('./prediction.routes');
 const statisticsRoutes = require('./statistics.routes');
 const trainingRoutes = require('./training.routes');
+const ocrRoutes = require('./ocr.routes');
+const verificationRoutes = require('./verification.routes');
 
 module.exports = {
   authRoutes,
@@ -18,5 +20,7 @@ module.exports = {
   applicationRoutes,
   predictionRoutes,
   statisticsRoutes,
-  trainingRoutes
+  trainingRoutes,
+  ocrRoutes,
+  verificationRoutes
 };

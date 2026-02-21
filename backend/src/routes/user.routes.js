@@ -8,7 +8,7 @@ const router = express.Router();
 const { body, param, validationResult } = require('express-validator');
 const { User, UserRole, UPLBCollege, YearLevel, STBracket } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
-const { uploadMultiple, handleUploadError, uploadFilesToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
+const { uploadSingle, uploadMultiple, handleUploadError, uploadFilesToCloudinary, uploadToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
 const {
   getScholarshipScopeFilter,
   getScopedScholarshipIds
@@ -955,7 +955,7 @@ router.get('/documents/:documentId',
  */
 router.delete('/documents/:documentId',
   authMiddleware,
-  requireRole([UserRole.STUDENT]),
+  requireRole(UserRole.STUDENT),
   async (req, res, next) => {
     try {
       const { documentId } = req.params;
@@ -985,6 +985,104 @@ router.delete('/documents/:documentId',
       });
     } catch (error) {
       console.error('❌ Document delete error:', error);
+      next(error);
+    }
+  }
+);
+
+// =============================================================================
+// PUT /documents/:documentId/reupload - Replace an existing document file
+// =============================================================================
+
+/**
+ * @route   PUT /api/users/documents/:documentId/reupload
+ * @desc    Replace an existing document with a new file (reupload)
+ *          Resets verificationStatus to 'pending' so admin reviews again
+ * @access  Private (Student or Admin - own documents)
+ */
+router.put('/documents/:documentId/reupload',
+  authMiddleware,
+  requireRole(UserRole.STUDENT, UserRole.ADMIN),
+  (req, res, next) => {
+    uploadSingle(req, res, (err) => {
+      if (err) {
+        return handleUploadError(err, req, res, next);
+      }
+      next();
+    });
+  },
+  async (req, res, next) => {
+    try {
+      const { documentId } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file provided for reupload'
+        });
+      }
+
+      // Find the existing document (check both student and admin profiles)
+      const isAdmin = req.user.role === UserRole.ADMIN;
+      const profileKey = isAdmin ? 'adminProfile' : 'studentProfile';
+      const existingDoc = req.user[profileKey]?.documents?.id(documentId);
+      if (!existingDoc) {
+        return res.status(404).json({
+          success: false,
+          message: 'Document not found'
+        });
+      }
+
+      // Delete old file from Cloudinary
+      if (existingDoc.cloudinaryPublicId) {
+        try {
+          await deleteFromCloudinary(existingDoc.cloudinaryPublicId);
+        } catch (delErr) {
+          console.warn('Could not delete old Cloudinary file:', delErr.message);
+        }
+      }
+
+      // Upload new file to Cloudinary
+      const isImage = req.file.mimetype.startsWith('image/');
+      const cloudResult = await uploadToCloudinary(req.file.buffer, {
+        folder: `iskolaship/documents/${req.user._id.toString()}`,
+        resourceType: isImage ? 'image' : 'raw',
+        publicId: `${existingDoc.documentType}_${Date.now()}`,
+      });
+
+      // Update document metadata
+      existingDoc.url = cloudResult.url;
+      existingDoc.cloudinaryPublicId = cloudResult.publicId;
+      existingDoc.fileName = req.file.originalname;
+      existingDoc.fileSize = req.file.size;
+      existingDoc.mimeType = req.file.mimetype;
+      existingDoc.uploadedAt = new Date();
+
+      // Reset verification status to pending for admin re-review
+      existingDoc.verificationStatus = 'pending';
+      existingDoc.verifiedBy = undefined;
+      existingDoc.verifiedAt = undefined;
+      existingDoc.verificationRemarks = '';
+
+      req.user.markModified(`${profileKey}.documents`);
+      await req.user.save();
+
+      res.json({
+        success: true,
+        message: 'Document reuploaded successfully. It will be reviewed again.',
+        data: {
+          _id: existingDoc._id,
+          name: existingDoc.name,
+          documentType: existingDoc.documentType,
+          fileName: existingDoc.fileName,
+          fileSize: existingDoc.fileSize,
+          mimeType: existingDoc.mimeType,
+          uploadedAt: existingDoc.uploadedAt,
+          verificationStatus: existingDoc.verificationStatus,
+        }
+      });
+    } catch (error) {
+      console.error('Document reupload error:', error);
       next(error);
     }
   }

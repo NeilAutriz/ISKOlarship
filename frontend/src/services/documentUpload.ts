@@ -105,6 +105,45 @@ export const validateFile = (file: File): {
 };
 
 /**
+ * Reupload (replace) an existing document
+ * Sends a single file to replace the existing document, resets verification to pending
+ */
+export const reuploadDocument = async (
+  documentId: string,
+  file: File
+): Promise<{
+  success: boolean;
+  message?: string;
+  data?: any;
+  error?: string;
+}> => {
+  try {
+    const formData = new FormData();
+    formData.append('document', file);
+
+    const response = await apiClient.put(`/users/documents/${documentId}/reupload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent: any) => {
+        if (progressEvent.total) {
+          Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        }
+      }
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.error('Document reupload error:', error);
+    return {
+      success: false,
+      message: error.response?.data?.message || error.message || 'Failed to reupload document',
+      error: error.response?.data?.error || 'REUPLOAD_FAILED'
+    };
+  }
+};
+
+/**
  * Format file size for display
  */
 export const formatFileSize = (bytes: number): string => {
