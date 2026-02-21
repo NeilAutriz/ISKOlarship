@@ -519,7 +519,7 @@ const DocumentVerification: React.FC = () => {
 
   // Shared OCR results panel renderer (ApplicationReview-style)
   const renderOcrPanel = (docOcr: OcrResult, targetId: string, doc: VerificationDoc, isAdmin: boolean) => (
-    <div className="border-t border-indigo-100 bg-gradient-to-b from-indigo-50/50 to-white">
+    <div className="border-t border-indigo-100 bg-indigo-50/30">
       <div className="px-5 py-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -649,7 +649,7 @@ const DocumentVerification: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-primary-50/30">
+    <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Scope Error Screen */}
         {isScopeError && (
@@ -676,7 +676,7 @@ const DocumentVerification: React.FC = () => {
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
+            <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center">
               <Shield className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -737,77 +737,65 @@ const DocumentVerification: React.FC = () => {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 to-primary-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-slate-800">{stats.totalStudents}</div>
-                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Students</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-primary-600 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary-600 bg-primary-50 border border-primary-200 px-2.5 py-1 rounded-lg">Total</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{stats.totalStudents}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Students</div>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-300" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-slate-800">{stats.totalDocuments}</div>
-                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Total Docs</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-slate-500 flex items-center justify-center">
+                  <FolderOpen className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                  <FolderOpen className="w-5 h-5 text-slate-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">Docs</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{stats.totalDocuments}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Total Documents</div>
             </div>
-            <div className="bg-white rounded-xl border border-amber-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-amber-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-amber-700">{stats.pending}</div>
-                  <div className="text-xs font-medium text-amber-600 uppercase tracking-wider mt-1">Pending</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-amber-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">Pending</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{stats.pending}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Awaiting Review</div>
             </div>
-            <div className="bg-white rounded-xl border border-emerald-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-emerald-700">{stats.verified}</div>
-                  <div className="text-xs font-medium text-emerald-600 uppercase tracking-wider mt-1">Verified</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">Verified</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{stats.verified}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Verified</div>
             </div>
-            <div className="bg-white rounded-xl border border-red-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-red-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-red-700">{stats.rejected}</div>
-                  <div className="text-xs font-medium text-red-600 uppercase tracking-wider mt-1">Rejected</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-red-500 flex items-center justify-center">
+                  <Ban className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                  <Ban className="w-5 h-5 text-red-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg">Rejected</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{stats.rejected}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Rejected</div>
             </div>
-            <div className="bg-white rounded-xl border border-orange-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-orange-700">{stats.resubmit}</div>
-                  <div className="text-xs font-medium text-orange-600 uppercase tracking-wider mt-1">Resubmit</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-orange-500 flex items-center justify-center">
+                  <UploadCloud className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
-                  <UploadCloud className="w-5 h-5 text-orange-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg">Resubmit</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{stats.resubmit}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Needs Resubmission</div>
             </div>
           </div>
         )}
@@ -911,7 +899,7 @@ const DocumentVerification: React.FC = () => {
                     onClick={() => setExpandedStudent(isExpanded ? null : student.studentId)}
                   >
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                         <User className="w-6 h-6 text-white" />
                       </div>
                       <div className="min-w-0">
@@ -1217,77 +1205,65 @@ const DocumentVerification: React.FC = () => {
         {/* Admin Stats Cards */}
         {adminStats && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 to-primary-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-slate-800">{adminStats.totalAdmins}</div>
-                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Admins</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-primary-600 flex items-center justify-center">
+                  <Briefcase className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center">
-                  <Briefcase className="w-5 h-5 text-primary-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary-600 bg-primary-50 border border-primary-200 px-2.5 py-1 rounded-lg">Total</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{adminStats.totalAdmins}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Admins</div>
             </div>
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-300" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-slate-800">{adminStats.totalDocuments}</div>
-                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mt-1">Total Docs</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-slate-500 flex items-center justify-center">
+                  <FolderOpen className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                  <FolderOpen className="w-5 h-5 text-slate-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">Docs</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{adminStats.totalDocuments}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Total Documents</div>
             </div>
-            <div className="bg-white rounded-xl border border-amber-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-amber-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-amber-700">{adminStats.pending}</div>
-                  <div className="text-xs font-medium text-amber-600 uppercase tracking-wider mt-1">Pending</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-amber-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">Pending</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{adminStats.pending}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Awaiting Review</div>
             </div>
-            <div className="bg-white rounded-xl border border-emerald-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-emerald-700">{adminStats.verified}</div>
-                  <div className="text-xs font-medium text-emerald-600 uppercase tracking-wider mt-1">Verified</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">Verified</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{adminStats.verified}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Verified</div>
             </div>
-            <div className="bg-white rounded-xl border border-red-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-red-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-red-700">{adminStats.rejected}</div>
-                  <div className="text-xs font-medium text-red-600 uppercase tracking-wider mt-1">Rejected</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-red-500 flex items-center justify-center">
+                  <Ban className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                  <Ban className="w-5 h-5 text-red-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg">Rejected</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{adminStats.rejected}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Rejected</div>
             </div>
-            <div className="bg-white rounded-xl border border-orange-200 p-4 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-400" />
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold text-orange-700">{adminStats.resubmit}</div>
-                  <div className="text-xs font-medium text-orange-600 uppercase tracking-wider mt-1">Resubmit</div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-11 h-11 rounded-xl bg-orange-500 flex items-center justify-center">
+                  <UploadCloud className="w-5 h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
-                  <UploadCloud className="w-5 h-5 text-orange-500" />
-                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg">Resubmit</span>
               </div>
+              <div className="text-2xl font-bold text-slate-800">{adminStats.resubmit}</div>
+              <div className="text-xs font-medium text-slate-500 mt-0.5">Needs Resubmission</div>
             </div>
           </div>
         )}
@@ -1394,7 +1370,7 @@ const DocumentVerification: React.FC = () => {
                     onClick={() => setExpandedAdmin(isExpanded ? null : admin.adminId)}
                   >
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center flex-shrink-0">
                         <Briefcase className="w-6 h-6 text-white" />
                       </div>
                       <div className="min-w-0">
