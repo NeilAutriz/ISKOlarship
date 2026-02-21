@@ -96,7 +96,7 @@ const documentSchema = new mongoose.Schema({
       percentDifference: { type: String },
       severity: {
         type: String,
-        enum: ['verified', 'warning', 'critical', 'unreadable'],
+        enum: ['verified', 'warning', 'critical', 'info', 'unreadable'],
       },
     }],
     confidence: { type: Number, min: 0, max: 1 },
