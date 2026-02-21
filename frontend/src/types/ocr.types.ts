@@ -10,7 +10,7 @@ export interface OcrFieldResult {
   similarity?: number;
   difference?: number;
   percentDifference?: string;
-  severity: 'verified' | 'warning' | 'critical' | 'unreadable';
+  severity: 'verified' | 'warning' | 'critical' | 'info' | 'unreadable';
 }
 
 export interface OcrDocumentResult {

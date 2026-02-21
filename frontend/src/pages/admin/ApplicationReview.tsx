@@ -224,6 +224,7 @@ const ApplicationReview: React.FC = () => {
       case 'verified': return <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" /> Match</span>;
       case 'warning': return <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Mismatch</span>;
       case 'critical': return <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full"><XCircle className="w-3 h-3" /> Critical</span>;
+      case 'info': return <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full"><FileText className="w-3 h-3" /> Not Found</span>;
       default: return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">Unknown</span>;
     }
   };
@@ -1220,8 +1221,9 @@ const ApplicationReview: React.FC = () => {
                                     {docOcr.comparisonResults.map((field: OcrFieldResult, fi: number) => {
                                       const isMatch = field.match;
                                       const isCritical = field.severity === 'critical';
-                                      const rowBg = isMatch ? '' : isCritical ? 'bg-red-50/60' : 'bg-amber-50/40';
-                                      const leftBorder = isMatch ? 'border-l-emerald-400' : isCritical ? 'border-l-red-400' : 'border-l-amber-400';
+                                      const isInfo = field.severity === 'info';
+                                      const rowBg = isInfo ? 'bg-slate-50/40' : isMatch ? '' : isCritical ? 'bg-red-50/60' : 'bg-amber-50/40';
+                                      const leftBorder = isInfo ? 'border-l-slate-300' : isMatch ? 'border-l-emerald-400' : isCritical ? 'border-l-red-400' : 'border-l-amber-400';
                                       return (
                                         <div
                                           key={fi}
@@ -1243,7 +1245,7 @@ const ApplicationReview: React.FC = () => {
                                             </span>
                                           </div>
                                           <div className="col-span-2 flex justify-end">
-                                            {severityBadge(isMatch ? 'verified' : (isCritical ? 'critical' : 'warning'))}
+                                            {severityBadge(isInfo ? 'info' : isMatch ? 'verified' : (isCritical ? 'critical' : 'warning'))}
                                           </div>
                                         </div>
                                       );

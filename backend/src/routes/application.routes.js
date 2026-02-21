@@ -98,6 +98,7 @@ router.get('/my', authMiddleware, async (req, res, next) => {
         app.applicantSnapshot = {
           studentNumber: storedSnapshot.studentNumber || userProfile.studentNumber,
           firstName: userProfile.firstName || req.user.firstName,
+          middleName: userProfile.middleName || '',
           lastName: userProfile.lastName || req.user.lastName,
           contactNumber: userProfile.contactNumber,
           homeAddress: userProfile.homeAddress || {},
@@ -257,6 +258,7 @@ router.post('/',
         // Identity
         studentNumber: profile.studentNumber,
         firstName: profile.firstName || req.user.firstName,
+        middleName: profile.middleName || '',
         lastName: profile.lastName || req.user.lastName,
 
         // Contact Info
@@ -764,6 +766,7 @@ router.get('/:id',
           // Identity
           studentNumber: storedSnapshot.studentNumber || profile.studentNumber,
           firstName: profile.firstName || application.applicant.firstName,
+          middleName: profile.middleName || '',
           lastName: profile.lastName || application.applicant.lastName,
 
           // Contact Info
@@ -965,6 +968,7 @@ router.put('/:id',
       application.applicantSnapshot = {
         studentNumber: profile.studentNumber,
         firstName: profile.firstName || req.user.firstName,
+        middleName: profile.middleName || '',
         lastName: profile.lastName || req.user.lastName,
         contactNumber: profile.contactNumber,
         homeAddress: profile.homeAddress || {},

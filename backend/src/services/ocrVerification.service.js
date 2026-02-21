@@ -140,9 +140,9 @@ async function verifyDocument(applicationId, documentId, adminId) {
     // ── 3. Extract fields using document-type-specific extractor ──────────
     const extractedFields = extractFields(rawText, doc.documentType);
 
-    // ── 4. Compare against applicant snapshot ─────────────────────────────
+    // ── 4. Compare against applicant snapshot (with raw-text fallback) ─────
     const snapshot = application.applicantSnapshot || {};
-    const comparisonResults = compareFields(extractedFields, snapshot);
+    const comparisonResults = compareFields(extractedFields, snapshot, rawText);
     const overallMatch = determineOverallMatch(comparisonResults);
     const confidence = calculateConfidence(comparisonResults);
 
@@ -170,7 +170,7 @@ async function verifyDocument(applicationId, documentId, adminId) {
       confidence,
       fields: comparisonResults,
       extractedFields,
-      rawTextPreview: rawText.substring(0, 500),
+      rawTextPreview: rawText.substring(0, 1000),
       processedAt: doc.ocrResult.processedAt,
     };
   } catch (err) {

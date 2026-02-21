@@ -308,6 +308,7 @@ const applicationSchema = new mongoose.Schema({
   applicantSnapshot: {
     studentNumber: String,
     firstName: String,
+    middleName: String,
     lastName: String,
     contactNumber: String,
     homeAddress: {
