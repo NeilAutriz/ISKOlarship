@@ -52,6 +52,8 @@ function getExtractor(documentType) {
 /**
  * Extract fields from OCR text using the appropriate extractor.
  * Applies preprocessing to clean up raw OCR text before extraction.
+ * Runs both the type-specific extractor AND the generic extractor,
+ * then merges results (type-specific takes precedence) to maximize coverage.
  * @param {string} rawText - Full OCR-extracted text
  * @param {string} documentType - The document type enum value
  * @returns {Object} Extracted fields
@@ -62,7 +64,23 @@ function extractFields(rawText, documentType) {
   
   // Preprocess OCR text to normalize unicode, fix artifacts, join broken words
   const cleanedText = preprocessOcrText(rawText);
-  return extractor.extract(cleanedText);
+  
+  // Run the type-specific extractor
+  const primary = extractor.extract(cleanedText);
+  
+  // Also run generic extractor to catch any fields the primary missed
+  // (unless the primary IS the generic extractor)
+  if (extractor !== genericExtractor) {
+    const fallback = genericExtractor.extract(cleanedText);
+    // Merge: primary fields take precedence, fallback fills gaps
+    for (const [key, val] of Object.entries(fallback)) {
+      if (primary[key] === undefined || primary[key] === null || primary[key] === '') {
+        primary[key] = val;
+      }
+    }
+  }
+  
+  return primary;
 }
 
 module.exports = {

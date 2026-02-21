@@ -573,7 +573,7 @@ router.post('/students/:studentId/documents/:docId/ocr-scan', async (req, res) =
     const extractorType = typeMapping[doc.documentType] || doc.documentType;
     const extractedFields = extractFields(rawText, extractorType);
 
-    // Build student profile snapshot for comparison
+    // Build student profile snapshot for comparison (ALL fields)
     const sp = student.studentProfile || {};
     const profileSnapshot = {
       firstName: sp.firstName || student.firstName || '',
@@ -588,8 +588,8 @@ router.post('/students/:studentId/documents/:docId/ocr-scan', async (req, res) =
       homeAddress: sp.homeAddress || null,
     };
 
-    // Compare extracted fields vs profile
-    const comparisonResults = compareFields(extractedFields, profileSnapshot);
+    // Compare extracted fields vs profile — pass rawText for fallback scanning
+    const comparisonResults = compareFields(extractedFields, profileSnapshot, rawText);
     const overallMatch = determineOverallMatch(comparisonResults);
     const confidence = calculateConfidence(comparisonResults);
 
@@ -604,14 +604,17 @@ router.post('/students/:studentId/documents/:docId/ocr-scan', async (req, res) =
         confidence,
         fields: comparisonResults,
         extractedFields,
-        rawTextPreview: rawText.substring(0, 500),
+        rawTextPreview: rawText.substring(0, 1000),
         processedAt: new Date(),
         profileSnapshot: {
-          name: `${profileSnapshot.firstName} ${profileSnapshot.lastName}`.trim(),
+          name: `${profileSnapshot.firstName}${profileSnapshot.middleName ? ' ' + profileSnapshot.middleName : ''} ${profileSnapshot.lastName}`.trim(),
           studentNumber: profileSnapshot.studentNumber,
           college: profileSnapshot.college,
+          collegeCode: profileSnapshot.collegeCode,
           course: profileSnapshot.course,
           gwa: profileSnapshot.gwa,
+          annualFamilyIncome: profileSnapshot.annualFamilyIncome,
+          homeAddress: profileSnapshot.homeAddress?.fullAddress || [profileSnapshot.homeAddress?.barangay, profileSnapshot.homeAddress?.city, profileSnapshot.homeAddress?.province].filter(Boolean).join(', ') || null,
         },
       },
     });
@@ -745,7 +748,7 @@ router.post('/students/:studentId/ocr-scan-all', async (req, res) => {
           homeAddress: sp.homeAddress || null,
         };
 
-        const comparisonResults = compareFields(extractedFields, profileSnapshot);
+        const comparisonResults = compareFields(extractedFields, profileSnapshot, rawText);
         const overallMatch = determineOverallMatch(comparisonResults);
         const confidence = calculateConfidence(comparisonResults);
 
@@ -753,7 +756,7 @@ router.post('/students/:studentId/ocr-scan-all', async (req, res) => {
           documentId: doc._id, documentName: doc.name, documentType: doc.documentType,
           status: 'completed', overallMatch, confidence,
           fields: comparisonResults, extractedFields,
-          rawTextPreview: rawText.substring(0, 300),
+          rawTextPreview: rawText.substring(0, 1000),
         });
       } catch (docErr) {
         results.push({
@@ -1312,7 +1315,7 @@ router.post('/admin/admins/:adminId/documents/:docId/ocr-scan', async (req, res)
       academicUnit: ap.academicUnit || '',
     };
 
-    const comparisonResults = compareFields(extractedFields, profileSnapshot);
+    const comparisonResults = compareFields(extractedFields, profileSnapshot, rawText);
     const overallMatch = determineOverallMatch(comparisonResults);
     const confidence = calculateConfidence(comparisonResults);
 
@@ -1327,12 +1330,14 @@ router.post('/admin/admins/:adminId/documents/:docId/ocr-scan', async (req, res)
         confidence,
         fields: comparisonResults,
         extractedFields,
-        rawTextPreview: rawText.substring(0, 500),
+        rawTextPreview: rawText.substring(0, 1000),
         processedAt: new Date(),
         profileSnapshot: {
-          name: `${profileSnapshot.firstName} ${profileSnapshot.lastName}`.trim(),
+          name: `${profileSnapshot.firstName}${profileSnapshot.middleName ? ' ' + profileSnapshot.middleName : ''} ${profileSnapshot.lastName}`.trim(),
           college: profileSnapshot.college,
+          collegeCode: profileSnapshot.collegeCode,
           position: profileSnapshot.position,
+          department: profileSnapshot.department,
           academicUnit: profileSnapshot.academicUnit,
         },
       },
@@ -1459,7 +1464,7 @@ router.post('/admin/admins/:adminId/ocr-scan-all', async (req, res) => {
           academicUnit: ap.academicUnit || '',
         };
 
-        const comparisonResults = compareFields(extractedFields, profileSnapshot);
+        const comparisonResults = compareFields(extractedFields, profileSnapshot, rawText);
         const overallMatch = determineOverallMatch(comparisonResults);
         const confidence = calculateConfidence(comparisonResults);
 
@@ -1467,7 +1472,7 @@ router.post('/admin/admins/:adminId/ocr-scan-all', async (req, res) => {
           documentId: doc._id, documentName: doc.name, documentType: doc.documentType,
           status: 'completed', overallMatch, confidence,
           fields: comparisonResults, extractedFields,
-          rawTextPreview: rawText.substring(0, 300),
+          rawTextPreview: rawText.substring(0, 1000),
         });
       } catch (docErr) {
         results.push({

@@ -25,7 +25,6 @@ import {
   Image,
   RotateCcw,
   ScanLine,
-  Sparkles,
   Info,
   FileSearch,
   Users,
@@ -92,7 +91,7 @@ interface OcrFieldResult {
   match: boolean;
   similarity?: number;
   difference?: number;
-  severity: 'verified' | 'warning' | 'critical';
+  severity: 'verified' | 'warning' | 'critical' | 'info';
   percentDifference?: string;
 }
 
@@ -110,10 +109,16 @@ interface OcrResult {
   error?: string;
   profileSnapshot?: {
     name: string;
-    studentNumber: string;
-    college: string;
-    course: string;
-    gwa: number | null;
+    studentNumber?: string;
+    college?: string;
+    collegeCode?: string;
+    course?: string;
+    gwa?: number | null;
+    annualFamilyIncome?: number | null;
+    homeAddress?: string;
+    position?: string;
+    department?: string;
+    academicUnit?: string;
   };
 }
 
@@ -511,6 +516,137 @@ const DocumentVerification: React.FC = () => {
         );
     }
   };
+
+  // Shared OCR results panel renderer (ApplicationReview-style)
+  const renderOcrPanel = (docOcr: OcrResult, targetId: string, doc: VerificationDoc, isAdmin: boolean) => (
+    <div className="border-t border-indigo-100 bg-gradient-to-b from-indigo-50/50 to-white">
+      <div className="px-5 py-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-indigo-500" />
+            OCR Verification Details
+          </h4>
+          <div className="flex items-center gap-2">
+            {docOcr.overallMatch && <OcrMatchBadge match={docOcr.overallMatch} />}
+            {docOcr.confidence !== undefined && (() => {
+              const pct = Math.round(docOcr.confidence! * 100);
+              const color = pct >= 75 ? 'emerald' : pct >= 40 ? 'amber' : 'red';
+              return (
+                <div className={`px-3 py-1.5 rounded-lg border font-bold text-sm ${
+                  color === 'emerald' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                  color === 'amber' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                  'bg-red-50 border-red-200 text-red-700'
+                }`}>
+                  {pct}% Confidence
+                </div>
+              );
+            })()}
+            <button
+              onClick={() => handleOcrScan(targetId, doc, isAdmin)}
+              disabled={scanningDoc === doc._id}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-primary-600 hover:bg-primary-50 rounded-lg border border-primary-200 transition-colors"
+              title="Re-scan"
+            >
+              {scanningDoc === doc._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              Re-scan
+            </button>
+            <button
+              onClick={() => setExpandedOcr(null)}
+              className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Field-by-field comparison grid */}
+        {docOcr.fields && docOcr.fields.length > 0 ? (
+          <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+            {/* Grid header */}
+            <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-slate-100 border-b border-slate-200">
+              <div className="col-span-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Field</div>
+              <div className="col-span-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">OCR Extracted</div>
+              <div className="col-span-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Profile Data</div>
+              <div className="col-span-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">Result</div>
+            </div>
+            {/* Grid rows */}
+            {docOcr.fields.map((field, idx) => {
+              const leftBorder = field.severity === 'verified' ? 'border-l-emerald-400'
+                : field.severity === 'warning' ? 'border-l-amber-400'
+                : field.severity === 'info' ? 'border-l-slate-300'
+                : 'border-l-red-400';
+              const rowBg = field.severity === 'verified' ? ''
+                : field.severity === 'warning' ? 'bg-amber-50/40'
+                : field.severity === 'info' ? 'bg-slate-50/40'
+                : 'bg-red-50/60';
+              return (
+                <div
+                  key={idx}
+                  className={`grid grid-cols-12 gap-2 px-4 py-3 border-b border-slate-100 last:border-b-0 border-l-[3px] ${leftBorder} ${rowBg} hover:bg-slate-50/80 transition-colors`}
+                >
+                  <div className="col-span-3">
+                    <span className="text-sm font-semibold text-slate-700 capitalize">
+                      {field.field.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                  </div>
+                  <div className="col-span-4">
+                    <span className="text-sm font-mono text-slate-800 bg-slate-100 px-2 py-0.5 rounded">
+                      {String(field.extracted ?? '—')}
+                    </span>
+                  </div>
+                  <div className="col-span-3">
+                    <span className="text-sm font-mono text-slate-600">
+                      {String(field.expected ?? '—')}
+                    </span>
+                  </div>
+                  <div className="col-span-2 flex justify-end">
+                    {field.severity === 'verified' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full"><CheckCircle className="w-3 h-3" /> Match</span>
+                    ) : field.severity === 'warning' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full"><AlertTriangle className="w-3 h-3" /> Mismatch</span>
+                    ) : field.severity === 'info' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"><Info className="w-3 h-3" /> Not Found</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full"><XCircle className="w-3 h-3" /> Critical</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+            <p className="text-sm text-slate-500">
+              {docOcr.overallMatch === 'unreadable'
+                ? 'Could not extract readable text from this document.'
+                : 'No comparable fields were extracted from this document.'}
+            </p>
+          </div>
+        )}
+
+        {/* Raw text - terminal style */}
+        {docOcr.rawTextPreview && (
+          <details className="group">
+            <summary className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg border border-indigo-200 transition-colors cursor-pointer list-none">
+              <FileText className="w-3.5 h-3.5" />
+              View Raw OCR Text
+              <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="mt-2 p-4 bg-slate-900 text-emerald-300 rounded-xl text-xs font-mono max-h-72 overflow-auto whitespace-pre-wrap border border-slate-700 shadow-inner">
+              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                <span className="text-[10px] text-slate-500 ml-2">Raw OCR Output</span>
+              </div>
+              {docOcr.rawTextPreview}
+            </div>
+          </details>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-primary-50/30">
@@ -1023,106 +1159,7 @@ const DocumentVerification: React.FC = () => {
                                 </div>
 
                                 {/* OCR Results Panel (expandable) */}
-                                {isOcrExpanded && docOcr && docOcr.status === 'completed' && (
-                                  <div className="border-t border-slate-200 bg-slate-50/80 px-4 py-3">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <div className="flex items-center gap-2">
-                                        <Sparkles className="w-4 h-4 text-primary-600" />
-                                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">OCR Analysis</span>
-                                        {docOcr.overallMatch && <OcrMatchBadge match={docOcr.overallMatch} />}
-                                        {docOcr.confidence !== undefined && (
-                                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                            docOcr.confidence >= 0.8 ? 'bg-emerald-100 text-emerald-700' :
-                                            docOcr.confidence >= 0.5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                                          }`}>
-                                            {Math.round(docOcr.confidence * 100)}% confidence
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          onClick={() => handleOcrScan(student.studentId, doc)}
-                                          disabled={scanningDoc === doc._id}
-                                          className="inline-flex items-center gap-1 px-2 py-1 text-xs text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                          title="Re-scan"
-                                        >
-                                          {scanningDoc === doc._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                                          Re-scan
-                                        </button>
-                                        <button
-                                          onClick={() => setExpandedOcr(null)}
-                                          className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
-                                        >
-                                          <X className="w-3.5 h-3.5 text-slate-400" />
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Field comparison table */}
-                                    {docOcr.fields && docOcr.fields.length > 0 ? (
-                                      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mb-3">
-                                        <table className="w-full text-xs">
-                                          <thead>
-                                            <tr className="bg-slate-50 border-b border-slate-200">
-                                              <th className="text-left px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Field</th>
-                                              <th className="text-left px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Extracted (OCR)</th>
-                                              <th className="text-left px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Profile Data</th>
-                                              <th className="text-center px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Match</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {docOcr.fields.map((field, idx) => (
-                                              <tr key={idx} className={`border-b border-slate-100 last:border-0 ${
-                                                field.severity === 'verified' ? 'bg-emerald-50/30' :
-                                                field.severity === 'warning' ? 'bg-amber-50/30' : 'bg-red-50/30'
-                                              }`}>
-                                                <td className="px-3 py-2 font-semibold text-slate-700 capitalize">
-                                                  {field.field.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
-                                                </td>
-                                                <td className="px-3 py-2 text-slate-600 font-mono">
-                                                  {String(field.extracted)}
-                                                </td>
-                                                <td className="px-3 py-2 text-slate-600 font-mono">
-                                                  {String(field.expected)}
-                                                </td>
-                                                <td className="px-3 py-2 text-center">
-                                                  {field.severity === 'verified' ? (
-                                                    <CheckCircle className="w-4 h-4 text-emerald-500 mx-auto" />
-                                                  ) : field.severity === 'warning' ? (
-                                                    <AlertTriangle className="w-4 h-4 text-amber-500 mx-auto" />
-                                                  ) : (
-                                                    <XCircle className="w-4 h-4 text-red-500 mx-auto" />
-                                                  )}
-                                                </td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    ) : (
-                                      <div className="bg-white rounded-lg border border-slate-200 p-3 mb-3 text-center">
-                                        <p className="text-xs text-slate-500">
-                                          {docOcr.overallMatch === 'unreadable'
-                                            ? 'Could not extract readable text from this document.'
-                                            : 'No comparable fields were extracted from this document.'}
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    {/* Raw text preview */}
-                                    {docOcr.rawTextPreview && (
-                                      <details className="group">
-                                        <summary className="text-xs font-semibold text-slate-500 cursor-pointer hover:text-slate-700 flex items-center gap-1">
-                                          <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
-                                          Raw extracted text
-                                        </summary>
-                                        <div className="mt-2 bg-white rounded-lg border border-slate-200 p-3 text-xs text-slate-600 font-mono whitespace-pre-wrap max-h-40 overflow-auto">
-                                          {docOcr.rawTextPreview}
-                                        </div>
-                                      </details>
-                                    )}
-                                  </div>
-                                )}
+                                {isOcrExpanded && docOcr && docOcr.status === 'completed' && renderOcrPanel(docOcr, student.studentId, doc, false)}
 
                                 {/* OCR unavailable/failed message */}
                                 {isOcrExpanded && docOcr && (docOcr.status === 'unavailable' || docOcr.status === 'failed') && (
@@ -1606,106 +1643,7 @@ const DocumentVerification: React.FC = () => {
                                 </div>
 
                                 {/* OCR Results Panel (expandable) */}
-                                {isOcrExpanded && docOcr && docOcr.status === 'completed' && (
-                                  <div className="border-t border-slate-200 bg-slate-50/80 px-4 py-3">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <div className="flex items-center gap-2">
-                                        <Sparkles className="w-4 h-4 text-primary-600" />
-                                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">OCR Analysis</span>
-                                        {docOcr.overallMatch && <OcrMatchBadge match={docOcr.overallMatch} />}
-                                        {docOcr.confidence !== undefined && (
-                                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                            docOcr.confidence >= 0.8 ? 'bg-emerald-100 text-emerald-700' :
-                                            docOcr.confidence >= 0.5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                                          }`}>
-                                            {Math.round(docOcr.confidence * 100)}% confidence
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          onClick={() => handleOcrScan(admin.adminId, doc, true)}
-                                          disabled={scanningDoc === doc._id}
-                                          className="inline-flex items-center gap-1 px-2 py-1 text-xs text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                                          title="Re-scan"
-                                        >
-                                          {scanningDoc === doc._id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                                          Re-scan
-                                        </button>
-                                        <button
-                                          onClick={() => setExpandedOcr(null)}
-                                          className="p-1 hover:bg-slate-200 rounded-lg transition-colors"
-                                        >
-                                          <X className="w-3.5 h-3.5 text-slate-400" />
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    {/* Field comparison table */}
-                                    {docOcr.fields && docOcr.fields.length > 0 ? (
-                                      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mb-3">
-                                        <table className="w-full text-xs">
-                                          <thead>
-                                            <tr className="bg-slate-50 border-b border-slate-200">
-                                              <th className="text-left px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Field</th>
-                                              <th className="text-left px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Extracted (OCR)</th>
-                                              <th className="text-left px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Profile Data</th>
-                                              <th className="text-center px-3 py-2 font-bold text-slate-600 uppercase tracking-wider">Match</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {docOcr.fields.map((field, idx) => (
-                                              <tr key={idx} className={`border-b border-slate-100 last:border-0 ${
-                                                field.severity === 'verified' ? 'bg-emerald-50/30' :
-                                                field.severity === 'warning' ? 'bg-amber-50/30' : 'bg-red-50/30'
-                                              }`}>
-                                                <td className="px-3 py-2 font-semibold text-slate-700 capitalize">
-                                                  {field.field.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
-                                                </td>
-                                                <td className="px-3 py-2 text-slate-600 font-mono">
-                                                  {String(field.extracted)}
-                                                </td>
-                                                <td className="px-3 py-2 text-slate-600 font-mono">
-                                                  {String(field.expected)}
-                                                </td>
-                                                <td className="px-3 py-2 text-center">
-                                                  {field.severity === 'verified' ? (
-                                                    <CheckCircle className="w-4 h-4 text-emerald-500 mx-auto" />
-                                                  ) : field.severity === 'warning' ? (
-                                                    <AlertTriangle className="w-4 h-4 text-amber-500 mx-auto" />
-                                                  ) : (
-                                                    <XCircle className="w-4 h-4 text-red-500 mx-auto" />
-                                                  )}
-                                                </td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    ) : (
-                                      <div className="bg-white rounded-lg border border-slate-200 p-3 mb-3 text-center">
-                                        <p className="text-xs text-slate-500">
-                                          {docOcr.overallMatch === 'unreadable'
-                                            ? 'Could not extract readable text from this document.'
-                                            : 'No comparable fields were extracted from this document.'}
-                                        </p>
-                                      </div>
-                                    )}
-
-                                    {/* Raw text preview */}
-                                    {docOcr.rawTextPreview && (
-                                      <details className="group">
-                                        <summary className="text-xs font-semibold text-slate-500 cursor-pointer hover:text-slate-700 flex items-center gap-1">
-                                          <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
-                                          Raw extracted text
-                                        </summary>
-                                        <div className="mt-2 bg-white rounded-lg border border-slate-200 p-3 text-xs text-slate-600 font-mono whitespace-pre-wrap max-h-40 overflow-auto">
-                                          {docOcr.rawTextPreview}
-                                        </div>
-                                      </details>
-                                    )}
-                                  </div>
-                                )}
+                                {isOcrExpanded && docOcr && docOcr.status === 'completed' && renderOcrPanel(docOcr, admin.adminId, doc, true)}
 
                                 {/* OCR unavailable/failed message */}
                                 {isOcrExpanded && docOcr && (docOcr.status === 'unavailable' || docOcr.status === 'failed') && (

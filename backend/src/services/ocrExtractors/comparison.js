@@ -510,49 +510,195 @@ function compareDepartment(extracted, snapshot) {
 /**
  * Main comparison function.
  * Routes to appropriate comparators based on extracted fields.
+ * Also does a raw-text scan for any profile fields that extractors missed.
+ * @param {Object} extracted - Fields extracted by the type-specific extractor
+ * @param {Object} applicantSnapshot - Profile data to compare against
+ * @param {string} [rawText] - Optional raw OCR text for fallback scanning
  */
-function compareFields(extracted, applicantSnapshot) {
+function compareFields(extracted, applicantSnapshot, rawText) {
   const results = [];
+  const coveredFields = new Set();
 
   if (extracted.name) {
     const r = compareName(extracted.name, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('name'); }
   }
   if (extracted.studentNumber) {
     const r = compareStudentNumber(extracted.studentNumber, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('studentNumber'); }
   }
   if (extracted.gwa !== undefined && extracted.gwa !== null) {
     const r = compareGwa(extracted.gwa, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('gwa'); }
   }
   if (extracted.college) {
     const r = compareCollege(extracted.college, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('college'); }
   }
   if (extracted.course) {
     const r = compareCourse(extracted.course, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('course'); }
   }
   if (extracted.income !== undefined && extracted.income !== null) {
     const r = compareIncome(extracted.income, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('annualFamilyIncome'); }
   }
   if (extracted.address) {
     const r = compareAddress(extracted.address, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('address'); }
   }
   if (extracted.employeeNumber) {
     const r = compareEmployeeNumber(extracted.employeeNumber, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('employeeNumber'); }
   }
   if (extracted.position) {
     const r = comparePosition(extracted.position, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('position'); }
   }
   if (extracted.department) {
     const r = compareDepartment(extracted.department, applicantSnapshot);
-    if (r) results.push(r);
+    if (r) { results.push(r); coveredFields.add('department'); }
+  }
+
+  // ── Raw-text fallback scanning ──────────────────────────────────────────
+  // For any profile field not yet covered, scan the raw OCR text directly
+  if (rawText) {
+    const normalizedRaw = normalize(rawText);
+    const rawLower = rawText.toLowerCase();
+
+    // Name: scan raw text for profile name tokens
+    if (!coveredFields.has('name') && (applicantSnapshot.firstName || applicantSnapshot.lastName)) {
+      const fullName = `${applicantSnapshot.firstName || ''} ${applicantSnapshot.lastName || ''}`.trim();
+      if (fullName.length > 2) {
+        const firstLower = (applicantSnapshot.firstName || '').toLowerCase();
+        const lastLower = (applicantSnapshot.lastName || '').toLowerCase();
+        const foundFirst = firstLower && rawLower.includes(firstLower);
+        const foundLast = lastLower && rawLower.includes(lastLower);
+        if (foundFirst && foundLast) {
+          results.push({ field: 'name', extracted: '(found in text)', expected: fullName, match: true, similarity: 0.85, severity: 'verified' });
+        } else if (foundFirst || foundLast) {
+          results.push({ field: 'name', extracted: `(partial: ${foundFirst ? 'first' : 'last'} name found)`, expected: fullName, match: false, similarity: 0.5, severity: 'warning' });
+        } else {
+          results.push({ field: 'name', extracted: '(not found)', expected: fullName, match: false, similarity: 0, severity: 'info' });
+        }
+        coveredFields.add('name');
+      }
+    }
+
+    // Student Number
+    if (!coveredFields.has('studentNumber') && applicantSnapshot.studentNumber) {
+      const stripped = applicantSnapshot.studentNumber.replace(/[\s\-]/g, '');
+      const found = normalizedRaw.includes(stripped) || normalizedRaw.includes(applicantSnapshot.studentNumber.toLowerCase());
+      results.push({
+        field: 'studentNumber',
+        extracted: found ? '(found in text)' : '(not found)',
+        expected: applicantSnapshot.studentNumber,
+        match: found,
+        severity: found ? 'verified' : 'info',
+      });
+      coveredFields.add('studentNumber');
+    }
+
+    // College
+    if (!coveredFields.has('college') && applicantSnapshot.college) {
+      const resolved = resolveUPLBValue(applicantSnapshot.college);
+      const collegeLower = normalize(applicantSnapshot.college);
+      let found = normalizedRaw.includes(collegeLower);
+      if (!found && resolved) {
+        found = normalizedRaw.includes(resolved.code) || normalizedRaw.includes(resolved.fullName);
+      }
+      if (!found && applicantSnapshot.collegeCode) {
+        found = rawLower.includes(applicantSnapshot.collegeCode.toLowerCase());
+      }
+      results.push({
+        field: 'college',
+        extracted: found ? '(found in text)' : '(not found)',
+        expected: applicantSnapshot.college,
+        match: found,
+        severity: found ? 'verified' : 'info',
+      });
+      coveredFields.add('college');
+    }
+
+    // Course
+    if (!coveredFields.has('course') && applicantSnapshot.course) {
+      const courseLower = normalize(applicantSnapshot.course);
+      const found = normalizedRaw.includes(courseLower) || 
+        courseLower.split(' ').filter(w => w.length > 2).every(w => normalizedRaw.includes(w));
+      results.push({
+        field: 'course',
+        extracted: found ? '(found in text)' : '(not found)',
+        expected: applicantSnapshot.course,
+        match: found,
+        severity: found ? 'verified' : 'info',
+      });
+      coveredFields.add('course');
+    }
+
+    // GWA
+    if (!coveredFields.has('gwa') && applicantSnapshot.gwa) {
+      const gwaStr = String(applicantSnapshot.gwa);
+      const found = normalizedRaw.includes(gwaStr);
+      results.push({
+        field: 'gwa',
+        extracted: found ? '(found in text)' : '(not found)',
+        expected: applicantSnapshot.gwa,
+        match: found,
+        severity: found ? 'verified' : 'info',
+      });
+      coveredFields.add('gwa');
+    }
+
+    // Address
+    if (!coveredFields.has('address') && applicantSnapshot.homeAddress) {
+      const addr = applicantSnapshot.homeAddress;
+      const fullAddr = addr.fullAddress || [addr.street, addr.barangay, addr.city, addr.province].filter(Boolean).join(', ');
+      if (fullAddr) {
+        let found = false;
+        if (addr.barangay && normalizedRaw.includes(normalize(addr.barangay))) found = true;
+        if (addr.city && normalizedRaw.includes(normalize(addr.city))) found = true;
+        if (addr.province && normalizedRaw.includes(normalize(addr.province))) found = true;
+        results.push({
+          field: 'address',
+          extracted: found ? '(partial match in text)' : '(not found)',
+          expected: fullAddr,
+          match: found,
+          severity: found ? 'verified' : 'info',
+        });
+        coveredFields.add('address');
+      }
+    }
+
+    // Position (admin)
+    if (!coveredFields.has('position') && applicantSnapshot.position) {
+      const found = normalizedRaw.includes(normalize(applicantSnapshot.position));
+      results.push({
+        field: 'position',
+        extracted: found ? '(found in text)' : '(not found)',
+        expected: applicantSnapshot.position,
+        match: found,
+        severity: found ? 'verified' : 'info',
+      });
+      coveredFields.add('position');
+    }
+
+    // Department / Academic Unit
+    if (!coveredFields.has('department') && (applicantSnapshot.department || applicantSnapshot.academicUnit)) {
+      const dept = applicantSnapshot.department || applicantSnapshot.academicUnit;
+      const resolved = resolveUPLBValue(dept);
+      let found = normalizedRaw.includes(normalize(dept));
+      if (!found && resolved) {
+        found = normalizedRaw.includes(resolved.code) || normalizedRaw.includes(resolved.fullName);
+      }
+      results.push({
+        field: 'department',
+        extracted: found ? '(found in text)' : '(not found)',
+        expected: dept,
+        match: found,
+        severity: found ? 'verified' : 'info',
+      });
+      coveredFields.add('department');
+    }
   }
 
   return results;
@@ -560,13 +706,18 @@ function compareFields(extracted, applicantSnapshot) {
 
 /**
  * Determine overall match status from individual field results.
+ * 'info' severity fields (not found in document) are excluded from pass/fail.
  */
 function determineOverallMatch(results) {
   if (results.length === 0) return 'unreadable';
 
-  const hasCritical = results.some(r => r.severity === 'critical');
-  const hasWarning = results.some(r => r.severity === 'warning');
-  const allVerified = results.every(r => r.severity === 'verified');
+  // Filter out 'info' fields (not found) — they're informational, not pass/fail
+  const actionable = results.filter(r => r.severity !== 'info');
+  if (actionable.length === 0) return 'unreadable';
+
+  const hasCritical = actionable.some(r => r.severity === 'critical');
+  const hasWarning = actionable.some(r => r.severity === 'warning');
+  const allVerified = actionable.every(r => r.severity === 'verified');
 
   if (allVerified) return 'verified';
   if (hasCritical) return 'mismatch';
@@ -576,11 +727,14 @@ function determineOverallMatch(results) {
 
 /**
  * Calculate overall confidence from field results.
+ * 'info' severity fields are excluded from the calculation.
  */
 function calculateConfidence(results) {
   if (results.length === 0) return 0;
-  const matchCount = results.filter(r => r.match).length;
-  return Math.round((matchCount / results.length) * 100) / 100;
+  const actionable = results.filter(r => r.severity !== 'info');
+  if (actionable.length === 0) return 0;
+  const matchCount = actionable.filter(r => r.match).length;
+  return Math.round((matchCount / actionable.length) * 100) / 100;
 }
 
 module.exports = {
