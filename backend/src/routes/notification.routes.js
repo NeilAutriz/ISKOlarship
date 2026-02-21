@@ -6,10 +6,10 @@
 const express = require('express');
 const router = express.Router();
 const { Notification } = require('../models/Notification.model');
-const { authenticateToken } = require('../middleware/auth.middleware');
+const { authMiddleware } = require('../middleware/auth.middleware');
 
 // All routes require authentication
-router.use(authenticateToken);
+router.use(authMiddleware);
 
 // =============================================================================
 // GET /api/notifications — List notifications for the current user
