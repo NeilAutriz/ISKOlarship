@@ -57,7 +57,7 @@ const badge = (label, bgColor, textColor) =>
 // Application Status Templates
 // =============================================================================
 
-const applicationApproved = ({ firstName, scholarshipName }) => ({
+const applicationApproved = ({ firstName, scholarshipName = 'a scholarship' }) => ({
   subject: `Congratulations! Your application for ${scholarshipName} has been approved`,
   html: layout('Application Approved', `
     <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
@@ -81,7 +81,7 @@ const applicationApproved = ({ firstName, scholarshipName }) => ({
   `),
 });
 
-const applicationRejected = ({ firstName, scholarshipName, reason }) => ({
+const applicationRejected = ({ firstName, scholarshipName = 'a scholarship', reason = '' }) => ({
   subject: `Update on your ${scholarshipName} application`,
   html: layout('Application Update', `
     <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
@@ -108,7 +108,7 @@ const applicationRejected = ({ firstName, scholarshipName, reason }) => ({
   `),
 });
 
-const applicationUnderReview = ({ firstName, scholarshipName }) => ({
+const applicationUnderReview = ({ firstName, scholarshipName = 'a scholarship' }) => ({
   subject: `Your ${scholarshipName} application is now under review`,
   html: layout('Application Under Review', `
     <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
@@ -131,7 +131,7 @@ const applicationUnderReview = ({ firstName, scholarshipName }) => ({
   `),
 });
 
-const applicationWaitlisted = ({ firstName, scholarshipName }) => ({
+const applicationWaitlisted = ({ firstName, scholarshipName = 'a scholarship' }) => ({
   subject: `Your ${scholarshipName} application has been waitlisted`,
   html: layout('Application Waitlisted', `
     <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
@@ -158,7 +158,7 @@ const applicationWaitlisted = ({ firstName, scholarshipName }) => ({
 // Document Verification Templates
 // =============================================================================
 
-const documentVerified = ({ firstName, documentName }) => ({
+const documentVerified = ({ firstName, documentName = 'a document' }) => ({
   subject: `Your document "${documentName}" has been verified`,
   html: layout('Document Verified', `
     <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
@@ -174,7 +174,7 @@ const documentVerified = ({ firstName, documentName }) => ({
   `),
 });
 
-const documentRejected = ({ firstName, documentName, remarks }) => ({
+const documentRejected = ({ firstName, documentName = 'a document', remarks = '' }) => ({
   subject: `Your document "${documentName}" was not approved`,
   html: layout('Document Not Approved', `
     <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
@@ -201,7 +201,7 @@ const documentRejected = ({ firstName, documentName, remarks }) => ({
   `),
 });
 
-const documentResubmit = ({ firstName, documentName, remarks }) => ({
+const documentResubmit = ({ firstName, documentName = 'a document', remarks = '' }) => ({
   subject: `Resubmission required for "${documentName}"`,
   html: layout('Document Resubmission Required', `
     <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
