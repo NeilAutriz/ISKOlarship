@@ -182,25 +182,31 @@ const getOTPEmailHTML = (otp, firstName) => {
   <title>ISKOlarship - Verification Code</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:40px 20px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.07);">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(37,99,235,0.10),0 2px 8px rgba(0,0,0,0.05);">
+          <tr><td style="background:#1e3a8a;height:4px;font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr>
-            <td style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:32px 32px 24px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Scholarship Management Platform</p>
+            <td style="background:#2563eb;padding:36px 40px 20px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
+              <p style="margin:8px 0 0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:500;">UPLB Scholarship Management Platform</p>
             </td>
           </tr>
           <tr>
-            <td style="padding:32px;">
-              <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
+            <td style="background:#1d4ed8;padding:10px 40px;text-align:center;">
+              <p style="margin:0;color:rgba(255,255,255,0.95);font-size:13px;font-weight:600;letter-spacing:0.5px;">Verification Code</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 28px;">
+              <p style="margin:0 0 8px;color:#1e293b;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
               <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">
                 Use the verification code below to complete your sign-in. This code is valid for <strong>10 minutes</strong>.
               </p>
-              <div style="background:#f8fafc;border:2px dashed #cbd5e1;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
-                <p style="margin:0 0 8px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Your Verification Code</p>
-                <p style="margin:0;color:#1e40af;font-size:36px;font-weight:800;letter-spacing:8px;font-family:'Courier New',monospace;">${otp}</p>
+              <div style="background:#eff6ff;border:2px dashed #bfdbfe;border-radius:12px;padding:28px;text-align:center;margin:0 0 24px;">
+                <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Your Verification Code</p>
+                <p style="margin:0;color:#2563eb;font-size:36px;font-weight:800;letter-spacing:8px;font-family:'Courier New',monospace;">${otp}</p>
               </div>
               <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">
                 If you didn't request this code, you can safely ignore this email.
@@ -208,10 +214,17 @@ const getOTPEmailHTML = (otp, firstName) => {
             </td>
           </tr>
           <tr>
-            <td style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
-              <p style="margin:0;color:#94a3b8;font-size:12px;">
-                &copy; ${new Date().getFullYear()} ISKOlarship &mdash; UPLB Scholarship Platform
-              </p>
+            <td style="background:#f8fafc;padding:24px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="text-align:center;padding-bottom:10px;"><span style="display:inline-block;width:40px;height:2px;background:#2563eb;border-radius:1px;"></span></td></tr>
+                <tr>
+                  <td style="text-align:center;">
+                    <p style="margin:0;color:#94a3b8;font-size:12px;font-weight:500;">
+                      &copy; ${new Date().getFullYear()} ISKOlarship &mdash; UPLB Scholarship Platform
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -232,31 +245,37 @@ const getVerificationEmailHTML = (verifyUrl, firstName) => {
   <title>ISKOlarship - Verify Your Email</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:40px 20px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.07);">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(37,99,235,0.10),0 2px 8px rgba(0,0,0,0.05);">
+          <tr><td style="background:#1e3a8a;height:4px;font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr>
-            <td style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:32px 32px 24px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Scholarship Management Platform</p>
+            <td style="background:#2563eb;padding:36px 40px 20px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
+              <p style="margin:8px 0 0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:500;">UPLB Scholarship Management Platform</p>
             </td>
           </tr>
           <tr>
-            <td style="padding:32px;">
-              <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
+            <td style="background:#1d4ed8;padding:10px 40px;text-align:center;">
+              <p style="margin:0;color:rgba(255,255,255,0.95);font-size:13px;font-weight:600;letter-spacing:0.5px;">Verify Your Email</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 28px;">
+              <p style="margin:0 0 8px;color:#1e293b;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
               <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">
                 Thank you for creating an ISKOlarship account! Please verify your email address by clicking the button below.
               </p>
               <div style="text-align:center;margin:0 0 24px;">
-                <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#1e40af,#3b82f6);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;letter-spacing:0.3px;">
+                <a href="${verifyUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;letter-spacing:0.3px;box-shadow:0 4px 12px rgba(37,99,235,0.25);">
                   Verify Email Address
                 </a>
               </div>
               <p style="margin:0 0 16px;color:#94a3b8;font-size:13px;line-height:1.5;">
                 Or copy and paste this link into your browser:
               </p>
-              <p style="margin:0 0 24px;color:#3b82f6;font-size:12px;word-break:break-all;">
+              <p style="margin:0 0 24px;color:#2563eb;font-size:12px;word-break:break-all;">
                 ${verifyUrl}
               </p>
               <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">
@@ -265,10 +284,17 @@ const getVerificationEmailHTML = (verifyUrl, firstName) => {
             </td>
           </tr>
           <tr>
-            <td style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
-              <p style="margin:0;color:#94a3b8;font-size:12px;">
-                &copy; ${new Date().getFullYear()} ISKOlarship &mdash; UPLB Scholarship Platform
-              </p>
+            <td style="background:#f8fafc;padding:24px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="text-align:center;padding-bottom:10px;"><span style="display:inline-block;width:40px;height:2px;background:#2563eb;border-radius:1px;"></span></td></tr>
+                <tr>
+                  <td style="text-align:center;">
+                    <p style="margin:0;color:#94a3b8;font-size:12px;font-weight:500;">
+                      &copy; ${new Date().getFullYear()} ISKOlarship &mdash; UPLB Scholarship Platform
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
@@ -369,31 +395,37 @@ const getPasswordResetEmailHTML = (resetUrl, firstName) => {
   <title>ISKOlarship - Reset Your Password</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:40px 20px;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:40px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.07);">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(37,99,235,0.10),0 2px 8px rgba(0,0,0,0.05);">
+          <tr><td style="background:#1e3a8a;height:4px;font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr>
-            <td style="background:linear-gradient(135deg,#1e40af,#3b82f6);padding:32px 32px 24px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Scholarship Management Platform</p>
+            <td style="background:#2563eb;padding:36px 40px 20px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
+              <p style="margin:8px 0 0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:500;">UPLB Scholarship Management Platform</p>
             </td>
           </tr>
           <tr>
-            <td style="padding:32px;">
-              <p style="margin:0 0 8px;color:#334155;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
+            <td style="background:#1d4ed8;padding:10px 40px;text-align:center;">
+              <p style="margin:0;color:rgba(255,255,255,0.95);font-size:13px;font-weight:600;letter-spacing:0.5px;">Reset Your Password</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 28px;">
+              <p style="margin:0 0 8px;color:#1e293b;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
               <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">
                 We received a request to reset your password. Click the button below to create a new password.
               </p>
               <div style="text-align:center;margin:0 0 24px;">
-                <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#dc2626,#ef4444);color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;letter-spacing:0.3px;">
+                <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;letter-spacing:0.3px;box-shadow:0 4px 12px rgba(37,99,235,0.25);">
                   Reset Password
                 </a>
               </div>
               <p style="margin:0 0 16px;color:#94a3b8;font-size:13px;line-height:1.5;">
                 Or copy and paste this link into your browser:
               </p>
-              <p style="margin:0 0 24px;color:#3b82f6;font-size:12px;word-break:break-all;">
+              <p style="margin:0 0 24px;color:#2563eb;font-size:12px;word-break:break-all;">
                 ${resetUrl}
               </p>
               <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">
@@ -402,10 +434,17 @@ const getPasswordResetEmailHTML = (resetUrl, firstName) => {
             </td>
           </tr>
           <tr>
-            <td style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
-              <p style="margin:0;color:#94a3b8;font-size:12px;">
-                &copy; ${new Date().getFullYear()} ISKOlarship &mdash; UPLB Scholarship Platform
-              </p>
+            <td style="background:#f8fafc;padding:24px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="text-align:center;padding-bottom:10px;"><span style="display:inline-block;width:40px;height:2px;background:#2563eb;border-radius:1px;"></span></td></tr>
+                <tr>
+                  <td style="text-align:center;">
+                    <p style="margin:0;color:#94a3b8;font-size:12px;font-weight:500;">
+                      &copy; ${new Date().getFullYear()} ISKOlarship &mdash; UPLB Scholarship Platform
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
         </table>
