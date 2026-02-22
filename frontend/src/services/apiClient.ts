@@ -264,6 +264,12 @@ interface PaginatedResponse<T> {
 // ============================================================================
 
 export const authApi = {
+  // Check if email already exists (for early validation during signup)
+  checkEmail: async (email: string) => {
+    const response = await api.post<ApiResponse<{ exists: boolean }>>('/auth/check-email', { email });
+    return response.data;
+  },
+
   register: async (userData: {
     email: string;
     password: string;

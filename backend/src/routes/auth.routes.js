@@ -78,6 +78,51 @@ const generateRefreshToken = (userId) => {
 // =============================================================================
 
 /**
+ * @route   POST /api/auth/check-email
+ * @desc    Check if email already exists (for early validation during signup)
+ * @access  Public
+ */
+router.post('/check-email', [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Valid email is required')
+], async (req, res, next) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
+    const { email } = req.body;
+
+    // Check if user exists
+    const existingUser = await User.findOne({ email });
+    
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email already exists. Please sign in instead.',
+        exists: true
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Email is available',
+      exists: false
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * @route   POST /api/auth/register
  * @desc    Register new user
  * @access  Public

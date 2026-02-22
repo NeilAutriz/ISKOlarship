@@ -266,7 +266,15 @@ const App: React.FC = () => {
   // Handle sign up using backend API
   const handleSignUp = async (email: string, password: string, role: 'student' | 'admin') => {
     try {
-      // For new users, show profile completion first
+      // Check if email already exists BEFORE showing profile completion form
+      const emailCheck = await authApi.checkEmail(email);
+      
+      if (!emailCheck.success) {
+        // Email already exists - notify user immediately
+        throw new Error(emailCheck.message || 'An account with this email already exists. Please sign in instead.');
+      }
+      
+      // Email is available - proceed to profile completion
       // Store password for use in profile completion
       setPendingEmail(email);
       setPendingPassword(password);
@@ -275,7 +283,11 @@ const App: React.FC = () => {
       setShowProfileCompletion(true);
     } catch (error: any) {
       console.error('Sign up error:', error);
-      throw new Error(error.message || 'Registration failed');
+      // Check for 409 status (email exists) from API response
+      if (error.response?.status === 409 || error.message?.includes('already exists')) {
+        throw new Error('An account with this email already exists. Please sign in instead.');
+      }
+      throw new Error(error.response?.data?.message || error.message || 'Registration failed');
     }
   };
 
