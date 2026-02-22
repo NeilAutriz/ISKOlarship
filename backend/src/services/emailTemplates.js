@@ -71,6 +71,12 @@ const layout = (title, bodyHtml) => `
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+const svgCheck = (color) =>
+  `<img src="https://img.icons8.com/fluency-systems-filled/20/${color.replace('#','')}/checkmark.png" width="14" height="14" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;" />`;
+
+const svgX = (color) =>
+  `<img src="https://img.icons8.com/fluency-systems-filled/20/${color.replace('#','')}/multiply.png" width="14" height="14" alt="" style="display:inline-block;vertical-align:middle;margin-right:6px;" />`;
+
 const badge = (label, bgColor, textColor) =>
   `<span style="display:inline-block;padding:8px 20px;border-radius:20px;background:${bgColor};color:${textColor};font-size:13px;font-weight:700;letter-spacing:0.3px;">${label}</span>`;
 
@@ -94,7 +100,7 @@ const applicationApproved = ({ firstName, scholarshipName = 'a scholarship' }) =
     </p>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
       <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Application Status</p>
-      ${badge('✓ Approved', '#dcfce7', '#166534')}
+      ${badge(`${svgCheck('#166534')}Approved`, '#dcfce7', '#166534')}
       <p style="margin:14px 0 0;color:#166534;font-size:15px;font-weight:600;">${scholarshipName}</p>
     </div>
     <p style="margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.6;">
@@ -114,7 +120,7 @@ const applicationRejected = ({ firstName, scholarshipName = 'a scholarship', rea
     </p>
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
       <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Application Status</p>
-      ${badge('Not Approved', '#fee2e2', '#991b1b')}
+      ${badge(`${svgX('#991b1b')}Not Approved`, '#fee2e2', '#991b1b')}
       <p style="margin:14px 0 0;color:#991b1b;font-size:15px;font-weight:600;">${scholarshipName}</p>
     </div>
     ${reason ? `<div style="background:#f8fafc;border-left:4px solid #cbd5e1;padding:12px 16px;margin:0 0 20px;border-radius:0 8px 8px 0;">
@@ -137,7 +143,7 @@ const applicationUnderReview = ({ firstName, scholarshipName = 'a scholarship' }
     </p>
     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
       <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Application Status</p>
-      ${badge('Under Review', '#dbeafe', '#1e40af')}
+      ${badge('&#128269; Under Review', '#dbeafe', '#1e40af')}
       <p style="margin:14px 0 0;color:#1e40af;font-size:15px;font-weight:600;">${scholarshipName}</p>
     </div>
     <p style="margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.6;">
@@ -161,7 +167,7 @@ const documentVerified = ({ firstName, documentName = 'a document' }) => ({
     </p>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
       <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Document Status</p>
-      ${badge('✓ Verified', '#dcfce7', '#166534')}
+      ${badge(`${svgCheck('#166534')}Verified`, '#dcfce7', '#166534')}
       <p style="margin:14px 0 0;color:#166534;font-size:15px;font-weight:600;">${documentName}</p>
     </div>
     <p style="margin:0;color:#94a3b8;font-size:13px;">No further action is needed for this document.</p>
@@ -177,7 +183,7 @@ const documentRejected = ({ firstName, documentName = 'a document', remarks = ''
     </p>
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
       <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Document Status</p>
-      ${badge('Rejected', '#fee2e2', '#991b1b')}
+      ${badge(`${svgX('#991b1b')}Rejected`, '#fee2e2', '#991b1b')}
       <p style="margin:14px 0 0;color:#991b1b;font-size:15px;font-weight:600;">${documentName}</p>
     </div>
     ${remarks ? `<div style="background:#f8fafc;border-left:4px solid #cbd5e1;padding:12px 16px;margin:0 0 20px;border-radius:0 8px 8px 0;">
@@ -200,7 +206,7 @@ const documentResubmit = ({ firstName, documentName = 'a document', remarks = ''
     </p>
     <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
       <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Document Status</p>
-      ${badge('Resubmission Required', '#fef3c7', '#92400e')}
+      ${badge(`&#9888; Resubmission Required`, '#fef3c7', '#92400e')}
       <p style="margin:14px 0 0;color:#92400e;font-size:15px;font-weight:600;">${documentName}</p>
     </div>
     ${remarks ? `<div style="background:#f8fafc;border-left:4px solid #cbd5e1;padding:12px 16px;margin:0 0 20px;border-radius:0 8px 8px 0;">
@@ -223,7 +229,7 @@ const allDocumentsVerified = ({ firstName }) => ({
     </p>
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
       <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Profile Status</p>
-      ${badge('✓ All Documents Verified', '#dcfce7', '#166534')}
+      ${badge(`${svgCheck('#166534')}All Documents Verified`, '#dcfce7', '#166534')}
     </div>
     <p style="margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.6;">
       You're all set! You can now confidently apply for scholarships on ISKOlarship.

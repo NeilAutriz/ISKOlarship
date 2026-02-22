@@ -14,6 +14,8 @@ import {
   Target,
   Zap,
   BookOpen,
+  ScanLine,
+  Bell,
   Users,
   Award,
   TrendingUp,
@@ -424,27 +426,27 @@ const Home: React.FC = () => {
               </p>
             </div>
 
-            {/* Feature 5: Instant Results */}
+            {/* Feature 5: OCR Document Recognition */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-pink-500 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-pink-100 rounded-xl flex items-center justify-center mb-6">
-                <Zap className="w-7 h-7 text-pink-600" />
+                <ScanLine className="w-7 h-7 text-pink-600" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Instant Results</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">OCR Document Recognition</h3>
               <p className="text-slate-600">
-                Lightning-fast search and filtering capabilities deliver scholarship 
-                matches in seconds, not hours.
+                Intelligent optical character recognition automatically extracts and 
+                verifies data from your uploaded documents for faster processing.
               </p>
             </div>
 
-            {/* Feature 6: Resource Center */}
+            {/* Feature 6: Email Notifications */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-cyan-500 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center mb-6">
-                <BookOpen className="w-7 h-7 text-cyan-600" />
+                <Bell className="w-7 h-7 text-cyan-600" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Resource Center</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Email Notifications</h3>
               <p className="text-slate-600">
-                Access comprehensive guides, application tips, and success stories 
-                to maximize your chances.
+                Stay informed with instant email updates on application status changes, 
+                document verifications, and important scholarship deadlines.
               </p>
             </div>
           </div>
