@@ -29,8 +29,8 @@ const FACTOR_GROUPS = [
     icon: 'program'
   },
   {
-    name: 'Application Quality',
-    features: ['documentCompleteness', 'applicationTiming', 'applicationQuality'],
+    name: 'Application Timing',
+    features: ['applicationTiming'],
     icon: 'quality'
   },
   {
@@ -172,8 +172,8 @@ function generateGroupDescription(group, studentProfile, criteria, matchData) {
       return parts.join(' \u00B7 ');
     }
 
-    case 'Application Quality': {
-      return studentProfile.profileCompleted ? 'Profile complete' : 'Profile incomplete';
+    case 'Application Timing': {
+      return 'Based on application submission timing';
     }
 
     case 'Overall Eligibility': {
@@ -233,9 +233,6 @@ function generateFactorDescription(factorName, studentProfile, criteria, matchDa
     case 'citizenshipMatch':
       return `${studentProfile.citizenship || 'Not specified'}`;
 
-    case 'documentCompleteness':
-      return studentProfile.profileCompleted ? 'Profile complete' : 'Profile incomplete';
-
     case 'applicationTiming':
       return 'Based on application submission timing';
 
@@ -250,9 +247,6 @@ function generateFactorDescription(factorName, studentProfile, criteria, matchDa
 
     case 'programFit':
       return 'College and course alignment';
-
-    case 'applicationQuality':
-      return 'Profile completeness and submission timing';
 
     case 'overallFit':
       return 'Eligibility and academic performance overlap';

@@ -200,7 +200,7 @@ const PredictionExplanationModal: React.FC<PredictionExplanationModalProps> = ({
         <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
           
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-primary-600 to-blue-600 text-white px-6 py-5 z-10">
+          <div className="sticky top-0 bg-primary-600 text-white px-6 py-5 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -229,7 +229,7 @@ const PredictionExplanationModal: React.FC<PredictionExplanationModalProps> = ({
               {/* =========================== */}
               {/* SECTION 1: Your Result */}
               {/* =========================== */}
-              <div className="bg-gradient-to-br from-primary-50 via-blue-50 to-indigo-50 rounded-2xl p-6 border border-primary-100">
+              <div className="bg-primary-50 rounded-2xl p-6 border border-primary-100">
                 <div className="flex items-center gap-6">
                   {/* Big Percentage */}
                   <div className={`w-28 h-28 rounded-2xl flex flex-col items-center justify-center ${
@@ -268,14 +268,14 @@ const PredictionExplanationModal: React.FC<PredictionExplanationModalProps> = ({
                       <TrendingUp className="w-4 h-4 text-green-600" />
                       <span className="text-2xl font-bold text-green-600">{positiveFactors.length}</span>
                     </div>
-                    <span className="text-xs text-slate-600">Working for You</span>
+                    <span className="text-xs text-slate-600">Supporting Factors</span>
                   </div>
                   <div className="text-center p-3 bg-white/60 rounded-xl">
                     <div className="flex items-center justify-center gap-1 mb-1">
                       <TrendingDown className="w-4 h-4 text-red-600" />
                       <span className="text-2xl font-bold text-red-600">{negativeFactors.length}</span>
                     </div>
-                    <span className="text-xs text-slate-600">Needs Attention</span>
+                    <span className="text-xs text-slate-600">Reducing Factors</span>
                   </div>
                   <div className="text-center p-3 bg-white/60 rounded-xl">
                     <div className="flex items-center justify-center gap-1 mb-1">
@@ -401,6 +401,35 @@ const PredictionExplanationModal: React.FC<PredictionExplanationModalProps> = ({
                   <BarChart2 className="w-5 h-5 text-primary-600" />
                   <h3 className="text-lg font-bold text-slate-900">Your Factor Details</h3>
                 </div>
+
+                {/* Disclaimer about negative/reducing factors */}
+                {negativeFactors.length > 0 && (
+                  <div className="bg-white rounded-xl overflow-hidden border border-slate-200 mb-4 shadow-sm">
+                    <div className="bg-amber-500 px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <HelpCircle className="w-4 h-4 text-white" />
+                        <h4 className="font-semibold text-white text-sm">Why Are Some Factors Negative?</h4>
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <p className="text-xs text-slate-700 leading-relaxed">
+                        A <strong className="text-slate-900">"reducing factor"</strong> means this aspect of your profile is 
+                        <strong className="text-slate-900"> less commonly seen among previously approved applicants</strong> for this scholarship. 
+                        It does <em>not</em> mean there is anything wrong with your profile.
+                      </p>
+                      <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          <strong className="text-amber-800">Example:</strong> If most approved applicants had a specific income bracket or college, 
+                          different values lower the model's score — but every application is reviewed individually by the committee.
+                        </p>
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5">
+                        <span className="w-1 h-1 bg-primary-500 rounded-full"></span>
+                        This prediction is a statistical estimate, not a final decision.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Factors Working For You */}
                 {positiveFactors.length > 0 && (
@@ -408,7 +437,7 @@ const PredictionExplanationModal: React.FC<PredictionExplanationModalProps> = ({
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-green-200">
                       <TrendingUp className="w-4 h-4 text-green-600" />
                       <h4 className="font-semibold text-green-700">
-                        Factors Working in Your Favor ({positiveFactors.length})
+                        Factors That Increase Your Score ({positiveFactors.length})
                       </h4>
                     </div>
                     <div className="space-y-3">
@@ -423,7 +452,7 @@ const PredictionExplanationModal: React.FC<PredictionExplanationModalProps> = ({
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-red-200">
                       <TrendingDown className="w-4 h-4 text-red-600" />
                       <h4 className="font-semibold text-red-700">
-                        Areas to Consider ({negativeFactors.length})
+                        Factors That Lower Your Score ({negativeFactors.length})
                       </h4>
                     </div>
                     <div className="space-y-3">

@@ -86,8 +86,7 @@ function extractFeatures(user, scholarship) {
     citizenshipMatch = SCORING.NO_RESTRICTION;
   }
   
-  // Document completeness - STANDARDIZED
-  const documentCompleteness = studentProfile.profileCompleted ? SCORING.PROFILE_COMPLETE : SCORING.PROFILE_INCOMPLETE;
+  // Document completeness removed — profile completion is not a meaningful predictor
   
   // Application timing - STANDARDIZED
   const applicationTiming = SCORING.TIMING_DEFAULT;
@@ -100,7 +99,6 @@ function extractFeatures(user, scholarship) {
     collegeMatch,
     courseMatch,
     citizenshipMatch,
-    documentCompleteness,
     applicationTiming,
     yearLevels, // Include for factor generation
     stBrackets  // Include for factor generation
@@ -174,7 +172,6 @@ function getSimplifiedFeatures(user, scholarship) {
     collegeMatch: SCORING.NO_RESTRICTION,
     courseMatch: SCORING.NO_RESTRICTION,
     citizenshipMatch: studentProfile.citizenship === 'Filipino' ? SCORING.MATCH : SCORING.MISMATCH,
-    documentCompleteness: studentProfile.profileCompleted ? SCORING.PROFILE_COMPLETE : SCORING.PROFILE_INCOMPLETE,
     eligibilityScore: 0.5 // Neutral default when criteria unknown
   };
 }

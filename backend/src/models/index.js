@@ -34,6 +34,8 @@ const { TrainedModel } = require('./TrainedModel.model');
 
 const { Notification, NotificationType } = require('./Notification.model');
 
+const { ActivityLog, ActivityAction } = require('./ActivityLog.model');
+
 module.exports = {
   // Models
   User,
@@ -42,6 +44,7 @@ module.exports = {
   PlatformStats,
   TrainedModel,
   Notification,
+  ActivityLog,
   
   // User Enums
   UserRole,
@@ -62,5 +65,8 @@ module.exports = {
   ApplicationStatus,
   
   // Notification Enums
-  NotificationType
+  NotificationType,
+
+  // Activity Log Enums
+  ActivityAction
 };

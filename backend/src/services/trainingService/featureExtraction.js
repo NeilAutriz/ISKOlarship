@@ -169,53 +169,6 @@ function checkCitizenshipMatch(studentCitizenship, eligibleCitizenship) {
 // =============================================================================
 
 /**
- * Calculate document completeness score
- * @param {Object[]} documents - List of uploaded documents
- * @param {Object[]} requiredDocs - List of required documents
- * @returns {number} Completeness score between 0 and 1
- */
-function calculateDocumentCompleteness(documents, requiredDocs) {
-  if (!requiredDocs || requiredDocs.length === 0) return 1.0;
-  if (!documents || documents.length === 0) return 0.0;
-  
-  const uploadedTypes = new Set(documents.map(d => {
-    const docType = d.documentType || d.type || d.name || '';
-    return typeof docType === 'string' ? docType.toLowerCase() : '';
-  }));
-  
-  let matched = 0;
-  let totalRequired = 0;
-  
-  for (const required of requiredDocs) {
-    // Handle both string format and object format {name, description, isRequired}
-    let requiredName = '';
-    let isRequired = true;
-    
-    if (typeof required === 'string') {
-      requiredName = required;
-    } else if (required && typeof required === 'object') {
-      requiredName = required.name || required.documentType || '';
-      isRequired = required.isRequired !== false; // Default to true
-    }
-    
-    if (!requiredName || !isRequired) continue;
-    
-    totalRequired++;
-    const normalizedRequired = requiredName.toLowerCase();
-    
-    // Check if any uploaded doc matches (partial match for flexibility)
-    for (const uploaded of uploadedTypes) {
-      if (uploaded.includes(normalizedRequired) || normalizedRequired.includes(uploaded)) {
-        matched++;
-        break;
-      }
-    }
-  }
-  
-  return totalRequired > 0 ? matched / totalRequired : 1.0;
-}
-
-/**
  * Calculate application timing score
  * @param {Date} applicationDate - Date of application
  * @param {Date} openDate - Application opening date
@@ -249,7 +202,7 @@ function calculateApplicationTiming(applicationDate, openDate, deadlineDate) {
  * Includes interaction features for better predictive power
  * @param {Object} application - Application document
  * @param {Object} scholarship - Scholarship document
- * @returns {Object} Feature vector with 15 features
+ * @returns {Object} Feature vector with 13 features
  */
 function extractFeatures(application, scholarship) {
   const snapshot = application.applicantSnapshot || {};
@@ -263,7 +216,6 @@ function extractFeatures(application, scholarship) {
   const collegeMatch = checkCollegeMatch(snapshot.college, criteria.eligibleColleges);
   const courseMatch = checkCourseMatch(snapshot.course, criteria.eligibleCourses);
   const citizenshipMatch = checkCitizenshipMatch(snapshot.citizenship, criteria.eligibleCitizenship);
-  const documentCompleteness = calculateDocumentCompleteness(application.documents, scholarship?.requiredDocuments);
   const applicationTiming = calculateApplicationTiming(application.createdAt, scholarship?.applicationStartDate, scholarship?.applicationDeadline);
   const eligibilityScore = (application.eligibilityPercentage || 50) / 100;
   
@@ -271,7 +223,6 @@ function extractFeatures(application, scholarship) {
   const academicStrength = gwaScore * yearLevelMatch;
   const financialNeed = incomeMatch * stBracketMatch;
   const programFit = collegeMatch * courseMatch;
-  const applicationQuality = documentCompleteness * applicationTiming;
   const overallFit = eligibilityScore * academicStrength;
   
   return {
@@ -282,14 +233,12 @@ function extractFeatures(application, scholarship) {
     collegeMatch,
     courseMatch,
     citizenshipMatch,
-    documentCompleteness,
     applicationTiming,
     eligibilityScore,
     // Interaction features
     academicStrength,
     financialNeed,
     programFit,
-    applicationQuality,
     overallFit
   };
 }
@@ -299,7 +248,7 @@ function extractFeatures(application, scholarship) {
  * Uses default values for document and timing since no application exists yet
  * @param {Object} user - User document with studentProfile
  * @param {Object} scholarship - Scholarship document
- * @returns {Object} Feature vector with 15 features
+ * @returns {Object} Feature vector with 13 features
  */
 function extractFeaturesFromUserAndScholarship(user, scholarship) {
   const profile = user.studentProfile || {};
@@ -313,7 +262,6 @@ function extractFeaturesFromUserAndScholarship(user, scholarship) {
   const collegeMatch = checkCollegeMatch(profile.college, criteria.eligibleColleges);
   const courseMatch = checkCourseMatch(profile.course, criteria.eligibleCourses);
   const citizenshipMatch = checkCitizenshipMatch(profile.citizenship, criteria.eligibleCitizenship);
-  const documentCompleteness = SCORING_CONFIG.PROFILE_INCOMPLETE; // 0.5 for predictions
   const applicationTiming = SCORING_CONFIG.TIMING_DEFAULT; // 0.5 for predictions
   const eligibilityScore = 0.5; // 0.5 default (neutral)
   
@@ -321,7 +269,6 @@ function extractFeaturesFromUserAndScholarship(user, scholarship) {
   const academicStrength = gwaScore * yearLevelMatch;
   const financialNeed = incomeMatch * stBracketMatch;
   const programFit = collegeMatch * courseMatch;
-  const applicationQuality = documentCompleteness * applicationTiming;
   const overallFit = eligibilityScore * academicStrength;
   
   return {
@@ -332,14 +279,12 @@ function extractFeaturesFromUserAndScholarship(user, scholarship) {
     collegeMatch,
     courseMatch,
     citizenshipMatch,
-    documentCompleteness,
     applicationTiming,
     eligibilityScore,
     // Interaction features
     academicStrength,
     financialNeed,
     programFit,
-    applicationQuality,
     overallFit
   };
 }
@@ -355,7 +300,6 @@ module.exports = {
   checkCourseMatch,
   checkCitizenshipMatch,
   // Score calculation
-  calculateDocumentCompleteness,
   calculateApplicationTiming,
   // Feature extraction
   extractFeatures,

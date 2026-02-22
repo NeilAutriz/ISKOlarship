@@ -5,13 +5,13 @@
 The scholarship likelihood prediction uses **Logistic Regression** — a statistical model that combines multiple student factors into a single probability score (0–100%). The system has two stages:
 
 1. **Rule-Based Filtering** — hard pass/fail eligibility checks
-2. **Logistic Regression** — trained probability prediction using 15 features
+2. **Logistic Regression** — trained probability prediction using 13 features
 
 ---
 
-## The 15 Prediction Features
+## The 13 Prediction Features
 
-### 10 Base Features
+### 9 Base Features
 
 | # | Feature | What It Measures | How It's Scored |
 |---|---------|-----------------|-----------------|
@@ -22,21 +22,19 @@ The scholarship likelihood prediction uses **Logistic Regression** — a statist
 | 5 | **College Match** | Student's college in eligible list? | Match = 0.65, Mismatch = 0.15, No restriction = 0.30 |
 | 6 | **Course Match** | Student's course in eligible list? | Match = 0.65, Mismatch = 0.15, No restriction = 0.30 |
 | 7 | **Citizenship Match** | Meets citizenship requirement? | Match = 0.65, Mismatch = 0.15, No restriction = 0.30 |
-| 8 | **Document Completeness** | Is the student's profile complete? | Complete = 0.60, Incomplete = 0.20 |
-| 9 | **Application Timing** | How early was the application? | 0.20–1.0 based on submission date relative to deadline |
-| 10 | **Eligibility Score** | Fraction of all explicit criteria met | $\text{matched criteria} / \text{total criteria}$ (0–1) |
+| 8 | **Application Timing** | How early was the application? | 0.20–1.0 based on submission date relative to deadline |
+| 9 | **Eligibility Score** | Fraction of all explicit criteria met | $\text{matched criteria} / \text{total criteria}$ (0–1) |
 
-### 5 Interaction Features (Non-Linear Relationships)
+### 4 Interaction Features (Non-Linear Relationships)
 
 These capture how feature *combinations* affect outcomes — something base features alone cannot express.
 
 | # | Feature | Formula | Why It Matters |
 |---|---------|---------|----------------|
-| 11 | **Academic Strength** | `gwaScore × yearLevelMatch` | A high GWA matters more if the student is in an eligible year level |
-| 12 | **Financial Need** | `incomeMatch × stBracketMatch` | Income significance is amplified when paired with the right ST bracket |
-| 13 | **Program Fit** | `collegeMatch × courseMatch` | Being in the right college AND course signals strong program alignment |
-| 14 | **Application Quality** | `documentCompleteness × applicationTiming` | A complete profile submitted early signals a serious applicant |
-| 15 | **Overall Fit** | `eligibilityScore × academicStrength` | How well overall eligibility combines with academic performance |
+| 10 | **Academic Strength** | `gwaScore × yearLevelMatch` | A high GWA matters more if the student is in an eligible year level |
+| 11 | **Financial Need** | `incomeMatch × stBracketMatch` | Income significance is amplified when paired with the right ST bracket |
+| 12 | **Program Fit** | `collegeMatch × courseMatch` | Being in the right college AND course signals strong program alignment |
+| 13 | **Overall Fit** | `eligibilityScore × academicStrength` | How well overall eligibility combines with academic performance |
 
 ---
 
@@ -83,7 +81,7 @@ All use the same three-tier scoring:
 
 ### Initial State (Before Training)
 
-All 15 weights start at **0.1** — completely equal, no built-in bias:
+All 13 weights start at **0.1** — completely equal, no built-in bias:
 
 ```
 gwaScore:            0.1
@@ -91,15 +89,13 @@ yearLevelMatch:      0.1
 incomeMatch:         0.1
 stBracketMatch:      0.1
 collegeMatch:        0.1
-courseMatch:          0.1
+courseMatch:         0.1
 citizenshipMatch:    0.1
-documentCompleteness:0.1
 applicationTiming:   0.1
 eligibilityScore:    0.1
 academicStrength:    0.1
 financialNeed:       0.1
 programFit:          0.1
-applicationQuality:  0.1
 overallFit:          0.1
 bias (intercept):    0.0
 ```
@@ -117,7 +113,6 @@ Example trained weights for "DOST Scholarship":
   collegeMatch:      0.654  ← College matters somewhat
   courseMatch:        0.321  ← Course is less decisive
   citizenshipMatch:  0.112  ← Most applicants are Filipino, so low variance
-  documentCompleteness: 0.445
   applicationTiming: -0.213 ← Late applicants tend to get rejected (negative!)
   eligibilityScore:  1.987  ← Strong overall eligibility predictor
   ...
@@ -149,7 +144,7 @@ If historical data shows that students who apply **late** tend to get rejected m
 #### 2. Data-Driven Discoveries
 Sometimes the model discovers patterns that aren't obvious:
 - A specific `stBracket` being common among rejected applicants
-- `documentCompleteness` being negative if many rejected applicants had complete profiles (the scholarship was just very selective)
+- An interaction feature going negative when its component features have opposing effects
 
 #### 3. Interaction Feature Imbalances
 If `academicStrength` (gwaScore × yearLevelMatch) goes negative, it may mean that for *this particular scholarship*, having both high GWA AND matching year level isn't the deciding factor — other criteria (like financial need) dominate.
@@ -170,7 +165,7 @@ This prevents data artifacts (e.g., a small training set) from producing illogic
 
 ### Prediction
 
-$$z = \text{bias} + \sum_{i=1}^{15} w_i \cdot x_i$$
+$$z = \text{bias} + \sum_{i=1}^{13} w_i \cdot x_i$$
 
 $$P(\text{approved}) = \sigma\!\left(\frac{z}{T}\right) = \frac{1}{1 + e^{-z/T}}$$
 
@@ -204,14 +199,14 @@ Where $c_i$ balances class frequencies so rare approvals aren't drowned out by c
 
 ## Factor Groups (User-Facing)
 
-When displaying predictions to students, the 15 features are grouped into 5 human-readable categories:
+When displaying predictions to students, the 13 features are grouped into 5 human-readable categories:
 
 | Group | Features Included | What Students See |
 |-------|------------------|-------------------|
 | **Academic Standing** | gwaScore, yearLevelMatch, academicStrength | "Your GWA and year level match this scholarship's requirements" |
 | **Financial Need** | incomeMatch, stBracketMatch, financialNeed | "Your financial profile aligns with the scholarship's target recipients" |
 | **Program Match** | collegeMatch, courseMatch, citizenshipMatch, programFit | "Your college and course are eligible for this scholarship" |
-| **Application Quality** | documentCompleteness, applicationTiming, applicationQuality | "Your profile is complete and submitted on time" |
+| **Application Timing** | applicationTiming | "Application submission timing" |
 | **Overall Eligibility** | eligibilityScore, overallFit | "You meet most of the scholarship's stated requirements" |
 
 Each group gets a strength rating (Strong/Moderate/Weak) based on the weighted contribution of its features.
@@ -223,7 +218,7 @@ Each group gets a strength rating (Strong/Moderate/Weak) based on the weighted c
 | Aspect | Detail |
 |--------|--------|
 | **Algorithm** | Logistic Regression with SGD |
-| **Total Features** | 15 (10 base + 5 interaction) |
+| **Total Features** | 13 (9 base + 4 interaction) |
 | **Initial Weights** | All equal at 0.1 |
 | **Training Data** | Historical application decisions (approved/rejected) |
 | **Negative Weights** | Normal — means higher feature value → lower approval chance |

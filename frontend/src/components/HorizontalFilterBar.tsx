@@ -3,7 +3,7 @@
 // Horizontal filter interface for scholarship search (space-efficient)
 // ============================================================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Filter,
   X,
@@ -39,6 +39,29 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
 }) => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Local state for amount inputs — keeps typing smooth, syncs to parent on blur/debounce
+  const [localMinAmount, setLocalMinAmount] = useState<string>(filters.minAmount !== undefined ? String(filters.minAmount) : '');
+  const [localMaxAmount, setLocalMaxAmount] = useState<string>(filters.maxAmount !== undefined ? String(filters.maxAmount) : '');
+
+  // Keep local amount state in sync when parent filters change externally (e.g. clear all)
+  useEffect(() => {
+    setLocalMinAmount(filters.minAmount !== undefined ? String(filters.minAmount) : '');
+  }, [filters.minAmount]);
+  useEffect(() => {
+    setLocalMaxAmount(filters.maxAmount !== undefined ? String(filters.maxAmount) : '');
+  }, [filters.maxAmount]);
+
+  // Commit amount values to parent
+  const commitMinAmount = useCallback(() => {
+    const val = localMinAmount.trim();
+    onFilterChange({ minAmount: val ? parseInt(val) : undefined });
+  }, [localMinAmount, onFilterChange]);
+
+  const commitMaxAmount = useCallback(() => {
+    const val = localMaxAmount.trim();
+    onFilterChange({ maxAmount: val ? parseInt(val) : undefined });
+  }, [localMaxAmount, onFilterChange]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -101,14 +124,8 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
     (filters.maxAmount !== undefined ? 1 : 0) +
     (filters.showEligibleOnly ? 1 : 0);
 
-  // Filter button component
-  const FilterButton: React.FC<{
-    label: string;
-    icon: React.ReactNode;
-    isActive: boolean;
-    count?: number;
-    onClick: () => void;
-  }> = ({ label, icon, isActive, count, onClick }) => (
+  // Render a filter button (plain function returning JSX, NOT a component — avoids remount on re-render)
+  const renderFilterButton = (label: string, icon: React.ReactNode, isActive: boolean, count: number | undefined, onClick: () => void) => (
     <button
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
@@ -128,11 +145,8 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
     </button>
   );
 
-  // Dropdown component
-  const Dropdown: React.FC<{
-    id: string;
-    children: React.ReactNode;
-  }> = ({ id, children }) => {
+  // Render a dropdown panel (plain function returning JSX, NOT a component — prevents input focus loss)
+  const renderDropdown = (id: string, children: React.ReactNode) => {
     if (activeDropdown !== id) return null;
     
     return (
@@ -169,14 +183,8 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
 
         {/* Scholarship Type Filter */}
         <div className="relative">
-          <FilterButton
-            label="Type"
-            icon={<Award className="w-4 h-4" />}
-            isActive={activeDropdown === 'type'}
-            count={filters.scholarshipTypes?.length}
-            onClick={() => setActiveDropdown(activeDropdown === 'type' ? null : 'type')}
-          />
-          <Dropdown id="type">
+          {renderFilterButton("Type", <Award className="w-4 h-4" />, activeDropdown === 'type', filters.scholarshipTypes?.length, () => setActiveDropdown(activeDropdown === 'type' ? null : 'type'))}
+          {renderDropdown("type",
             <div className="space-y-2">
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                 Scholarship Type
@@ -203,19 +211,13 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
                 );
               })}
             </div>
-          </Dropdown>
+          )}
         </div>
 
         {/* Year Level Filter */}
         <div className="relative">
-          <FilterButton
-            label="Year Level"
-            icon={<GraduationCap className="w-4 h-4" />}
-            isActive={activeDropdown === 'year level'}
-            count={filters.yearLevels?.length}
-            onClick={() => setActiveDropdown(activeDropdown === 'year level' ? null : 'year level')}
-          />
-          <Dropdown id="year level">
+          {renderFilterButton("Year Level", <GraduationCap className="w-4 h-4" />, activeDropdown === 'year level', filters.yearLevels?.length, () => setActiveDropdown(activeDropdown === 'year level' ? null : 'year level'))}
+          {renderDropdown("year level",
             <div className="space-y-2">
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                 Year Level
@@ -237,19 +239,13 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
                 </label>
               ))}
             </div>
-          </Dropdown>
+          )}
         </div>
 
         {/* College Filter */}
         <div className="relative">
-          <FilterButton
-            label="College"
-            icon={<Users className="w-4 h-4" />}
-            isActive={activeDropdown === 'college'}
-            count={filters.colleges?.length}
-            onClick={() => setActiveDropdown(activeDropdown === 'college' ? null : 'college')}
-          />
-          <Dropdown id="college">
+          {renderFilterButton("College", <Users className="w-4 h-4" />, activeDropdown === 'college', filters.colleges?.length, () => setActiveDropdown(activeDropdown === 'college' ? null : 'college'))}
+          {renderDropdown("college",
             <div className="space-y-2">
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                 College
@@ -273,19 +269,13 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
                 </label>
               ))}
             </div>
-          </Dropdown>
+          )}
         </div>
 
         {/* Amount Filter */}
         <div className="relative">
-          <FilterButton
-            label="Amount"
-            icon={<DollarSign className="w-4 h-4" />}
-            isActive={activeDropdown === 'amount'}
-            count={(filters.minAmount !== undefined ? 1 : 0) + (filters.maxAmount !== undefined ? 1 : 0)}
-            onClick={() => setActiveDropdown(activeDropdown === 'amount' ? null : 'amount')}
-          />
-          <Dropdown id="amount">
+          {renderFilterButton("Amount", <DollarSign className="w-4 h-4" />, activeDropdown === 'amount', (filters.minAmount !== undefined ? 1 : 0) + (filters.maxAmount !== undefined ? 1 : 0), () => setActiveDropdown(activeDropdown === 'amount' ? null : 'amount'))}
+          {renderDropdown("amount",
             <div className="space-y-3">
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                 Grant Amount Range
@@ -295,10 +285,10 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
                 <input
                   type="number"
                   placeholder="0"
-                  value={filters.minAmount ?? ''}
-                  onChange={(e) => onFilterChange({
-                    minAmount: e.target.value ? parseInt(e.target.value) : undefined
-                  })}
+                  value={localMinAmount}
+                  onChange={(e) => setLocalMinAmount(e.target.value)}
+                  onBlur={commitMinAmount}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitMinAmount(); }}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-uplb-500 focus:border-uplb-500"
                 />
               </div>
@@ -307,15 +297,15 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
                 <input
                   type="number"
                   placeholder="Any"
-                  value={filters.maxAmount ?? ''}
-                  onChange={(e) => onFilterChange({
-                    maxAmount: e.target.value ? parseInt(e.target.value) : undefined
-                  })}
+                  value={localMaxAmount}
+                  onChange={(e) => setLocalMaxAmount(e.target.value)}
+                  onBlur={commitMaxAmount}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitMaxAmount(); }}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-uplb-500 focus:border-uplb-500"
                 />
               </div>
             </div>
-          </Dropdown>
+          )}
         </div>
 
         {/* Spacer */}

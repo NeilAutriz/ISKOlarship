@@ -49,7 +49,6 @@ export const validateTrainedWeights = (
     courseMatch: rawWeights.courseMatch ?? 1.0,
     yearLevelMatch: rawWeights.yearLevelMatch ?? 1.0,
     citizenshipMatch: rawWeights.citizenshipMatch ?? 1.0,
-    documentCompleteness: rawWeights.documentCompleteness ?? 1.0,
     applicationTiming: rawWeights.applicationTiming ?? 1.0
   };
   

@@ -31,7 +31,8 @@ import {
   StudentDashboard, 
   StudentApplications, 
   StudentProfile as StudentProfilePage,
-  ApplyScholarship
+  ApplyScholarship,
+  StudentActivityLog
 } from './pages/student';
 
 // Admin Pages
@@ -40,7 +41,8 @@ import {
   Applicants, 
   AdminScholarships, 
   AdminProfile as AdminProfilePage,
-  AddScholarship
+  AddScholarship,
+  AdminActivityLog
 } from './pages/admin';
 import ScholarshipApplicants from './pages/admin/ScholarshipApplicants';
 import ApplicationReview from './pages/admin/ApplicationReview';
@@ -701,7 +703,7 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
   }, [navigateAfterLogin, navigate, clearNavigateAfterLogin]);
   
   // Student portal routes that should show StudentHeader
-  const studentPortalRoutes = ['/dashboard', '/scholarships', '/my-applications', '/my-profile'];
+  const studentPortalRoutes = ['/dashboard', '/scholarships', '/my-applications', '/my-profile', '/activity-log', '/apply', '/applications'];
   const isStudentPortalRoute = studentPortalRoutes.some(route => location.pathname.startsWith(route));
   
   // Admin portal routes that should show AdminHeader
@@ -767,6 +769,11 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
               <StudentProfilePage />
             </ProtectedRoute>
           } />
+          <Route path="/activity-log" element={
+            <ProtectedRoute requiredRole={UserRole.STUDENT} onRequireAuth={onRequireAuth}>
+              <StudentActivityLog />
+            </ProtectedRoute>
+          } />
           
           {/* Protected Admin Portal Routes */}
           <Route path="/admin/dashboard" element={
@@ -817,6 +824,11 @@ const AppContent: React.FC<AppContentProps> = ({ isAuthenticated, userRole, onOp
           <Route path="/admin/verifications" element={
             <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
               <DocumentVerification />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/activity-logs" element={
+            <ProtectedRoute requiredRole={UserRole.ADMIN} onRequireAuth={onRequireAuth}>
+              <AdminActivityLog />
             </ProtectedRoute>
           } />
           

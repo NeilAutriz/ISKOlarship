@@ -9,13 +9,11 @@
  * Training and prediction MUST use identical values.
  */
 const SCORING = {
-  MATCH: 0.65,
-  MISMATCH: 0.15,
-  NO_RESTRICTION: 0.3,
+  MATCH: 0.75,
+  MISMATCH: 0.25,
+  NO_RESTRICTION: 0.5,
   UNKNOWN: 0.50,
-  PROFILE_COMPLETE: 0.60,
-  PROFILE_INCOMPLETE: 0.20,
-  TIMING_DEFAULT: 0.30
+  TIMING_DEFAULT: 0.5
 };
 
 /**
@@ -25,11 +23,11 @@ const FEATURE_NAMES = {
   base: [
     'gwaScore', 'yearLevelMatch', 'incomeMatch', 'stBracketMatch',
     'collegeMatch', 'courseMatch', 'citizenshipMatch',
-    'documentCompleteness', 'applicationTiming', 'eligibilityScore'
+    'applicationTiming', 'eligibilityScore'
   ],
   interaction: [
     'academicStrength', 'financialNeed', 'programFit',
-    'applicationQuality', 'overallFit'
+    'overallFit'
   ],
   get all() { return [...this.base, ...this.interaction]; }
 };
@@ -45,13 +43,11 @@ const FACTOR_LABELS = {
   collegeMatch: 'College',
   courseMatch: 'Course',
   citizenshipMatch: 'Citizenship',
-  documentCompleteness: 'Profile Completeness',
   applicationTiming: 'Application Timing',
   eligibilityScore: 'Eligibility Score',
   academicStrength: 'Academic Strength',
   financialNeed: 'Financial Need',
   programFit: 'Program Fit',
-  applicationQuality: 'Application Quality',
   overallFit: 'Overall Fit'
 };
 
@@ -66,7 +62,6 @@ const FEATURE_DESCRIPTIONS = {
   collegeMatch: 'Whether student college is eligible',
   courseMatch: 'Whether student course is eligible',
   citizenshipMatch: 'Whether citizenship meets requirements',
-  documentCompleteness: 'Profile and document completion status',
   applicationTiming: 'Application submission timing',
   eligibilityScore: 'Overall eligibility criteria match percentage'
 };
@@ -82,13 +77,11 @@ const FEATURE_DISPLAY_NAMES = {
   collegeMatch: 'College Match',
   courseMatch: 'Course Match',
   citizenshipMatch: 'Citizenship Match',
-  documentCompleteness: 'Document Completeness',
   applicationTiming: 'Application Timing',
   eligibilityScore: 'Eligibility Score',
   academicStrength: 'Academic Strength',
   financialNeed: 'Financial Need',
   programFit: 'Program Fit',
-  applicationQuality: 'Application Quality',
   overallFit: 'Overall Fit'
 };
 
@@ -99,7 +92,7 @@ const FEATURE_CATEGORIES = {
   academic: ['gwaScore', 'yearLevelMatch'],
   financial: ['incomeMatch', 'stBracketMatch'],
   eligibility: ['collegeMatch', 'courseMatch', 'citizenshipMatch'],
-  application: ['documentCompleteness', 'applicationTiming', 'eligibilityScore']
+  application: ['applicationTiming', 'eligibilityScore']
 };
 
 /**
@@ -115,7 +108,7 @@ const MODEL_CONFIG = {
     'Academic Performance': ['gwaScore', 'yearLevelMatch'],
     'Financial Need': ['incomeMatch', 'stBracketMatch'],
     'Eligibility': ['collegeMatch', 'courseMatch', 'citizenshipMatch'],
-    'Application Quality': ['documentCompleteness', 'eligibilityScore']
+    'Application Quality': ['eligibilityScore']
   },
 
   // Human-readable feature descriptions

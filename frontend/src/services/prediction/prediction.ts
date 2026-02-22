@@ -328,8 +328,7 @@ export const predictWithDynamicWeights = (
     citizenshipMatch = SCORING.NO_RESTRICTION;
   }
     
-  // Document completeness - STANDARDIZED SCORING
-  const documentCompleteness = student.profileCompleted ? SCORING.PROFILE_COMPLETE : SCORING.PROFILE_INCOMPLETE;
+  // Document completeness removed — not a meaningful predictor
   
   // Application timing - STANDARDIZED SCORING
   const applicationTiming = SCORING.TIMING_DEFAULT;
@@ -371,7 +370,6 @@ export const predictWithDynamicWeights = (
     weights.collegeMatch * collegeMatch +
     weights.courseMatch * courseMatch +
     weights.citizenshipMatch * citizenshipMatch +
-    weights.documentCompleteness * documentCompleteness +
     weights.eligibilityScore * eligibilityScore;
   
   // Temperature scaling to spread predictions (matches backend PREDICTION_TEMPERATURE)

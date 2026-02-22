@@ -125,13 +125,11 @@ const ModelTraining: React.FC = () => {
     collegeMatch: 'College Match',
     courseMatch: 'Course Match',
     citizenshipMatch: 'Citizenship',
-    documentCompleteness: 'Documents',
     applicationTiming: 'Timing',
     eligibilityScore: 'Overall Eligibility',
     academicStrength: 'GWA & Year Level Effect',
     financialNeed: 'Income & Bracket Effect',
     programFit: 'College & Course Effect',
-    applicationQuality: 'Completeness & Timing Effect',
     overallFit: 'Overall Fit Effect'
   };
 

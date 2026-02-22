@@ -23,6 +23,7 @@ const {
 const { TrainedModel } = require('../models/TrainedModel.model');
 const { Scholarship } = require('../models/Scholarship.model');
 const { Application } = require('../models');
+const { logModelTrain, logModelTrainAll } = require('../services/activityLog.service');
 
 // =============================================================================
 // Training Endpoints
@@ -37,6 +38,9 @@ router.post('/train', authMiddleware, requireRole('admin'), requireAdminLevel('u
   try {
     
     const result = await trainGlobalModel(req.user._id);
+
+    // Log model training (fire-and-forget)
+    logModelTrain(req.user, 'Global Model', result.metrics, req.ip);
     
     res.json({
       success: true,
@@ -80,6 +84,9 @@ router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async
     }
     
     const result = await trainScholarshipModel(scholarshipId, req.user._id);
+
+    // Log model training (fire-and-forget)
+    logModelTrain(req.user, result.scholarship?.name || scholarship.title || 'Unknown', result.metrics, req.ip);
     
     res.json({
       success: true,
@@ -112,6 +119,9 @@ router.post('/train-all', authMiddleware, requireRole('admin'), requireAdminLeve
     
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
+
+    // Log batch training (fire-and-forget)
+    logModelTrainAll(req.user, successful, failed, req.ip);
     
     res.json({
       success: true,

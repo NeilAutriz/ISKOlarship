@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const { User, UserRole } = require('../models');
 const { authMiddleware, optionalAuth } = require('../middleware/auth.middleware');
 const { generateOTP, sendOTPEmail, sendVerificationEmail, sendPasswordResetEmail } = require('../services/email.service');
+const { logLogin, logRegister } = require('../services/activityLog.service');
 
 // =============================================================================
 // Validation Rules
@@ -167,6 +168,9 @@ router.post('/register', registerValidation, async (req, res, next) => {
       sendVerificationEmail(user.email, verifyToken, user.firstName || userData.firstName)
         .catch(err => console.error('Failed to send verification email (non-critical):', err.message));
     }).catch(err => console.error('Failed to save verification token:', err.message));
+
+    // Log registration activity (fire-and-forget)
+    logRegister(user, req.ip);
 
     res.status(201).json({
       success: true,
@@ -349,6 +353,9 @@ router.post('/verify-otp', [
     freshUser.refreshTokens.push({ token: refreshToken });
     freshUser.lastLoginAt = new Date();
     await freshUser.save();
+
+    // Log login activity (fire-and-forget)
+    logLogin(freshUser, req.ip);
 
     res.json({
       success: true,

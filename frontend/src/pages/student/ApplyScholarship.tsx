@@ -107,6 +107,35 @@ const ApplyScholarship: React.FC = () => {
         let scholarshipId = id; // From URL param (create mode)
         let applicationData: any = null;
 
+        // In CREATE mode, check if user already has an active application for this scholarship
+        if (!isEditMode && scholarshipId) {
+          try {
+            const checkResponse = await applicationApi.checkExisting(scholarshipId);
+            if (checkResponse.success && checkResponse.data?.exists && checkResponse.data.applicationId) {
+              const existingStatus = checkResponse.data.status;
+              const existingAppId = checkResponse.data.applicationId;
+
+              if (existingStatus === 'draft') {
+                // Draft exists — redirect to edit mode so user can continue filling it out
+                if (isMounted) {
+                  navigate(`/applications/${existingAppId}/edit`, { replace: true });
+                }
+                return; // Stop loading, navigation will unmount component
+              } else {
+                // Active non-draft application exists (submitted, under_review, etc.)
+                if (isMounted) {
+                  showToast('You already have an active application for this scholarship.', 'info');
+                  navigate('/my-applications', { replace: true });
+                }
+                return;
+              }
+            }
+          } catch (checkErr: any) {
+            // If the check endpoint fails, continue with normal flow — the POST will catch duplicates
+            console.warn('Could not check for existing application:', checkErr);
+          }
+        }
+
         // In edit mode, first load the existing application
         if (isEditMode && applicationId) {
           const appResponse = await applicationApi.getById(applicationId);
@@ -507,7 +536,17 @@ const ApplyScholarship: React.FC = () => {
         const response = await applicationApi.update(applicationId!, formDataToSend);
 
         if (response.success) {
-          showToast('Application updated successfully!', 'success');
+          // If the application was a draft, also submit it to change status from draft to submitted
+          if (existingApplication?.status === 'draft') {
+            const submitResponse = await applicationApi.submit(applicationId!);
+            if (submitResponse.success) {
+              showToast('Application submitted successfully!', 'success');
+            } else {
+              showToast('Application updated but not submitted. Please submit it from your applications page.', 'info');
+            }
+          } else {
+            showToast('Application updated successfully!', 'success');
+          }
           setTimeout(() => {
             navigate('/my-applications');
           }, 2000);
@@ -562,20 +601,28 @@ const ApplyScholarship: React.FC = () => {
             navigate('/my-applications');
           }, 2000);
         } else {
-          // Check if it's a 409 error (already applied)
-          if (response.message?.includes('already applied')) {
-            showToast('You have already applied for this scholarship', 'error');
-            setTimeout(() => {
-              navigate('/my-applications');
-            }, 2000);
-          } else {
-            throw new Error(response.message || 'Failed to submit application');
-          }
+          throw new Error(response.message || 'Failed to submit application');
         }
       }
 
     } catch (err: any) {
-      showToast(err.message || 'Failed to submit application', 'error');
+      // Handle 409 Conflict — user already has an active application for this scholarship
+      if (err.response?.status === 409) {
+        const existingAppId = err.response?.data?.data?.applicationId;
+        if (existingAppId) {
+          showToast('You already have an application for this scholarship. Redirecting to edit...', 'info');
+          setTimeout(() => {
+            navigate(`/applications/${existingAppId}/edit`);
+          }, 1500);
+        } else {
+          showToast('You already have an active application for this scholarship', 'error');
+          setTimeout(() => {
+            navigate('/my-applications');
+          }, 2000);
+        }
+        return;
+      }
+      showToast(err.response?.data?.message || err.message || 'Failed to submit application', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -1281,12 +1328,12 @@ const ApplyScholarship: React.FC = () => {
                       {submitting ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          {isEditMode ? 'Updating...' : 'Submitting...'}
+                          {isEditMode && existingApplication?.status !== 'draft' ? 'Updating...' : 'Submitting...'}
                         </>
                       ) : (
                         <>
                           <Check className="w-4 h-4" />
-                          {isEditMode ? 'Update Application' : 'Submit Application'}
+                          {isEditMode && existingApplication?.status !== 'draft' ? 'Update Application' : 'Submit Application'}
                         </>
                       )}
                     </button>

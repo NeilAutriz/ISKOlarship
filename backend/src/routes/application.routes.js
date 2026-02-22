@@ -20,6 +20,7 @@ const {
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
 const { onApplicationDecision } = require('../services/autoTraining.service');
 const { notifyApplicationStatusChange } = require('../services/notification.service');
+const { logApplicationCreate, logApplicationSubmit, logApplicationWithdraw, logApplicationStatusChange } = require('../services/activityLog.service');
 
 // =============================================================================
 // Validation Rules
@@ -182,6 +183,43 @@ router.get('/my/stats', authMiddleware, async (req, res, next) => {
 });
 
 /**
+ * @route   GET /api/applications/check/:scholarshipId
+ * @desc    Check if user has an existing active application for a scholarship
+ * @access  Private (Student)
+ */
+router.get('/check/:scholarshipId',
+  authMiddleware,
+  [param('scholarshipId').isMongoId()],
+  async (req, res, next) => {
+    try {
+      const existingApp = await Application.findOne({
+        applicant: req.user._id,
+        scholarship: req.params.scholarshipId,
+        status: { $nin: ['withdrawn', 'rejected'] }
+      }).select('_id status createdAt updatedAt');
+
+      if (existingApp) {
+        return res.json({
+          success: true,
+          data: {
+            exists: true,
+            applicationId: existingApp._id,
+            status: existingApp.status
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { exists: false }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * @route   POST /api/applications
  * @desc    Create new application
  * @access  Private (Student)
@@ -235,18 +273,22 @@ router.post('/',
         });
       }
 
-      // Check for existing application
+      // Check for existing application (any status) for this applicant+scholarship pair
       const existingApp = await Application.findOne({
         applicant: req.user._id,
         scholarship: scholarshipId
       });
 
       if (existingApp) {
-        return res.status(409).json({
-          success: false,
-          message: 'You have already applied for this scholarship',
-          data: { applicationId: existingApp._id }
-        });
+        // If existing app is active (not withdrawn/rejected), block with 409
+        if (existingApp.status !== 'withdrawn' && existingApp.status !== 'rejected') {
+          return res.status(409).json({
+            success: false,
+            message: 'You already have an active application for this scholarship',
+            data: { applicationId: existingApp._id }
+          });
+        }
+        // If withdrawn/rejected, we'll reuse this document (reset it) below
       }
 
       // Check eligibility
@@ -341,54 +383,97 @@ router.post('/',
       const hasCertificateOfRegistration = processedDocuments.some(d => d.documentType === 'certificate_of_registration');
       const hasGradeReport = processedDocuments.some(d => d.documentType === 'grade_report');
 
-      // Create application
-      const application = new Application({
-        applicant: req.user._id,
-        scholarship: scholarshipId,
-        personalStatement,
-        additionalInfo,
-        documents: processedDocuments,
-        hasTranscript,
-        hasIncomeCertificate,
-        hasCertificateOfRegistration,
-        hasGradeReport,
-        applicantSnapshot,
-        // Parse and store custom field answers
-        customFieldAnswers: (() => {
-          if (customFieldAnswers) {
-            try {
-              const parsed = JSON.parse(customFieldAnswers);
-              // Store as plain object instead of Map for better serialization
-              return parsed;
-            } catch (e) {
-              console.error('❌ Error parsing customFieldAnswers:', e);
-              return {};
-            }
+      // Parse custom field answers
+      const parsedCustomFieldAnswers = (() => {
+        if (customFieldAnswers) {
+          try {
+            return JSON.parse(customFieldAnswers);
+          } catch (e) {
+            console.error('❌ Error parsing customFieldAnswers:', e);
+            return {};
           }
-          return {};
-        })(),
-        eligibilityChecks: eligibilityResult.checks,
-        passedAllEligibilityCriteria: eligibilityResult.passed,
-        eligibilityPercentage: eligibilityResult.score,
-        criteriaPassed: eligibilityResult.passed ? eligibilityResult.checks.length : eligibilityResult.checks.filter(c => c.passed).length,
-        criteriaTotal: eligibilityResult.checks.length,
-        academicYear: scholarship.academicYear,
-        semester: scholarship.semester,
-        statusHistory: [{
+        }
+        return {};
+      })();
+
+      let application;
+
+      // Re-apply: reuse existing withdrawn/rejected application document (unique index on applicant+scholarship)
+      if (existingApp && (existingApp.status === 'withdrawn' || existingApp.status === 'rejected')) {
+        existingApp.personalStatement = personalStatement;
+        existingApp.additionalInfo = additionalInfo;
+        existingApp.documents = processedDocuments;
+        existingApp.hasTranscript = hasTranscript;
+        existingApp.hasIncomeCertificate = hasIncomeCertificate;
+        existingApp.hasCertificateOfRegistration = hasCertificateOfRegistration;
+        existingApp.hasGradeReport = hasGradeReport;
+        existingApp.applicantSnapshot = applicantSnapshot;
+        existingApp.customFieldAnswers = parsedCustomFieldAnswers;
+        existingApp.eligibilityChecks = eligibilityResult.checks;
+        existingApp.passedAllEligibilityCriteria = eligibilityResult.passed;
+        existingApp.eligibilityPercentage = eligibilityResult.score;
+        existingApp.criteriaPassed = eligibilityResult.passed ? eligibilityResult.checks.length : eligibilityResult.checks.filter(c => c.passed).length;
+        existingApp.criteriaTotal = eligibilityResult.checks.length;
+        existingApp.academicYear = scholarship.academicYear;
+        existingApp.semester = scholarship.semester;
+        existingApp.status = ApplicationStatus.DRAFT;
+        existingApp.statusHistory.push({
           status: ApplicationStatus.DRAFT,
           changedBy: req.user._id,
           changedAt: new Date(),
-          notes: 'Application created'
-        }]
-      });
+          notes: 'Re-application after ' + (existingApp.statusHistory?.slice(-1)?.[0]?.status || 'previous') + ' — application reset'
+        });
 
-      // Run prediction if eligible
-      if (eligibilityResult.passed) {
-        const prediction = await runPrediction(req.user, scholarship);
-        application.prediction = prediction;
+        // Re-run prediction if eligible
+        if (eligibilityResult.passed) {
+          const prediction = await runPrediction(req.user, scholarship);
+          existingApp.prediction = prediction;
+        } else {
+          existingApp.prediction = undefined;
+        }
+
+        await existingApp.save();
+        application = existingApp;
+      } else {
+        // First-time application: create new document
+        application = new Application({
+          applicant: req.user._id,
+          scholarship: scholarshipId,
+          personalStatement,
+          additionalInfo,
+          documents: processedDocuments,
+          hasTranscript,
+          hasIncomeCertificate,
+          hasCertificateOfRegistration,
+          hasGradeReport,
+          applicantSnapshot,
+          customFieldAnswers: parsedCustomFieldAnswers,
+          eligibilityChecks: eligibilityResult.checks,
+          passedAllEligibilityCriteria: eligibilityResult.passed,
+          eligibilityPercentage: eligibilityResult.score,
+          criteriaPassed: eligibilityResult.passed ? eligibilityResult.checks.length : eligibilityResult.checks.filter(c => c.passed).length,
+          criteriaTotal: eligibilityResult.checks.length,
+          academicYear: scholarship.academicYear,
+          semester: scholarship.semester,
+          statusHistory: [{
+            status: ApplicationStatus.DRAFT,
+            changedBy: req.user._id,
+            changedAt: new Date(),
+            notes: 'Application created'
+          }]
+        });
+
+        // Run prediction if eligible
+        if (eligibilityResult.passed) {
+          const prediction = await runPrediction(req.user, scholarship);
+          application.prediction = prediction;
+        }
+
+        await application.save();
       }
 
-      await application.save();
+      // Log application creation (fire-and-forget)
+      logApplicationCreate(req.user, application, scholarship.title || scholarship.name, req.ip);
       
       res.status(201).json({
         success: true,
@@ -1066,6 +1151,10 @@ router.post('/:id/submit',
 
       await application.save();
 
+      // Log application submission (fire-and-forget)
+      const scholarship = await Scholarship.findById(application.scholarship).lean();
+      logApplicationSubmit(req.user, application, scholarship?.title || scholarship?.name || 'Unknown', req.ip);
+
       res.json({
         success: true,
         message: 'Application submitted successfully',
@@ -1125,6 +1214,10 @@ router.post('/:id/withdraw',
       );
 
       await application.save();
+
+      // Log withdrawal (fire-and-forget)
+      const withdrawScholarship = await Scholarship.findById(application.scholarship).lean();
+      logApplicationWithdraw(req.user, application, withdrawScholarship?.title || withdrawScholarship?.name || 'Unknown', req.ip);
 
       res.json({
         success: true,
@@ -1225,6 +1318,15 @@ router.put('/:id/status',
         status,
         application.scholarship?.name || application.scholarship?.title || 'a scholarship',
         reason
+      );
+
+      // Log admin action (fire-and-forget)
+      logApplicationStatusChange(
+        req.user,
+        application,
+        application.scholarship?.name || application.scholarship?.title || 'Unknown',
+        status,
+        req.ip
       );
 
       res.json({

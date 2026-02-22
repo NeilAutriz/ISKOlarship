@@ -43,7 +43,6 @@ async function predictAsync(user, scholarship) {
     collegeMatch,
     courseMatch,
     citizenshipMatch,
-    documentCompleteness,
     applicationTiming,
     yearLevels,
     stBrackets
@@ -71,14 +70,12 @@ async function predictAsync(user, scholarship) {
     collegeMatch,
     courseMatch,
     citizenshipMatch,
-    documentCompleteness,
     applicationTiming,
     eligibilityScore,
     // Interaction features (same formulas as trainingService/featureExtraction.js)
     academicStrength: gwaScore * yearLevelMatch,
     financialNeed: incomeMatch * stBracketMatch,
     programFit: collegeMatch * courseMatch,
-    applicationQuality: documentCompleteness * applicationTiming,
     overallFit: eligibilityScore * (gwaScore * yearLevelMatch)
   };
   

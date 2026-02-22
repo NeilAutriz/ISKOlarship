@@ -26,14 +26,12 @@ function initializeWeights(scholarshipType = null) {
     collegeMatch: INITIAL_VALUE,
     courseMatch: INITIAL_VALUE,
     citizenshipMatch: INITIAL_VALUE,
-    documentCompleteness: INITIAL_VALUE,
     applicationTiming: INITIAL_VALUE,
     eligibilityScore: INITIAL_VALUE,
     // Interaction features - all equal
     academicStrength: INITIAL_VALUE,
     financialNeed: INITIAL_VALUE,
     programFit: INITIAL_VALUE,
-    applicationQuality: INITIAL_VALUE,
     overallFit: INITIAL_VALUE
   };
   

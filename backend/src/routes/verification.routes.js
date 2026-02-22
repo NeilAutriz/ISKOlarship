@@ -14,6 +14,7 @@ const { isOcrAvailable, getVisionClient } = require('../services/ocrVerification
 const { extractFields, SKIP_TYPES } = require('../services/ocrExtractors');
 const { compareFields, determineOverallMatch, calculateConfidence } = require('../services/ocrExtractors/comparison');
 const { notifyDocumentStatusChange, notifyAllDocumentsVerified } = require('../services/notification.service');
+const { logDocumentVerification, logDocumentVerifyAll } = require('../services/activityLog.service');
 
 // All verification routes require admin authentication
 router.use(authMiddleware);
@@ -348,6 +349,9 @@ router.put('/students/:studentId/documents/:docId', async (req, res) => {
       notifyAllDocumentsVerified(student._id.toString(), student.studentProfile?.documents);
     }
 
+    // Log document verification action (fire-and-forget)
+    logDocumentVerification(req.user, student._id, doc.name || doc.documentType, status, req.ip);
+
     res.json({
       success: true,
       message: `Document ${status}`,
@@ -422,6 +426,9 @@ router.put('/students/:studentId/verify-all', async (req, res) => {
         notifyDocumentStatusChange(student._id.toString(), status, `${updated} document(s)`, remarks);
       }
     }
+
+    // Log batch verification (fire-and-forget)
+    logDocumentVerifyAll(req.user, student._id, updated, status, req.ip);
 
     res.json({
       success: true,
@@ -1135,6 +1142,9 @@ router.put('/admin/admins/:adminId/documents/:docId', async (req, res) => {
       notifyAllDocumentsVerified(target._id.toString(), target.adminProfile?.documents);
     }
 
+    // Log admin document verification (fire-and-forget)
+    logDocumentVerification(req.user, target._id, doc.name || doc.documentType, status, req.ip);
+
     res.json({
       success: true,
       message: `Admin document ${status}`,
@@ -1205,6 +1215,9 @@ router.put('/admin/admins/:adminId/verify-all', async (req, res) => {
         notifyDocumentStatusChange(target._id.toString(), status, `${updated} document(s)`, remarks);
       }
     }
+
+    // Log admin batch verification (fire-and-forget)
+    logDocumentVerifyAll(req.user, target._id, updated, status, req.ip);
 
     res.json({
       success: true,

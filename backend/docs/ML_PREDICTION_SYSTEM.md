@@ -59,7 +59,6 @@ When a student views a scholarship, the system extracts these features:
 | `collegeMatch` | Is student's college eligible? | 1.0 | 0.85 | 0.95 |
 | `courseMatch` | Is student's course eligible? | 1.0 | 0.85 | 0.95 |
 | `citizenshipMatch` | Does citizenship qualify? | 1.0 | 0.85 | 0.95 |
-| `documentCompleteness` | Is profile complete? | 1.0 (complete) | 0.9 (incomplete) | - |
 | `applicationTiming` | Application timing score | 0.9 (default) | - | - |
 | `eligibilityScore` | % of criteria met | 0.7 + (raw × 0.3) → 0.7-1.0 | - | - |
 
@@ -71,8 +70,6 @@ SCORING = {
   MISMATCH: 0.85,       // Feature doesn't match (small penalty)
   NO_RESTRICTION: 0.95, // No requirement specified
   UNKNOWN: 0.85,        // Value not provided by student
-  PROFILE_COMPLETE: 1.0,
-  PROFILE_INCOMPLETE: 0.9,
   TIMING_DEFAULT: 0.9,
   ELIGIBILITY_FLOOR: 0.7,
   ELIGIBILITY_RANGE: 0.3,
@@ -189,7 +186,6 @@ TrainedModel {
     collegeMatch: 1.654,         // Learned from data
     courseMatch: 1.432,          // Learned from data
     citizenshipMatch: 0.876,     // Learned from data
-    documentCompleteness: 1.987, // Learned from data
     applicationTiming: 0.654,    // Learned from data
     eligibilityScore: 2.345,     // Learned from data
     // Interaction features...

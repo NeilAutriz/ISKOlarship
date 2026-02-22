@@ -116,24 +116,6 @@ const formatDate = (date: Date | string | undefined): string => {
   });
 };
 
-// Define all available permissions with their display info
-const allPermissions = [
-  { key: 'manage_scholarships', name: 'Manage Scholarships', description: 'Create, edit, and delete scholarship programs' },
-  { key: 'review_applications', name: 'Review Applications', description: 'Approve or reject student applications' },
-  { key: 'approve_applications', name: 'Approve Applications', description: 'Final approval authority for applications' },
-  { key: 'manage_users', name: 'Manage Users', description: 'Add, edit, and remove user accounts' },
-  { key: 'view_analytics', name: 'View Analytics', description: 'Access platform analytics and reports' },
-  { key: 'system_settings', name: 'System Settings', description: 'Configure platform settings' },
-];
-
-// Helper function to get permissions display list based on user's actual permissions
-const getPermissionsDisplay = (userPermissions: string[] = []) => {
-  return allPermissions.map(permission => ({
-    ...permission,
-    enabled: userPermissions.includes(permission.key)
-  }));
-};
-
 // Verification status display helper
 const getVerificationDisplay = (status?: string) => {
   switch (status) {
@@ -149,7 +131,7 @@ const getVerificationDisplay = (status?: string) => {
 };
 
 const AdminProfile: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<'profile' | 'permissions' | 'security' | 'documents'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'security' | 'documents'>('profile');
   const [admin, setAdmin] = useState<AdminProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +139,6 @@ const AdminProfile: React.FC = () => {
   const [editFormData, setEditFormData] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [editPermissions, setEditPermissions] = useState<string[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<any>(null);
@@ -387,7 +368,6 @@ const AdminProfile: React.FC = () => {
                     fullAddress: ap?.address?.fullAddress || ''
                   }
                 });
-                setEditPermissions(ap?.permissions || []);
                 setIsEditModalOpen(true);
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-600 font-semibold rounded-xl hover:bg-white/90 transition-all shadow-lg"
@@ -431,7 +411,6 @@ const AdminProfile: React.FC = () => {
               <nav className="space-y-1">
                 {[
                   { id: 'profile', label: 'Profile Info', icon: User },
-                  { id: 'permissions', label: 'Permissions', icon: Shield },
                   { id: 'security', label: 'Security', icon: Lock },
                   { id: 'documents', label: 'Documents', icon: FileText },
                 ].map((item) => (
@@ -519,43 +498,6 @@ const AdminProfile: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* Permissions */}
-            {activeSection === 'permissions' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gold-100 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-gold-600" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-slate-900">Permissions & Access</h2>
-                    <p className="text-sm text-slate-500">Your account permissions based on your role</p>
-                  </div>
-                </div>
-                <div className="p-6 space-y-4">
-                  {getPermissionsDisplay(ap?.permissions || []).map((permission, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg ${permission.enabled ? 'bg-green-100' : 'bg-slate-100'} flex items-center justify-center`}>
-                          {permission.enabled ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <AlertCircle className="w-5 h-5 text-slate-400" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-medium text-slate-900">{permission.name}</div>
-                          <div className="text-sm text-slate-500">{permission.description}</div>
-                        </div>
-                      </div>
-                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${permission.enabled ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-600'}`}>
-                        {permission.enabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}
@@ -1018,47 +960,7 @@ const AdminProfile: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Permissions */}
-                <div>
-                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary-600" />
-                    Permissions & Access
-                  </h4>
-                  <div className="space-y-3">
-                    {[
-                      { value: 'manage_scholarships', label: 'Manage Scholarships', description: 'Create, edit, and delete scholarship programs' },
-                      { value: 'review_applications', label: 'Review Applications', description: 'View and review student applications' },
-                      { value: 'approve_applications', label: 'Approve Applications', description: 'Approve or reject applications' },
-                      { value: 'manage_users', label: 'Manage Users', description: 'Add, edit, and remove user accounts' },
-                      { value: 'view_analytics', label: 'View Analytics', description: 'Access platform analytics and reports' },
-                      { value: 'system_settings', label: 'System Settings', description: 'Configure platform settings' },
-                    ].map((permission) => (
-                      <div key={permission.value} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                        <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            id={permission.value}
-                            checked={editPermissions.includes(permission.value)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setEditPermissions([...editPermissions, permission.value]);
-                              } else {
-                                setEditPermissions(editPermissions.filter(p => p !== permission.value));
-                              }
-                            }}
-                            className="mt-0.5 w-5 h-5 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
-                          />
-                          <div className="flex-1">
-                            <label htmlFor={permission.value} className="text-sm font-semibold text-slate-900 block mb-1 cursor-pointer">
-                              {permission.label}
-                            </label>
-                            <p className="text-xs text-slate-600">{permission.description}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+
               </div>
             </div>
 
@@ -1100,8 +1002,7 @@ const AdminProfile: React.FC = () => {
                         position: editFormData.position,
                         officeLocation: editFormData.officeLocation,
                         responsibilities: editFormData.responsibilities,
-                        address: editFormData.address,
-                        permissions: editPermissions
+                        address: editFormData.address
                       }
                     };
 

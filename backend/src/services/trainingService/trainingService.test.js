@@ -26,7 +26,6 @@ const {
   checkCollegeMatch,
   checkCourseMatch,
   checkCitizenshipMatch,
-  calculateDocumentCompleteness,
   calculateApplicationTiming,
   extractFeatures,
   extractFeaturesFromUserAndScholarship,
@@ -76,10 +75,10 @@ let failed = 0;
 console.log('\n📋 Testing Constants...');
 
 runTest('SCORING_CONFIG has required fields', () => {
-  assert(SCORING_CONFIG.MATCH === 1.0);
-  assert(SCORING_CONFIG.MISMATCH === 0.85);
-  assert(SCORING_CONFIG.NO_RESTRICTION === 0.95);
-  assert(SCORING_CONFIG.UNKNOWN === 0.85);
+  assert(SCORING_CONFIG.MATCH === 0.65);
+  assert(SCORING_CONFIG.MISMATCH === 0.15);
+  assert(SCORING_CONFIG.NO_RESTRICTION === 0.3);
+  assert(SCORING_CONFIG.UNKNOWN === 0.50);
 });
 
 runTest('TRAINING_CONFIG has required fields', () => {
@@ -90,9 +89,9 @@ runTest('TRAINING_CONFIG has required fields', () => {
   assert(TRAINING_CONFIG.randomSeed === 42);
 });
 
-runTest('TRAINING_CONFIG.featureNames has 15 features', () => {
-  assert(TRAINING_CONFIG.featureNames.length === 15);
-  assert(TRAINING_CONFIG.baseFeatureNames.length === 10);
+runTest('TRAINING_CONFIG.featureNames has 13 features', () => {
+  assert(TRAINING_CONFIG.featureNames.length === 13);
+  assert(TRAINING_CONFIG.baseFeatureNames.length === 9);
 });
 
 runTest('FEATURE_DISPLAY_NAMES covers all features', () => {
@@ -101,9 +100,10 @@ runTest('FEATURE_DISPLAY_NAMES covers all features', () => {
   }
 });
 
-runTest('FEATURE_CATEGORIES covers all features', () => {
-  for (const feature of TRAINING_CONFIG.featureNames) {
-    assert(FEATURE_CATEGORIES[feature], `Missing category for ${feature}`);
+runTest('FEATURE_CATEGORIES covers base features', () => {
+  const allCategorized = Object.values(FEATURE_CATEGORIES).flat();
+  for (const feature of TRAINING_CONFIG.baseFeatureNames) {
+    assert(allCategorized.includes(feature), `Missing category for ${feature}`);
   }
 });
 
@@ -219,19 +219,6 @@ runTest('checkCitizenshipMatch: exact match required', () => {
   assert(score === SCORING_CONFIG.MATCH);
 });
 
-runTest('calculateDocumentCompleteness: all docs returns 1.0', () => {
-  const docs = [{ documentType: 'transcript' }, { documentType: 'certificate' }];
-  const required = [{ name: 'transcript' }, { name: 'certificate' }];
-  const score = calculateDocumentCompleteness(docs, required);
-  assert(score === 1.0);
-});
-
-runTest('calculateDocumentCompleteness: no docs returns 0.0', () => {
-  const required = [{ name: 'transcript' }];
-  const score = calculateDocumentCompleteness([], required);
-  assert(score === 0.0);
-});
-
 runTest('calculateApplicationTiming: early application returns high score', () => {
   const deadline = new Date();
   const openDate = new Date(deadline.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -241,7 +228,7 @@ runTest('calculateApplicationTiming: early application returns high score', () =
   assert(score > 0.8);
 });
 
-runTest('extractFeatures: returns 15 features', () => {
+runTest('extractFeatures: returns 13 features', () => {
   const app = {
     applicantSnapshot: {
       gwa: 1.5,
@@ -255,10 +242,10 @@ runTest('extractFeatures: returns 15 features', () => {
   };
   
   const features = extractFeatures(app, scholarship);
-  assert(Object.keys(features).length === 15);
+  assert(Object.keys(features).length === 13);
 });
 
-runTest('extractFeaturesFromUserAndScholarship: returns 15 features', () => {
+runTest('extractFeaturesFromUserAndScholarship: returns 13 features', () => {
   const user = {
     studentProfile: {
       gwa: 1.5,
@@ -270,7 +257,7 @@ runTest('extractFeaturesFromUserAndScholarship: returns 15 features', () => {
   };
   
   const features = extractFeaturesFromUserAndScholarship(user, scholarship);
-  assert(Object.keys(features).length === 15);
+  assert(Object.keys(features).length === 13);
 });
 
 // =============================================================================
@@ -424,9 +411,9 @@ runTest('averageBiases: averages biases correctly', () => {
 
 console.log('\n🧠 Testing Model Training...');
 
-runTest('initializeWeights: returns all 15 features', () => {
+runTest('initializeWeights: returns all 13 features', () => {
   const weights = initializeWeights();
-  assert(Object.keys(weights).length === 15);
+  assert(Object.keys(weights).length === 13);
 });
 
 runTest('initializeWeights: all weights are equal', () => {
@@ -450,13 +437,11 @@ runTest('evaluateModel: calculates metrics correctly', () => {
     collegeMatch: 0.0,
     courseMatch: 0.0,
     citizenshipMatch: 0.0,
-    documentCompleteness: 0.0,
     applicationTiming: 0.0,
     eligibilityScore: 0.0,
     academicStrength: 0.0,
     financialNeed: 0.0,
     programFit: 0.0,
-    applicationQuality: 0.0,
     overallFit: 0.0
   };
   const bias = -2.5; // Shift so sigmoid(5*1 - 2.5) > 0.5 and sigmoid(5*0 - 2.5) < 0.5

@@ -223,7 +223,7 @@ const PredictionExplanation: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Hero Section - Your Result */}
         <div className="bg-white rounded-3xl shadow-lg overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-primary-600 via-blue-600 to-indigo-600 px-8 py-6">
+          <div className="bg-primary-600 px-8 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -305,11 +305,11 @@ const PredictionExplanation: React.FC = () => {
                 <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                   <div className="flex items-center gap-2 px-4 py-2 bg-green-100 rounded-full">
                     <TrendingUp className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-700">{positiveFactors.length} in your favor</span>
+                    <span className="text-sm font-medium text-green-700">{positiveFactors.length} supporting factors</span>
                   </div>
                   <div className="flex items-center gap-2 px-4 py-2 bg-red-100 rounded-full">
                     <TrendingDown className="w-4 h-4 text-red-600" />
-                    <span className="text-sm font-medium text-red-700">{negativeFactors.length} to improve</span>
+                    <span className="text-sm font-medium text-red-700">{negativeFactors.length} reducing factors</span>
                   </div>
                   <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-full">
                     <Minus className="w-4 h-4 text-slate-500" />
@@ -374,12 +374,12 @@ const PredictionExplanation: React.FC = () => {
 
         {/* Detailed Calculation Table */}
         <div className="bg-white rounded-3xl shadow-lg overflow-hidden mb-8">
-          <div className="bg-gradient-to-r from-slate-800 to-slate-900 px-8 py-6">
+          <div className="bg-primary-700 px-8 py-6">
             <div className="flex items-center gap-3">
               <Calculator className="w-6 h-6 text-white" />
               <h2 className="text-xl font-bold text-white">Detailed Calculation Breakdown</h2>
             </div>
-            <p className="text-slate-300 mt-1">Net contribution of each factor group to your prediction. Click to expand details.</p>
+            <p className="text-white/80 mt-1">Net contribution of each factor group to your prediction. Click to expand details.</p>
           </div>
 
           <div className="overflow-x-auto">
@@ -541,19 +541,19 @@ const PredictionExplanation: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-green-500">
             <div className="flex items-center gap-3 mb-2">
               <TrendingUp className="w-5 h-5 text-green-600" />
-              <span className="text-sm font-medium text-slate-600">In Your Favor</span>
+              <span className="text-sm font-medium text-slate-600">Supporting Factors</span>
             </div>
             <p className="text-3xl font-bold text-green-600">{positiveFactors.length}</p>
-            <p className="text-xs text-slate-500 mt-1">factors supporting approval</p>
+            <p className="text-xs text-slate-500 mt-1">factors that increase your score</p>
           </div>
           
           <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-red-500">
             <div className="flex items-center gap-3 mb-2">
               <TrendingDown className="w-5 h-5 text-red-600" />
-              <span className="text-sm font-medium text-slate-600">To Consider</span>
+              <span className="text-sm font-medium text-slate-600">Reducing Factors</span>
             </div>
             <p className="text-3xl font-bold text-red-600">{negativeFactors.length}</p>
-            <p className="text-xs text-slate-500 mt-1">factors needing attention</p>
+            <p className="text-xs text-slate-500 mt-1">factors that lower your score</p>
           </div>
           
           <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-slate-400">
@@ -566,9 +566,48 @@ const PredictionExplanation: React.FC = () => {
           </div>
         </div>
 
+        {/* Disclaimer about negative/reducing factors */}
+        {negativeFactors.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8 border border-slate-200">
+            <div className="bg-amber-500 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Why Are Some Factors Negative?</h3>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Info className="w-4 h-4 text-amber-600" />
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed">
+                  A <strong className="text-slate-900">"reducing factor"</strong> means that, based on historical data from past applicants, 
+                  this particular aspect of your profile is <strong className="text-slate-900">less commonly seen among approved applicants</strong> for 
+                  this scholarship. It does <em>not</em> mean there is anything wrong with your profile.
+                </p>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  <strong className="text-amber-800">Example:</strong> If most previously approved applicants had a specific income bracket 
+                  or came from a particular college, having different values lowers the model's score — but every application is still 
+                  reviewed individually by the scholarship committee.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <div className="w-1.5 h-1.5 bg-primary-500 rounded-full"></div>
+                <p className="text-xs font-medium text-slate-500">
+                  This prediction is a statistical estimate, not a final decision.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Recommendation */}
         {prediction.recommendation && (
-          <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-2xl p-6 border border-primary-200 mb-8">
+          <div className="bg-primary-50 rounded-2xl p-6 border border-primary-200 mb-8">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Lightbulb className="w-6 h-6 text-primary-600" />

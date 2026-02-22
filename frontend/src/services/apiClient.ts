@@ -618,6 +618,15 @@ export const applicationApi = {
     return response.data;
   },
 
+  checkExisting: async (scholarshipId: string) => {
+    const response = await api.get<ApiResponse<{
+      exists: boolean;
+      applicationId?: string;
+      status?: string;
+    }>>(`/applications/check/${scholarshipId}`);
+    return response.data;
+  },
+
   create: async (data: FormData | { 
     scholarshipId: string; 
     personalStatement?: string; 
@@ -1412,6 +1421,87 @@ export const notificationApi = {
   /** Delete a single notification */
   delete: async (id: string) => {
     const response = await api.delete<ApiResponse<unknown>>(`/notifications/${id}`);
+    return response.data;
+  },
+};
+
+// ============================================================================
+// Activity Log API
+// ============================================================================
+
+export interface ActivityLogEntry {
+  _id: string;
+  user: string;
+  userRole: 'student' | 'admin';
+  userName: string;
+  userEmail: string;
+  action: string;
+  description: string;
+  targetType: string | null;
+  targetId: string | null;
+  targetName: string;
+  metadata: Record<string, unknown>;
+  ipAddress: string;
+  status: 'success' | 'failure';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActivityLogPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ActivityLogStats {
+  today: number;
+  thisWeek: number;
+  total: number;
+  topActions: Record<string, number>;
+  byRole: Record<string, number>;
+}
+
+export const activityLogApi = {
+  /** Get current user's activity logs */
+  getMy: async (params?: { page?: number; limit?: number; action?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.action) query.set('action', params.action);
+    const response = await api.get<ApiResponse<{
+      logs: ActivityLogEntry[];
+      pagination: ActivityLogPagination;
+    }>>(`/activity-logs/my?${query.toString()}`);
+    return response.data;
+  },
+
+  /** Get all platform activity logs (admin only) */
+  getAll: async (params?: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    action?: string;
+    search?: string;
+    userId?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.role) query.set('role', params.role);
+    if (params?.action) query.set('action', params.action);
+    if (params?.search) query.set('search', params.search);
+    if (params?.userId) query.set('userId', params.userId);
+    const response = await api.get<ApiResponse<{
+      logs: ActivityLogEntry[];
+      pagination: ActivityLogPagination;
+    }>>(`/activity-logs/all?${query.toString()}`);
+    return response.data;
+  },
+
+  /** Get activity statistics (admin only) */
+  getStats: async () => {
+    const response = await api.get<ApiResponse<ActivityLogStats>>('/activity-logs/stats');
     return response.data;
   },
 };

@@ -23,7 +23,6 @@ const PLACEHOLDER_WEIGHTS_FOR_FACTORS: ModelWeights = {
   courseMatch: 1.0,
   yearLevelMatch: 1.0,
   citizenshipMatch: 1.0,
-  documentCompleteness: 1.0,
   applicationTiming: 1.0
 };
 
@@ -213,19 +212,19 @@ export const generatePredictionFactors = (
     met: !stBrackets.length || stBrackets.includes(student.stBracket || '')
   });
   
-  // 9. Profile Completeness
-  const profileComplete = student.profileCompleted ? 1 : 0.5;
-  const profileWeight = weights.documentCompleteness;
-  const profileContrib = profileComplete * profileWeight;
+  // 9. Application Timing (replaces Profile Completeness)
+  const applicationTimingValue = 0.5; // Default neutral
+  const applicationTimingWeight = weights.applicationTiming;
+  const applicationTimingContrib = applicationTimingValue * applicationTimingWeight;
   
   factors.push({
-    factor: 'Profile Completeness',
-    value: profileComplete,
-    weight: profileWeight,
-    rawContribution: profileContrib,
+    factor: 'Application Timing',
+    value: applicationTimingValue,
+    weight: applicationTimingWeight,
+    rawContribution: applicationTimingContrib,
     contribution: 0,
-    description: student.profileCompleted ? 'Profile complete' : 'Profile incomplete',
-    met: student.profileCompleted || false
+    description: 'Based on application submission timing',
+    met: true
   });
   
   // Calculate total absolute contribution for normalization

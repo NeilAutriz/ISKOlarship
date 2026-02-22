@@ -14,7 +14,8 @@ import {
   LogOut,
   GraduationCap,
   Menu,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
@@ -28,6 +29,7 @@ const StudentHeader: React.FC = () => {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/scholarships', label: 'Scholarships', icon: Award },
     { path: '/my-applications', label: 'My Applications', icon: FileText },
+    { path: '/activity-log', label: 'Activity Log', icon: Activity },
   ];
 
   const isActiveLink = (path: string) => {

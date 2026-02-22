@@ -8,6 +8,7 @@ const router = express.Router();
 const { body, query, param, validationResult } = require('express-validator');
 const { Scholarship, ScholarshipType, ScholarshipLevel, ScholarshipStatus, Application, TrainedModel } = require('../models');
 const { authMiddleware, optionalAuth, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
+const { logScholarshipCreate, logScholarshipUpdate, logScholarshipDelete } = require('../services/activityLog.service');
 const { 
   attachAdminScope, 
   canManageScholarship, 
@@ -611,10 +612,11 @@ router.post('/',
       });
 
       await scholarship.save();
+
+      // Log scholarship creation (fire-and-forget)
+      logScholarshipCreate(req.user, scholarship, req.ip);
       
       res.status(201).json({
-        success: true,
-        message: 'Scholarship created successfully',
         data: scholarship
       });
     } catch (error) {
@@ -713,9 +715,10 @@ router.put('/:id',
         { new: true, runValidators: true }
       );
 
+      // Log scholarship update (fire-and-forget)
+      logScholarshipUpdate(req.user, scholarship, req.ip);
+
       res.json({
-        success: true,
-        message: 'Scholarship updated successfully',
         data: scholarship
       });
     } catch (error) {
@@ -768,6 +771,9 @@ router.delete('/:id',
           status: 'archived',
           $set: { archivedAt: new Date(), archivedBy: req.user._id }
         });
+
+        // Log archive (fire-and-forget)
+        logScholarshipDelete(req.user, req.params.id, existingScholarship?.title || existingScholarship?.name || 'Unknown', true, req.ip);
         
         return res.json({
           success: true,
@@ -784,6 +790,9 @@ router.delete('/:id',
 
       // Permanently delete the scholarship
       await Scholarship.findByIdAndDelete(req.params.id);
+
+      // Log permanent delete (fire-and-forget)
+      logScholarshipDelete(req.user, req.params.id, existingScholarship?.title || existingScholarship?.name || 'Unknown', false, req.ip);
 
       res.json({
         success: true,

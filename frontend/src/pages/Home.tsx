@@ -52,7 +52,7 @@ const useCounter = (end: number, duration: number = 2000) => {
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, openAuthModal } = useAuth();
+  const { isAuthenticated, userRole, openAuthModal } = useAuth();
   
   // State for data from API
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
@@ -78,18 +78,20 @@ const Home: React.FC = () => {
           }));
         }
         
-        // Try to fetch platform stats
-        try {
-          const statsRes = await statisticsApi.getOverview();
-          if (statsRes.success && statsRes.data) {
-            setStats(prev => ({
-              ...prev,
-              activeStudents: statsRes.data.overview?.totalStudents || 0,
-              successRate: statsRes.data.overview?.successRate ?? 0
-            }));
+        // Try to fetch platform stats (admin-only endpoint)
+        if (userRole === 'admin') {
+          try {
+            const statsRes = await statisticsApi.getOverview();
+            if (statsRes.success && statsRes.data) {
+              setStats(prev => ({
+                ...prev,
+                activeStudents: statsRes.data.overview?.totalStudents || 0,
+                successRate: statsRes.data.overview?.successRate ?? 0
+              }));
+            }
+          } catch {
+            // Use default values
           }
-        } catch {
-          // Use default values
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -97,7 +99,7 @@ const Home: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [userRole]);
 
   // Featured scholarships (top 6)
   const featuredScholarships = scholarships.slice(0, 6);

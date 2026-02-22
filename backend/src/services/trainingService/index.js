@@ -27,7 +27,6 @@ const {
   checkCollegeMatch,
   checkCourseMatch,
   checkCitizenshipMatch,
-  calculateDocumentCompleteness,
   calculateApplicationTiming,
   extractFeatures,
   extractFeaturesFromUserAndScholarship
@@ -101,7 +100,6 @@ module.exports = {
   checkCollegeMatch,
   checkCourseMatch,
   checkCitizenshipMatch,
-  calculateDocumentCompleteness,
   calculateApplicationTiming,
   
   // Mathematical functions

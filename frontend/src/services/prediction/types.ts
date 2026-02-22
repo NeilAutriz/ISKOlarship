@@ -18,7 +18,6 @@ export interface ModelWeights {
   collegeMatch: number;
   courseMatch: number;
   citizenshipMatch: number;
-  documentCompleteness: number;
   applicationTiming: number;
   eligibilityScore: number;
 }

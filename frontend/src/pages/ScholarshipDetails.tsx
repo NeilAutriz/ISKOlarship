@@ -108,13 +108,20 @@ const ScholarshipDetails: React.FC = () => {
       try {
         const response = await applicationApi.getMyApplications(undefined, 1, 100);
         if (isMounted && response.success && response.data?.applications) {
-          const match = response.data.applications.find((app: Application) => {
+          // Find the most relevant application for this scholarship
+          // Prioritize active (non-withdrawn, non-rejected) applications
+          const matching = response.data.applications.filter((app: Application) => {
             const appScholarshipId = typeof app.scholarship === 'string'
               ? app.scholarship
               : (app.scholarship as Scholarship)?._id || (app.scholarship as Scholarship)?.id;
             return appScholarshipId === id || app.scholarshipId === id;
           });
-          setExistingApplication(match || null);
+
+          // Prefer active application over withdrawn/rejected
+          const activeApp = matching.find((app: Application) => 
+            app.status !== 'withdrawn' && app.status !== 'rejected'
+          );
+          setExistingApplication(activeApp || null);
         }
       } catch {
         // Silently fail — Apply button stays visible as fallback
@@ -1029,7 +1036,7 @@ const ScholarshipDetails: React.FC = () => {
                       )
                     ) : existingApplication.status === ApplicationStatus.DRAFT ? (
                       <Link
-                        to={`/apply/${scholarship.id}`}
+                        to={`/applications/${existingApplication._id || existingApplication.id}/edit`}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-all"
                       >
                         <FileText className="w-5 h-5" />

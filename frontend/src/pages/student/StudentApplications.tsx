@@ -413,7 +413,22 @@ const StudentApplications: React.FC = () => {
                   <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 border-t-2 border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {application.status === 'draft' && (
-                        <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105">Continue Application</button>
+                        <Link
+                          to={`/applications/${application.id}/edit`}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          Continue Application
+                        </Link>
+                      )}
+                      {(application.status === 'withdrawn' || application.status === 'rejected') && (
+                        <Link
+                          to={`/apply/${application.scholarshipId}`}
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                        >
+                          <ArrowUpRight className="w-4 h-4" />
+                          Apply Again
+                        </Link>
                       )}
                       {(application.status === 'submitted' || application.status === 'under_review') && (
                         <Link
@@ -440,6 +455,16 @@ const StudentApplications: React.FC = () => {
                     {application.status === 'approved' && (
                       <span className="text-sm text-green-600 font-medium flex items-center gap-1.5">
                         <CheckCircle className="w-4 h-4" />Congratulations!
+                      </span>
+                    )}
+                    {application.status === 'withdrawn' && (
+                      <span className="text-sm text-orange-600 font-medium flex items-center gap-1.5">
+                        <XCircle className="w-4 h-4" />Withdrawn — You can apply again
+                      </span>
+                    )}
+                    {application.status === 'rejected' && (
+                      <span className="text-sm text-red-600 font-medium flex items-center gap-1.5">
+                        <XCircle className="w-4 h-4" />Rejected — You can re-apply
                       </span>
                     )}
                     {!['approved', 'rejected', 'withdrawn'].includes(application.status) && (

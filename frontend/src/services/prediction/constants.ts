@@ -13,8 +13,6 @@ export const SCORING = {
   MISMATCH: 0.15,        // Feature doesn't match (synced with backend)
   NO_RESTRICTION: 0.50,  // No requirement specified (synced with backend)
   UNKNOWN: 0.50,         // Value not provided by student (synced with backend)
-  PROFILE_COMPLETE: 0.80,
-  PROFILE_INCOMPLETE: 0.40,
   TIMING_DEFAULT: 0.50,
   ELIGIBILITY_FLOOR: 0.0,
   ELIGIBILITY_RANGE: 1.0,

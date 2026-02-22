@@ -8,6 +8,7 @@ const router = express.Router();
 const { body, param, validationResult } = require('express-validator');
 const { User, UserRole, UPLBCollege, YearLevel, STBracket } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
+const { logProfileUpdate, logDocumentUpload, logDocumentDelete } = require('../services/activityLog.service');
 const { uploadSingle, uploadMultiple, handleUploadError, uploadFilesToCloudinary, uploadToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
 const {
   getScholarshipScopeFilter,
@@ -341,7 +342,8 @@ router.put('/profile',
 
       await req.user.save();
       
-
+      // Log profile update (fire-and-forget)
+      logProfileUpdate(req.user, req.ip);
 
       res.json({
         success: true,
@@ -789,6 +791,9 @@ router.post('/documents/upload',
         }
       }
 
+      // Log document upload (fire-and-forget)
+      logDocumentUpload(req.user, uploadedDocuments.length, req.ip);
+
       res.json({
         success: true,
         message: `Successfully uploaded ${uploadedDocuments.length} document(s)`,
@@ -978,6 +983,9 @@ router.delete('/documents/:documentId',
       // Remove from database
       req.user.studentProfile.documents.pull(documentId);
       await req.user.save();
+
+      // Log document delete (fire-and-forget)
+      logDocumentDelete(req.user, document.name || document.documentType, req.ip);
 
       res.json({
         success: true,

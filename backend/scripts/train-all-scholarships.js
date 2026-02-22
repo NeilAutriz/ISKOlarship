@@ -51,7 +51,6 @@ const FEATURE_NAMES = [
   'collegeMatch',
   'courseMatch',
   'citizenshipMatch',
-  'documentCompleteness',
   'applicationTiming',
   'eligibilityScore'
 ];
@@ -149,38 +148,6 @@ function checkCitizenshipMatch(studentCitizenship, eligibleCitizenship) {
   return isMatch ? 1.0 : 0.0;
 }
 
-function calculateDocumentCompleteness(documents, requiredDocs) {
-  if (!requiredDocs || requiredDocs.length === 0) return 1.0;
-  if (!documents || documents.length === 0) return 0.3;
-  
-  const uploadedTypes = new Set(documents.map(d => {
-    const docType = d.documentType || d.type || d.name || '';
-    return typeof docType === 'string' ? docType.toLowerCase() : '';
-  }));
-  
-  let matched = 0;
-  let totalRequired = 0;
-  
-  for (const required of requiredDocs) {
-    let requiredName = typeof required === 'string' ? required : (required?.name || '');
-    let isRequired = typeof required === 'object' ? required?.isRequired !== false : true;
-    
-    if (!requiredName || !isRequired) continue;
-    
-    totalRequired++;
-    const normalizedRequired = requiredName.toLowerCase();
-    
-    for (const uploaded of uploadedTypes) {
-      if (uploaded.includes(normalizedRequired) || normalizedRequired.includes(uploaded)) {
-        matched++;
-        break;
-      }
-    }
-  }
-  
-  return totalRequired > 0 ? matched / totalRequired : 1.0;
-}
-
 function calculateApplicationTiming(submittedAt, deadline) {
   if (!submittedAt || !deadline) return 0.7;
   
@@ -240,11 +207,6 @@ function extractFeatures(application, scholarship, studentProfile) {
     criteria.eligibleCitizenship
   );
   
-  const documentCompleteness = calculateDocumentCompleteness(
-    application.documents,
-    scholarship.requirements?.documents
-  );
-  
   const applicationTiming = calculateApplicationTiming(
     application.submittedAt,
     scholarship.applicationDeadline
@@ -287,7 +249,6 @@ function extractFeatures(application, scholarship, studentProfile) {
     collegeMatch,
     courseMatch,
     citizenshipMatch,
-    documentCompleteness,
     applicationTiming,
     eligibilityScore
   };
@@ -729,7 +690,6 @@ async function generateSyntheticTrainingData() {
         features.collegeMatch = 1.0;
         features.courseMatch = 1.0;
         features.citizenshipMatch = 1.0;
-        features.documentCompleteness = 0.9 + Math.random() * 0.1;
         features.applicationTiming = 0.7 + Math.random() * 0.3;
         features.eligibilityScore = 0.8 + Math.random() * 0.2;
       } else {
@@ -741,7 +701,6 @@ async function generateSyntheticTrainingData() {
         features.collegeMatch = Math.random() > 0.3 ? 1.0 : 0.0;
         features.courseMatch = Math.random() > 0.3 ? 1.0 : 0.0;
         features.citizenshipMatch = Math.random() > 0.2 ? 1.0 : 0.0;
-        features.documentCompleteness = 0.3 + Math.random() * 0.5;
         features.applicationTiming = 0.3 + Math.random() * 0.5;
         features.eligibilityScore = 0.2 + Math.random() * 0.5;
       }
