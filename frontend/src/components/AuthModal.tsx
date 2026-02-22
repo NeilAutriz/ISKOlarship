@@ -283,7 +283,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
             )}
 
             {/* OTP Input Fields */}
-            <div className="flex justify-center gap-2 mb-6" onPaste={handleOtpPaste}>
+            <div className="flex justify-center gap-2 sm:gap-2 mb-6" onPaste={handleOtpPaste}>
               {otpDigits.map((digit, i) => (
                 <input
                   key={i}
@@ -294,7 +294,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   value={digit}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                  className="w-12 h-14 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+                  className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
                   autoComplete="one-time-code"
                 />
               ))}

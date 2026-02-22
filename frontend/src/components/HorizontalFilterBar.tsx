@@ -157,12 +157,12 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-4 ${className}`} ref={dropdownRef}>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
+    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-4 ${className}`} ref={dropdownRef}>
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Filter Icon */}
-          <div className="flex items-center gap-2 text-slate-600 pr-3 border-r border-slate-200">
-            <SlidersHorizontal className="w-5 h-5" />
+          <div className="flex items-center gap-2 text-slate-600 pr-2 sm:pr-3 border-r border-slate-200">
+            <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="text-sm font-medium hidden sm:inline">Filters</span>
           </div>
 
@@ -327,16 +327,16 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
         </div>
 
         {/* Inline Stats */}
-        <div className="flex items-center gap-4 pl-4 border-l border-slate-200">
+        <div className="flex items-center gap-2 sm:gap-4 pl-2 sm:pl-4 border-l border-slate-200">
           {totalCount !== undefined && (
-            <div className="text-center px-3">
-              <div className="text-lg font-bold text-slate-900">{totalCount}</div>
+            <div className="text-center px-2 sm:px-3">
+              <div className="text-base sm:text-lg font-bold text-slate-900">{totalCount}</div>
               <div className="text-xs text-slate-500">Total</div>
             </div>
           )}
           {resultCount !== undefined && (
-            <div className="text-center px-3 py-1 bg-primary-50 rounded-lg">
-              <div className="text-lg font-bold text-primary-700">{resultCount}</div>
+            <div className="text-center px-2 sm:px-3 py-1 bg-primary-50 rounded-lg">
+              <div className="text-base sm:text-lg font-bold text-primary-700">{resultCount}</div>
               <div className="text-xs text-primary-600">Showing</div>
             </div>
           )}

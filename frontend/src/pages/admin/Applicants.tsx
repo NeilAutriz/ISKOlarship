@@ -424,56 +424,56 @@ const Applicants: React.FC = () => {
             className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-amber-200 transition-all group cursor-pointer"
             onClick={() => { setActiveTab('pending'); setStatusFilter('pending'); }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-200/50 group-hover:scale-110 transition-transform">
-                <Clock className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-200/50 group-hover:scale-110 transition-transform">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200">Pending</span>
+              <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200 hidden sm:inline">Pending</span>
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.pendingReview}</div>
-            <div className="text-sm text-slate-500">Awaiting Review</div>
+            <div className="text-xs sm:text-sm text-slate-500">Awaiting Review</div>
           </div>
           
           <div 
             className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-blue-200 transition-all group cursor-pointer"
             onClick={() => { setActiveTab('pending'); setStatusFilter('under_review'); }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-200/50 group-hover:scale-110 transition-transform">
-                <Eye className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-200/50 group-hover:scale-110 transition-transform">
+                <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200">In Progress</span>
+              <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200 hidden sm:inline">In Progress</span>
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.underReview}</div>
-            <div className="text-sm text-slate-500">Under Review</div>
+            <div className="text-xs sm:text-sm text-slate-500">Under Review</div>
           </div>
           
           <div 
-            className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-emerald-200 transition-all group cursor-pointer"
+            className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-emerald-200 transition-all group cursor-pointer"
             onClick={() => { setActiveTab('processed'); setStatusFilter('approved'); }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-200/50 group-hover:scale-110 transition-transform">
-                <CheckCircle className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-200/50 group-hover:scale-110 transition-transform">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200">Success</span>
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 hidden sm:inline">Success</span>
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.approved}</div>
-            <div className="text-sm text-slate-500">Approved</div>
+            <div className="text-xs sm:text-sm text-slate-500">Approved</div>
           </div>
           
           <div 
             className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-red-200 transition-all group cursor-pointer"
             onClick={() => { setActiveTab('processed'); setStatusFilter('rejected'); }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center shadow-lg shadow-red-200/50 group-hover:scale-110 transition-transform">
-                <XCircle className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center shadow-lg shadow-red-200/50 group-hover:scale-110 transition-transform">
+                <XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200">Rejected</span>
+              <span className="text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200 hidden sm:inline">Rejected</span>
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.rejected}</div>
-            <div className="text-sm text-slate-500">Not Approved</div>
+            <div className="text-xs sm:text-sm text-slate-500">Not Approved</div>
           </div>
         </div>
       </div>
@@ -538,24 +538,24 @@ const Applicants: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 -mx-1 px-1">
           <button
             onClick={() => { setActiveTab('all'); setStatusFilter('all'); }}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all whitespace-nowrap flex items-center gap-2 ${
+            className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base ${
               activeTab === 'all'
                 ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                 : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
             }`}
           >
             <FileText className="w-4 h-4" />
-            All Applications
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+            <span className="hidden xs:inline">All</span> Applications
+            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-bold ${
               activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
             }`}>{tabCounts.all}</span>
           </button>
           <button
             onClick={() => { setActiveTab('pending'); setStatusFilter('all'); }}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all whitespace-nowrap flex items-center gap-2 ${
+            className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base ${
               activeTab === 'pending'
                 ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                 : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
@@ -563,13 +563,13 @@ const Applicants: React.FC = () => {
           >
             <Clock className="w-4 h-4" />
             Needs Action
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-bold ${
               activeTab === 'pending' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-700'
             }`}>{tabCounts.pending}</span>
           </button>
           <button
             onClick={() => { setActiveTab('processed'); setStatusFilter('all'); }}
-            className={`px-5 py-2.5 rounded-xl font-semibold transition-all whitespace-nowrap flex items-center gap-2 ${
+            className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base ${
               activeTab === 'processed'
                 ? 'bg-primary-600 text-white shadow-lg shadow-primary-200'
                 : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
@@ -577,7 +577,7 @@ const Applicants: React.FC = () => {
           >
             <CheckCircle className="w-4 h-4" />
             Processed
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+            <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-bold ${
               activeTab === 'processed' ? 'bg-white/20 text-white' : 'bg-green-100 text-green-700'
             }`}>{tabCounts.processed}</span>
           </button>

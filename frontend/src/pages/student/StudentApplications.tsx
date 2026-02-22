@@ -238,53 +238,53 @@ const StudentApplications: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="container-app -mt-6 relative z-20 mb-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Total Applications Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
-                <FileText className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Total</span>
+              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full hidden sm:inline">Total</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.total}</div>
-            <div className="text-sm text-slate-500">Applications</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.total}</div>
+            <div className="text-xs sm:text-sm text-slate-500">Applications</div>
           </div>
           
           {/* In Progress Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
-                <Clock className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">In Progress</span>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full hidden sm:inline">In Progress</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.inProgress}</div>
-            <div className="text-sm text-slate-500">Being Reviewed</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.inProgress}</div>
+            <div className="text-xs sm:text-sm text-slate-500">Being Reviewed</div>
           </div>
           
           {/* Approved Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
-                <CheckCircle className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Approved</span>
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full hidden sm:inline">Approved</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.approved}</div>
-            <div className="text-sm text-slate-500">Successful</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.approved}</div>
+            <div className="text-xs sm:text-sm text-slate-500">Successful</div>
           </div>
           
           {/* Drafts Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-slate-500 flex items-center justify-center shadow-lg">
-                <AlertCircle className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-500 flex items-center justify-center shadow-lg">
+                <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-full">Drafts</span>
+              <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-full hidden sm:inline">Drafts</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.drafts}</div>
-            <div className="text-sm text-slate-500">Not Submitted</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.drafts}</div>
+            <div className="text-xs sm:text-sm text-slate-500">Not Submitted</div>
           </div>
         </div>
       </div>
