@@ -22,19 +22,13 @@ const layout = (title, bodyHtml) => `
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px rgba(37,99,235,0.10),0 2px 8px rgba(0,0,0,0.05);">
-          <!-- Accent strip -->
-          <tr><td style="background:#1e3a8a;height:4px;font-size:0;line-height:0;">&nbsp;</td></tr>
           <!-- Brand header -->
           <tr>
-            <td style="background:#2563eb;padding:36px 40px 20px;text-align:center;">
+            <td style="background:#2563eb;padding:36px 40px 28px;text-align:center;">
               <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:500;">UPLB Scholarship Management Platform</p>
-            </td>
-          </tr>
-          <!-- Title bar -->
-          <tr>
-            <td style="background:#1d4ed8;padding:10px 40px;text-align:center;">
-              <p style="margin:0;color:rgba(255,255,255,0.95);font-size:13px;font-weight:600;letter-spacing:0.5px;">${title}</p>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:500;">UPLB Scholarship Management Platform</p>
+              <div style="margin:16px auto 0;width:40px;height:2px;background:rgba(255,255,255,0.3);border-radius:1px;"></div>
+              <p style="margin:12px 0 0;color:#ffffff;font-size:14px;font-weight:600;letter-spacing:0.5px;">${title}</p>
             </td>
           </tr>
           <!-- Body -->
