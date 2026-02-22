@@ -270,11 +270,11 @@ const StudentDashboard: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <Link to="/my-profile" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white font-medium rounded-xl hover:bg-white/30 hover:border-white/40 transition-all shadow-lg">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/my-profile" className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white font-medium rounded-xl hover:bg-white/30 hover:border-white/40 transition-all shadow-lg">
                 <Edit2 className="w-4 h-4" />Edit Profile
               </Link>
-              <Link to="/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-slate-50 transition-all shadow-lg">
+              <Link to="/scholarships" className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-slate-50 transition-all shadow-lg">
                 <Target className="w-4 h-4" />Find Scholarships
               </Link>
             </div>
@@ -284,53 +284,53 @@ const StudentDashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="container-app -mt-6 relative z-20 mb-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Eligible Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
-                <CheckCircle className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
+                <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Eligible</span>
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full hidden sm:inline">Eligible</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.eligible}</div>
-            <div className="text-sm text-slate-500">Scholarships Available</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.eligible}</div>
+            <div className="text-xs sm:text-sm text-slate-500">Scholarships Available</div>
           </div>
           
           {/* High Match Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
-                <Sparkles className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">High Match</span>
+              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full hidden sm:inline">High Match</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.highMatch}</div>
-            <div className="text-sm text-slate-500">Best Matches</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.highMatch}</div>
+            <div className="text-xs sm:text-sm text-slate-500">Best Matches</div>
           </div>
           
           {/* Avg Score Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
-                <TrendingUp className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Avg Score</span>
+              <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full hidden sm:inline">Avg Score</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{(stats.averageScore * 100).toFixed(0)}%</div>
-            <div className="text-sm text-slate-500">Match Rate</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{(stats.averageScore * 100).toFixed(0)}%</div>
+            <div className="text-xs sm:text-sm text-slate-500">Match Rate</div>
           </div>
           
           {/* Potential Funding Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
-                <DollarSign className="w-6 h-6 text-white" />
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
+                <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">Potential</span>
+              <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full hidden sm:inline">Potential</span>
             </div>
-            <div className="text-2xl font-bold text-slate-900">{formatCurrency(stats.totalFunding)}</div>
-            <div className="text-sm text-slate-500">Total Funding</div>
+            <div className="text-lg sm:text-2xl font-bold text-slate-900 truncate">{formatCurrency(stats.totalFunding)}</div>
+            <div className="text-xs sm:text-sm text-slate-500">Total Funding</div>
           </div>
         </div>
       </div>

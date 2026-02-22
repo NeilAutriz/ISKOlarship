@@ -201,7 +201,7 @@ const StudentActivityLog: React.FC = () => {
                             {config.label}
                           </span>
                           {log.targetName && (
-                            <span className="text-xs text-slate-500 truncate max-w-[200px]">• {log.targetName}</span>
+                            <span className="text-xs text-slate-500 truncate max-w-[120px] sm:max-w-[200px]">• {log.targetName}</span>
                           )}
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${STATUS_STYLE[log.status] || STATUS_STYLE.success}`}>
                             {log.status}
@@ -222,7 +222,7 @@ const StudentActivityLog: React.FC = () => {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50/50">
             <span className="text-sm text-slate-500">
               Showing {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
             </span>

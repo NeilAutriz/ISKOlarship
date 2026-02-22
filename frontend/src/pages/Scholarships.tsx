@@ -211,7 +211,7 @@ const Scholarships: React.FC = () => {
             </div>
             
             {/* Title */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold text-white mb-5 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-5 tracking-tight">
               Available Scholarships
             </h1>
             
@@ -250,8 +250,8 @@ const Scholarships: React.FC = () => {
           />
 
           {/* View Toggle and Sort */}
-          <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
-            <div className="text-base text-slate-600">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-8 pb-6 border-b border-slate-200">
+            <div className="text-sm sm:text-base text-slate-600 min-w-0">
               {filters.searchQuery ? (
                 <span>
                   Showing results for "<span className="font-semibold text-primary-700">{filters.searchQuery}</span>"

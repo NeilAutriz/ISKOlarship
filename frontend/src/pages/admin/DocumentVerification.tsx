@@ -562,7 +562,8 @@ const DocumentVerification: React.FC = () => {
 
         {/* Field-by-field comparison grid */}
         {docOcr.fields && docOcr.fields.length > 0 ? (
-          <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+          <div className="overflow-x-auto -mx-2">
+          <div className="rounded-xl border border-slate-200 overflow-hidden bg-white min-w-[500px]">
             {/* Grid header */}
             <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-slate-100 border-b border-slate-200">
               <div className="col-span-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Field</div>
@@ -614,6 +615,7 @@ const DocumentVerification: React.FC = () => {
                 </div>
               );
             })}
+          </div>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
@@ -737,7 +739,7 @@ const DocumentVerification: React.FC = () => {
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-primary-600 flex items-center justify-center">
                   <Users className="w-5 h-5 text-white" />
@@ -747,7 +749,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{stats.totalStudents}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Students</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-slate-500 flex items-center justify-center">
                   <FolderOpen className="w-5 h-5 text-white" />
@@ -757,7 +759,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{stats.totalDocuments}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Total Documents</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-white" />
@@ -767,7 +769,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{stats.pending}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Awaiting Review</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5 text-white" />
@@ -777,7 +779,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{stats.verified}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Verified</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-red-500 flex items-center justify-center">
                   <Ban className="w-5 h-5 text-white" />
@@ -787,7 +789,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{stats.rejected}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Rejected</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-orange-500 flex items-center justify-center">
                   <UploadCloud className="w-5 h-5 text-white" />
@@ -954,7 +956,7 @@ const DocumentVerification: React.FC = () => {
                     <div className="border-t border-slate-100 bg-slate-50/50">
                       {/* Quick Actions */}
                       {student.pending > 0 && (
-                        <div className="px-5 py-3 border-b border-slate-100 bg-primary-50/50 flex items-center justify-between">
+                        <div className="px-3 sm:px-5 py-3 border-b border-slate-100 bg-primary-50/50 flex items-center justify-between flex-wrap gap-2">
                           <span className="text-xs font-semibold text-primary-700">
                             {student.pending} document{student.pending > 1 ? 's' : ''} awaiting review
                           </span>
@@ -1238,7 +1240,7 @@ const DocumentVerification: React.FC = () => {
         {/* Admin Stats Cards */}
         {adminStats && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-primary-600 flex items-center justify-center">
                   <Briefcase className="w-5 h-5 text-white" />
@@ -1248,7 +1250,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{adminStats.totalAdmins}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Admins</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-slate-500 flex items-center justify-center">
                   <FolderOpen className="w-5 h-5 text-white" />
@@ -1258,7 +1260,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{adminStats.totalDocuments}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Total Documents</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-white" />
@@ -1268,7 +1270,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{adminStats.pending}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Awaiting Review</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5 text-white" />
@@ -1278,7 +1280,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{adminStats.verified}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Verified</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-red-500 flex items-center justify-center">
                   <Ban className="w-5 h-5 text-white" />
@@ -1288,7 +1290,7 @@ const DocumentVerification: React.FC = () => {
               <div className="text-2xl font-bold text-slate-800">{adminStats.rejected}</div>
               <div className="text-xs font-medium text-slate-500 mt-0.5">Documents Rejected</div>
             </div>
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-11 h-11 rounded-xl bg-orange-500 flex items-center justify-center">
                   <UploadCloud className="w-5 h-5 text-white" />
@@ -1466,7 +1468,7 @@ const DocumentVerification: React.FC = () => {
                     <div className="border-t border-slate-100 bg-slate-50/50">
                       {/* Quick Actions */}
                       {admin.pending > 0 && (
-                        <div className="px-5 py-3 border-b border-slate-100 bg-primary-50/50 flex items-center justify-between">
+                        <div className="px-3 sm:px-5 py-3 border-b border-slate-100 bg-primary-50/50 flex items-center justify-between flex-wrap gap-2">
                           <span className="text-xs font-semibold text-primary-700">
                             {admin.pending} document{admin.pending > 1 ? 's' : ''} awaiting review
                           </span>

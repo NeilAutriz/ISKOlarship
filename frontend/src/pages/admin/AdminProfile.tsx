@@ -404,7 +404,7 @@ const AdminProfile: React.FC = () => {
       </div>
 
       <div className="container-app pb-12">
-        <div className="grid lg:grid-cols-4 gap-6">
+        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sticky top-6">
@@ -636,7 +636,7 @@ const AdminProfile: React.FC = () => {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 ml-4">
+                              <div className="flex items-center gap-2 ml-0 sm:ml-4 mt-2 sm:mt-0 flex-wrap">
                                 {/* Verification Status Badge */}
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${verification.bgClass}`}>
                                   <VerifIcon className="w-3.5 h-3.5" />

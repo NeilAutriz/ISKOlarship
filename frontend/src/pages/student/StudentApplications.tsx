@@ -292,7 +292,7 @@ const StudentApplications: React.FC = () => {
       <div className="container-app pb-12">
         {/* Tabs */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
-          <div className="flex">
+          <div className="flex overflow-x-auto">
             {[
               { id: 'all', label: 'All Applications', count: stats.total },
               { id: 'drafts', label: 'Drafts', count: stats.drafts },
@@ -302,7 +302,7 @@ const StudentApplications: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex-1 py-4 text-sm font-medium transition-all relative ${activeTab === tab.id ? 'text-primary-600' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex-1 min-w-[100px] py-3 sm:py-4 text-xs sm:text-sm font-medium transition-all relative whitespace-nowrap ${activeTab === tab.id ? 'text-primary-600' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 {tab.label}
                 <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-600'}`}>{tab.count}</span>
@@ -370,7 +370,7 @@ const StudentApplications: React.FC = () => {
               
               return (
                 <div key={application.id} className={`group ${cardStyles.bg} rounded-2xl border-l-4 ${cardStyles.border} border border-slate-200 shadow-md hover:shadow-2xl hover:border-slate-300 transition-all duration-300 overflow-hidden`}>
-                  <div className="p-6 relative">
+                  <div className="p-4 sm:p-6 relative">
                     {/* Status-colored gradient accent */}
                     <div className={`absolute top-0 left-0 right-0 h-1 ${cardStyles.accent} opacity-100 group-hover:h-1.5 transition-all`} />
                     
@@ -399,10 +399,10 @@ const StudentApplications: React.FC = () => {
                               <Clock className="w-4 h-4 text-slate-600" />
                               <span className="text-xs font-medium text-slate-700">Updated: {application.lastUpdated}</span>
                             </span>
-                            {application.matchScore && application.matchScore > 0 && (
-                              <span className="flex items-center gap-2 bg-gradient-to-r from-primary-50 to-primary-100 px-3 py-1.5 rounded-lg border border-primary-200">
-                                <TrendingUp className="w-4 h-4 text-primary-600" />
-                                <span className="text-xs font-bold text-primary-700">Match: {application.matchScore}%</span>
+                            {application.prediction && application.prediction.probability != null && (
+                              <span className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-100 px-3 py-1.5 rounded-lg border border-amber-200">
+                                <TrendingUp className="w-4 h-4 text-amber-600" />
+                                <span className="text-xs font-bold text-amber-700">Prediction: {(application.prediction.probability * 100).toFixed(0)}%</span>
                               </span>
                             )}
                           </div>
@@ -410,12 +410,12 @@ const StudentApplications: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 border-t-2 border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-slate-50 to-slate-100 border-t-2 border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                       {application.status === 'draft' && (
                         <Link
                           to={`/applications/${application.id}/edit`}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                          className="inline-flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-xs sm:text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
                         >
                           <Edit3 className="w-4 h-4" />
                           Continue Application
@@ -424,7 +424,7 @@ const StudentApplications: React.FC = () => {
                       {(application.status === 'withdrawn' || application.status === 'rejected') && (
                         <Link
                           to={`/apply/${application.scholarshipId}`}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                          className="inline-flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold rounded-xl text-xs sm:text-sm hover:from-primary-700 hover:to-primary-800 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
                         >
                           <ArrowUpRight className="w-4 h-4" />
                           Apply Again
@@ -433,7 +433,7 @@ const StudentApplications: React.FC = () => {
                       {(application.status === 'submitted' || application.status === 'under_review') && (
                         <Link
                           to={`/applications/${application.id}/edit`}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white font-bold rounded-xl text-sm hover:bg-amber-600 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
+                          className="inline-flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-amber-500 text-white font-bold rounded-xl text-xs sm:text-sm hover:bg-amber-600 shadow-md hover:shadow-lg transition-all transform hover:scale-105"
                         >
                           <Edit3 className="w-4 h-4" />
                           Edit Application
@@ -442,7 +442,7 @@ const StudentApplications: React.FC = () => {
                       <button 
                         onClick={() => handleViewDetails(application.id)}
                         disabled={loadingDetails}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-slate-300 text-slate-700 font-semibold rounded-xl text-sm hover:bg-white hover:border-primary-500 hover:text-primary-700 transition-all transform hover:scale-105 disabled:opacity-50 shadow-sm"
+                        className="inline-flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 border-2 border-slate-300 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm hover:bg-white hover:border-primary-500 hover:text-primary-700 transition-all transform hover:scale-105 disabled:opacity-50 shadow-sm"
                       >
                         {loadingDetails ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -590,10 +590,10 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
                 <span className={`px-3 py-1.5 rounded-lg text-xs font-bold ${statusConfig.bg} ${statusConfig.text} shadow-sm`}>
                   {statusConfig.label}
                 </span>
-                {application.matchScore && application.matchScore > 0 && (
+                {application.prediction && application.prediction.probability != null && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/25 backdrop-blur-sm text-white text-xs font-bold shadow-sm">
                     <TrendingUp className="w-3.5 h-3.5" />
-                    {application.matchScore}% Match
+                    Prediction: {(application.prediction.probability * 100).toFixed(0)}%
                   </span>
                 )}
               </div>
@@ -694,7 +694,7 @@ const ApplicationDetailsModal: React.FC<ApplicationDetailsModalProps> = ({ appli
                 </div>
                 
                 {/* Primary Info Grid - Course, Year Level, GWA, Family Income (like admin view) */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 border-b border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 border-b border-slate-100">
                   <div>
                     <p className="text-xs text-slate-500 mb-1">Course</p>
                     <p className="text-sm font-semibold text-slate-900">

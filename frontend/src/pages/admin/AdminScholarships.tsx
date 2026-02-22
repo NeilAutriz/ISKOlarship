@@ -388,50 +388,50 @@ const AdminScholarships: React.FC = () => {
       <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Scholarships Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Total</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.total}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.total}</div>
             <div className="text-sm text-slate-500">Scholarships</div>
           </div>
           
           {/* Active Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
                 <CheckCircle className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Active</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.active}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.active}</div>
             <div className="text-sm text-slate-500">Open for Applications</div>
           </div>
           
           {/* Closed Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-slate-500 flex items-center justify-center shadow-lg">
                 <Clock className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-slate-700 bg-slate-100 px-2 py-1 rounded-full">Closed</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.closed}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.closed}</div>
             <div className="text-sm text-slate-500">Application Ended</div>
           </div>
           
           {/* Drafts Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
                 <AlertTriangle className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Drafts</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.drafts}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.drafts}</div>
             <div className="text-sm text-slate-500">Not Published</div>
           </div>
         </div>
@@ -606,7 +606,7 @@ const AdminScholarships: React.FC = () => {
                       </div>
                       <div className="flex-1">
                         <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Grant Amount</div>
-                        <div className="text-2xl font-extrabold text-slate-900">{scholarship.amount}</div>
+                        <div className="text-xl sm:text-2xl font-extrabold text-slate-900">{scholarship.amount}</div>
                       </div>
                       <div className="text-right px-4 py-2 bg-white/80 rounded-lg border border-slate-200">
                         <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Deadline</div>
@@ -671,7 +671,7 @@ const AdminScholarships: React.FC = () => {
 
                   {/* Action Buttons - Made More Prominent */}
                   <div className="px-6 py-4 bg-slate-50 border-t border-slate-200">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <button
                         onClick={() => navigate(`/scholarships/${scholarship.id}`)}
                         className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-all shadow-sm hover:shadow-md"
@@ -721,7 +721,7 @@ const AdminScholarships: React.FC = () => {
             onClick={() => !deleting && setDeleteTarget(null)}
           />
           {/* Modal */}
-          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6 border border-slate-200">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
                 <Trash2 className="w-6 h-6 text-red-600" />

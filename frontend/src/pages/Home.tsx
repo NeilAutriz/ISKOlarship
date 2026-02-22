@@ -128,7 +128,7 @@ const Home: React.FC = () => {
       {/* ================================================================
           HERO SECTION
           ================================================================ */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+      <section className="relative min-h-[auto] sm:min-h-[90vh] flex items-center overflow-hidden">
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center"
@@ -148,8 +148,8 @@ const Home: React.FC = () => {
           }} />
         </div>
 
-        <div className="container-app relative z-10 py-16 lg:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="container-app relative z-10 py-12 sm:py-16 lg:py-24">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Content */}
             <div className="text-white">
               {/* AI Badge */}
@@ -158,12 +158,12 @@ const Home: React.FC = () => {
                 <span className="text-sm font-medium">AI-Powered Matching System</span>
               </div>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight text-white">
-                Find Your Perfect<br />
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight text-white">
+                Find Your Perfect{' '}
                 <span className="text-white">Scholarship Match</span>
               </h1>
 
-              <p className="text-lg text-white/80 mb-8 max-w-xl">
+              <p className="text-base sm:text-lg text-white/80 mb-8 max-w-xl">
                 Join thousands of UPLB students discovering scholarship opportunities 
                 tailored to their unique profile with our intelligent matching algorithm.
               </p>
@@ -187,19 +187,19 @@ const Home: React.FC = () => {
               </div>
 
               {/* Social Proof */}
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex -space-x-3">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-10 h-10 rounded-full bg-white/30 border-2 border-white flex items-center justify-center">
-                      <Users className="w-5 h-5 text-white" />
+                    <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/30 border-2 border-white flex items-center justify-center">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                   ))}
                 </div>
                 <div>
-                  <div className="font-bold text-lg">{stats.activeStudents > 0 ? `${stats.activeStudents}+` : ''} Students</div>
+                  <div className="font-bold text-base sm:text-lg">{stats.activeStudents > 0 ? `${stats.activeStudents}+` : ''} Students</div>
                   <div className="text-white/70 text-sm">Active Users</div>
                 </div>
-                <div className="h-10 w-px bg-white/30" />
+                <div className="hidden sm:block h-10 w-px bg-white/30" />
                 <div className="flex items-center gap-2">
                   <div className="flex">
                     {[1, 2, 3, 4, 5].map((i) => (
@@ -212,41 +212,41 @@ const Home: React.FC = () => {
             </div>
 
             {/* Right Stats Cards */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               {/* Active Students */}
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-4">
-                  <Users className="w-6 h-6 text-white" />
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-white/20">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500 rounded-xl flex items-center justify-center mb-3 sm:mb-4">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div className="text-3xl font-bold text-white">{stats.activeStudents > 0 ? `${stats.activeStudents}+` : '—'}</div>
-                <div className="text-white/70">Active Students</div>
+                <div className="text-2xl sm:text-3xl font-bold text-white">{stats.activeStudents > 0 ? `${stats.activeStudents}+` : '—'}</div>
+                <div className="text-white/70 text-sm sm:text-base">Active Students</div>
               </div>
 
               {/* Scholarships */}
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center mb-4">
-                  <Award className="w-6 h-6 text-white" />
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-white/20">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500 rounded-xl flex items-center justify-center mb-3 sm:mb-4">
+                  <Award className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div className="text-3xl font-bold text-white">{stats.totalScholarships}+</div>
-                <div className="text-white/70">Scholarships</div>
+                <div className="text-2xl sm:text-3xl font-bold text-white">{stats.totalScholarships}+</div>
+                <div className="text-white/70 text-sm sm:text-base">Scholarships</div>
               </div>
 
               {/* Total Awards */}
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-white font-bold text-xl">₱</span>
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-white/20">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-500 rounded-xl flex items-center justify-center mb-3 sm:mb-4">
+                  <span className="text-white font-bold text-lg sm:text-xl">₱</span>
                 </div>
-                <div className="text-3xl font-bold text-white">{stats.totalFunding > 0 ? `₱${(stats.totalFunding / 1000000).toFixed(1)}M+` : '—'}</div>
-                <div className="text-white/70">Total Awards</div>
+                <div className="text-2xl sm:text-3xl font-bold text-white">{stats.totalFunding > 0 ? `₱${(stats.totalFunding / 1000000).toFixed(1)}M+` : '—'}</div>
+                <div className="text-white/70 text-sm sm:text-base">Total Awards</div>
               </div>
 
               {/* Success Rate */}
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-                <div className="w-12 h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-white" />
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-white/20">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-3 sm:mb-4">
+                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div className="text-3xl font-bold text-white">{stats.successRate > 0 ? `${Math.round(stats.successRate)}%` : '—'}</div>
-                <div className="text-white/70">Success Rate</div>
+                <div className="text-2xl sm:text-3xl font-bold text-white">{stats.successRate > 0 ? `${Math.round(stats.successRate)}%` : '—'}</div>
+                <div className="text-white/70 text-sm sm:text-base">Success Rate</div>
               </div>
             </div>
           </div>
@@ -256,17 +256,17 @@ const Home: React.FC = () => {
       {/* ================================================================
           ABOUT SECTION
           ================================================================ */}
-      <section id="about" className="py-24 bg-white scroll-mt-20">
+      <section id="about" className="py-16 sm:py-24 bg-white scroll-mt-20">
         <div className="container-app">
-          <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 items-center">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
             {/* Left Content */}
             <div>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-8">
                 About ISKOlarship
               </div>
 
-              <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-6 leading-tight">
-                Connecting Dreams to<br />
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-slate-900 mb-6 leading-tight">
+                Connecting Dreams to{' '}
                 <span className="text-primary-600">Opportunities</span>
               </h2>
 
@@ -300,13 +300,13 @@ const Home: React.FC = () => {
               </div>
 
               {/* Stats */}
-              <div className="flex gap-8 mb-8">
-                <div className="border-2 border-primary-100 rounded-xl p-4">
-                  <div className="text-3xl font-bold text-primary-600">12K+</div>
+              <div className="flex flex-wrap gap-4 sm:gap-8 mb-8">
+                <div className="border-2 border-primary-100 rounded-xl p-3 sm:p-4">
+                  <div className="text-2xl sm:text-3xl font-bold text-primary-600">12K+</div>
                   <div className="text-slate-500 text-sm">Applications Processed</div>
                 </div>
-                <div className="border-2 border-primary-100 rounded-xl p-4">
-                  <div className="text-3xl font-bold text-primary-600">98%</div>
+                <div className="border-2 border-primary-100 rounded-xl p-3 sm:p-4">
+                  <div className="text-2xl sm:text-3xl font-bold text-primary-600">98%</div>
                   <div className="text-slate-500 text-sm">Satisfaction Rate</div>
                 </div>
               </div>
@@ -321,7 +321,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Right Image */}
-            <div className="relative">
+            <div className="relative mt-8 lg:mt-0">
               <div className="bg-gradient-to-br from-primary-100 to-primary-200 rounded-3xl p-4 shadow-2xl">
                 <img 
                   src="https://up.edu.ph/wp-content/uploads/2024/09/Pegaraw-1024x538.png"
@@ -330,7 +330,7 @@ const Home: React.FC = () => {
                 />
               </div>
               {/* Floating Achievement Badge */}
-              <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 border border-slate-100">
+              <div className="hidden sm:block absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 border border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gold-400 rounded-xl flex items-center justify-center">
                     <Award className="w-6 h-6 text-white" />
@@ -342,7 +342,7 @@ const Home: React.FC = () => {
                 </div>
               </div>
               {/* Floating Students Badge */}
-              <div className="absolute -top-4 -right-4 bg-white rounded-2xl shadow-xl p-4 border border-slate-100">
+              <div className="hidden sm:block absolute -top-4 -right-4 bg-white rounded-2xl shadow-xl p-4 border border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
                     <Users className="w-5 h-5 text-white" />
@@ -361,13 +361,13 @@ const Home: React.FC = () => {
       {/* ================================================================
           FEATURES SECTION
           ================================================================ */}
-      <section id="features" className="py-24 bg-slate-50 scroll-mt-20">
+      <section id="features" className="py-16 sm:py-24 bg-slate-50 scroll-mt-20">
         <div className="container-app">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-medium mb-8">
+          <div className="text-center mb-10 sm:mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-full text-sm font-medium mb-6 sm:mb-8">
               Platform Features
             </div>
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
               Everything You Need to <span className="text-primary-600">Succeed</span>
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
@@ -375,9 +375,9 @@ const Home: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Feature 1: Smart Matching */}
-            <div className="bg-white rounded-2xl p-8 border-l-4 border-primary-600 shadow-sm hover:shadow-md transition-all">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-primary-600 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-primary-100 rounded-xl flex items-center justify-center mb-6">
                 <Search className="w-7 h-7 text-primary-600" />
               </div>
@@ -389,7 +389,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Feature 2: Secure Platform */}
-            <div className="bg-white rounded-2xl p-8 border-l-4 border-success-500 shadow-sm hover:shadow-md transition-all">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-success-500 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-success-100 rounded-xl flex items-center justify-center mb-6">
                 <Shield className="w-7 h-7 text-success-600" />
               </div>
@@ -401,7 +401,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Feature 3: Eligibility Scores */}
-            <div className="bg-white rounded-2xl p-8 border-l-4 border-purple-500 shadow-sm hover:shadow-md transition-all">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-purple-500 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
                 <BarChart3 className="w-7 h-7 text-purple-600" />
               </div>
@@ -413,7 +413,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Feature 4: Application Tracking */}
-            <div className="bg-white rounded-2xl p-8 border-l-4 border-orange-500 shadow-sm hover:shadow-md transition-all">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-orange-500 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mb-6">
                 <Target className="w-7 h-7 text-orange-600" />
               </div>
@@ -425,7 +425,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Feature 5: Instant Results */}
-            <div className="bg-white rounded-2xl p-8 border-l-4 border-pink-500 shadow-sm hover:shadow-md transition-all">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-pink-500 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-pink-100 rounded-xl flex items-center justify-center mb-6">
                 <Zap className="w-7 h-7 text-pink-600" />
               </div>
@@ -437,7 +437,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Feature 6: Resource Center */}
-            <div className="bg-white rounded-2xl p-8 border-l-4 border-cyan-500 shadow-sm hover:shadow-md transition-all">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-l-4 border-cyan-500 shadow-sm hover:shadow-md transition-all">
               <div className="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center mb-6">
                 <BookOpen className="w-7 h-7 text-cyan-600" />
               </div>
@@ -454,10 +454,10 @@ const Home: React.FC = () => {
       {/* ================================================================
           HOW IT WORKS SECTION
           ================================================================ */}
-      <section id="how-it-works" className="py-24 bg-white scroll-mt-20">
+      <section id="how-it-works" className="py-16 sm:py-24 bg-white scroll-mt-20">
         <div className="container-app">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-6 leading-tight">
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-slate-900 mb-6 leading-tight">
               Your Journey to <span className="text-primary-600">Success</span>
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
@@ -470,7 +470,7 @@ const Home: React.FC = () => {
             {/* Connection Line */}
             <div className="hidden lg:block absolute top-8 left-1/2 transform -translate-x-1/2 w-3/4 h-1 bg-gradient-to-r from-purple-500 via-primary-500 to-success-500" />
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
               {/* Step 1 */}
               <div className="text-center">
                 <div className="relative inline-block mb-6">
@@ -614,13 +614,13 @@ const Home: React.FC = () => {
       {/* ================================================================
           FEATURED SCHOLARSHIPS SECTION
           ================================================================ */}
-      <section className="py-24 bg-white">
+      <section className="py-16 sm:py-24 bg-white">
         <div className="container-app">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-8">
+          <div className="text-center mb-10 sm:mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-6 sm:mb-8">
               Available Programs
             </div>
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
               Featured <span className="text-primary-600">Scholarships</span>
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
@@ -628,7 +628,7 @@ const Home: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12">
             {featuredScholarships.map((scholarship, index) => (
               <div
                 key={(scholarship as any)._id || scholarship.id || index}
@@ -650,12 +650,12 @@ const Home: React.FC = () => {
                   </span>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-900 mb-1 line-clamp-2">
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 line-clamp-2">
                   {scholarship.name}
                 </h3>
                 <p className="text-slate-500 text-sm mb-4">{scholarship.sponsor}</p>
 
-                <div className="text-2xl font-bold text-slate-900 mb-4">
+                <div className="text-xl sm:text-2xl font-bold text-slate-900 mb-4">
                   ₱{((scholarship.awardAmount || 0) / 1000).toFixed(0)},000 <span className="text-sm font-normal text-slate-500">per semester</span>
                 </div>
 
@@ -684,7 +684,7 @@ const Home: React.FC = () => {
       {/* ================================================================
           CTA SECTION
           ================================================================ */}
-      <section className="relative py-24 overflow-hidden">
+      <section className="relative py-16 sm:py-24 overflow-hidden">
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center"
@@ -710,8 +710,8 @@ const Home: React.FC = () => {
             <span className="text-sm font-medium">Join Our Community</span>
           </div>
 
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-8 leading-tight">
-            Ready to Find Your Perfect<br />Scholarship?
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-8 leading-tight">
+            Ready to Find Your Perfect{' '}Scholarship?
           </h2>
 
           <p className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
@@ -738,13 +738,13 @@ const Home: React.FC = () => {
       {/* ================================================================
           CONTACT SECTION
           ================================================================ */}
-      <section id="contact" className="py-24 bg-white scroll-mt-20">
+      <section id="contact" className="py-16 sm:py-24 bg-white scroll-mt-20">
         <div className="container-app">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-8">
+          <div className="text-center mb-10 sm:mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-600 rounded-full text-sm font-medium mb-6 sm:mb-8">
               Get In Touch
             </div>
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-slate-900 mb-4">
               We're Here to <span className="text-primary-600">Help</span>
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
@@ -752,9 +752,9 @@ const Home: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 max-w-4xl mx-auto">
             {/* Email */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 border-t-4 border-t-primary-600 text-center">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100 border-t-4 border-t-primary-600 text-center">
               <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Mail className="w-8 h-8 text-primary-600" />
               </div>
@@ -766,7 +766,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Phone */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 border-t-4 border-t-success-500 text-center">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100 border-t-4 border-t-success-500 text-center">
               <div className="w-16 h-16 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Phone className="w-8 h-8 text-success-600" />
               </div>
@@ -778,7 +778,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Location */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 border-t-4 border-t-purple-500 text-center">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100 border-t-4 border-t-purple-500 text-center">
               <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <MapPin className="w-8 h-8 text-purple-600" />
               </div>

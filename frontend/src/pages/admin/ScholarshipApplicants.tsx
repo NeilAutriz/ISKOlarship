@@ -340,7 +340,7 @@ const ScholarshipApplicants: React.FC = () => {
       <div className="container-app py-6">
         {/* Scholarship Info Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
                 <Award className="w-6 h-6 text-primary-600" />
@@ -371,7 +371,7 @@ const ScholarshipApplicants: React.FC = () => {
                 <Clock className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-slate-800">{stats.pending}</div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-800">{stats.pending}</div>
                 <div className="text-xs text-slate-500">Pending Review</div>
               </div>
             </div>
@@ -382,7 +382,7 @@ const ScholarshipApplicants: React.FC = () => {
                 <Eye className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-slate-800">{stats.underReview}</div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-800">{stats.underReview}</div>
                 <div className="text-xs text-slate-500">Under Review</div>
               </div>
             </div>
@@ -393,7 +393,7 @@ const ScholarshipApplicants: React.FC = () => {
                 <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-slate-800">{stats.approved}</div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-800">{stats.approved}</div>
                 <div className="text-xs text-slate-500">Approved</div>
               </div>
             </div>
@@ -404,7 +404,7 @@ const ScholarshipApplicants: React.FC = () => {
                 <XCircle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-slate-800">{stats.rejected}</div>
+                <div className="text-xl sm:text-2xl font-bold text-slate-800">{stats.rejected}</div>
                 <div className="text-xs text-slate-500">Rejected</div>
               </div>
             </div>
@@ -464,13 +464,13 @@ const ScholarshipApplicants: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Applicant</th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Course & Year</th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">GWA</th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">ML Prediction</th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Submitted</th>
-                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                    <th className="text-center px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Action</th>
+                    <th className="text-left px-3 py-2 sm:px-6 sm:py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Applicant</th>
+                    <th className="text-left px-3 py-2 sm:px-6 sm:py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Course & Year</th>
+                    <th className="text-left px-3 py-2 sm:px-6 sm:py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">GWA</th>
+                    <th className="text-left px-3 py-2 sm:px-6 sm:py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">ML Prediction</th>
+                    <th className="text-left px-3 py-2 sm:px-6 sm:py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Submitted</th>
+                    <th className="text-left px-3 py-2 sm:px-6 sm:py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
+                    <th className="text-center px-3 py-2 sm:px-6 sm:py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

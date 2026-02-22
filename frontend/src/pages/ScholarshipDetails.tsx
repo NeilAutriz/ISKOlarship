@@ -406,7 +406,7 @@ const ScholarshipDetails: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-primary-700/90 via-primary-600/85 to-primary-800/90" />
         <div className="relative container-app py-6">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-white/90 mb-6">
+          <nav className="flex flex-wrap items-center gap-2 text-sm text-white/90 mb-6">
             <Link to="/" className="text-white hover:text-white/80 transition-colors no-underline">Home</Link>
             <ChevronRight className="w-4 h-4 text-white/70" />
             <Link to="/scholarships" className="text-white hover:text-white/80 transition-colors no-underline">Scholarships</Link>
@@ -810,7 +810,7 @@ const ScholarshipDetails: React.FC = () => {
             {prediction && (
               <div className="card p-5">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div>
                     <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
                       <BarChart2 className="w-4 h-4 text-primary-600" />

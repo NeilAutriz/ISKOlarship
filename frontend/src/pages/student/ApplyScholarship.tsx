@@ -721,11 +721,11 @@ const ApplyScholarship: React.FC = () => {
             {isEditMode ? 'Back to My Applications' : 'Back to Scholarship'}
           </Link>
 
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-1">
-                <Award className="w-7 h-7 text-primary-600 flex-shrink-0" />
-                <h1 className="text-2xl font-bold text-slate-900 truncate">
+                <Award className="w-6 h-6 sm:w-7 sm:h-7 text-primary-600 flex-shrink-0" />
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">
                   {isEditMode ? 'Edit Application' : scholarship.name}
                 </h1>
               </div>
@@ -740,7 +740,7 @@ const ApplyScholarship: React.FC = () => {
             </div>
 
             {/* Step Progress - right side */}
-            <div className="flex-shrink-0 w-48">
+            <div className="flex-shrink-0 w-full sm:w-48">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-medium text-slate-500">Progress</span>
                 <span className="text-sm font-bold text-primary-600">Step {currentStep}/{totalSteps}</span>
@@ -790,7 +790,7 @@ const ApplyScholarship: React.FC = () => {
 
                   {studentProfile && (
                     <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-semibold text-slate-700 mb-2 block">Student Number</label>
                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -805,7 +805,7 @@ const ApplyScholarship: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-semibold text-slate-700 mb-2 block">College</label>
                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -827,7 +827,7 @@ const ApplyScholarship: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-semibold text-slate-700 mb-2 block">Annual Family Income</label>
                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
@@ -846,7 +846,7 @@ const ApplyScholarship: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-semibold text-slate-700 mb-2 block">Contact Number</label>
                           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">

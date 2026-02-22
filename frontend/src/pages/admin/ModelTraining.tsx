@@ -326,7 +326,7 @@ const ModelTraining: React.FC = () => {
                 Train and manage logistic regression models for scholarship predictions
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={loadData}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white font-semibold rounded-xl hover:bg-white/30 hover:border-white/40 transition-all"
@@ -356,50 +356,50 @@ const ModelTraining: React.FC = () => {
       <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Training Data Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg">
                 <Database className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">Data</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats?.totalApplications || 0}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats?.totalApplications || 0}</div>
             <div className="text-sm text-slate-500">Training Samples</div>
           </div>
           
           {/* Approved Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
                 <CheckCircle className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Approved</span>
             </div>
-            <div className="text-3xl font-bold text-green-600">{stats?.approvedCount || 0}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-green-600">{stats?.approvedCount || 0}</div>
             <div className="text-sm text-slate-500">Positive Cases</div>
           </div>
           
           {/* Trained Models Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shadow-lg">
                 <Brain className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-purple-700 bg-purple-100 px-2 py-1 rounded-full">Models</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats?.totalModels || 0}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats?.totalModels || 0}</div>
             <div className="text-sm text-slate-500">Trained Models</div>
           </div>
           
           {/* Trainable Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
                 <Target className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Trainable</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats?.scholarshipsWithEnoughData || 0}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats?.scholarshipsWithEnoughData || 0}</div>
             <div className="text-sm text-slate-500">Ready to Train</div>
           </div>
         </div>
@@ -595,25 +595,25 @@ const ModelTraining: React.FC = () => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-slate-50 rounded-xl p-4">
                   <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Accuracy</p>
-                  <p className="text-2xl font-bold text-primary-600">
+                  <p className="text-xl sm:text-2xl font-bold text-primary-600">
                     {(model.metrics.accuracy * 100).toFixed(1)}%
                   </p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
                   <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Precision</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">
                     {(model.metrics.precision * 100).toFixed(1)}%
                   </p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
                   <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Recall</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-xl sm:text-2xl font-bold text-blue-600">
                     {(model.metrics.recall * 100).toFixed(1)}%
                   </p>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4">
                   <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">F1 Score</p>
-                  <p className="text-2xl font-bold text-purple-600">
+                  <p className="text-xl sm:text-2xl font-bold text-purple-600">
                     {(model.metrics.f1Score * 100).toFixed(1)}%
                   </p>
                 </div>
@@ -628,7 +628,7 @@ const ModelTraining: React.FC = () => {
                     .slice(0, 6)
                     .map(([feature, importance]) => (
                       <div key={feature} className="flex items-center gap-3">
-                        <span className="text-sm text-slate-600 w-40">
+                        <span className="text-sm text-slate-600 w-24 sm:w-40 truncate">
                           {featureDisplayNames[feature] || feature}
                         </span>
                         <div className="flex-1 bg-slate-200 rounded-full h-2">

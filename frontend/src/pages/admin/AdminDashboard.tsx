@@ -263,7 +263,7 @@ const AdminDashboard: React.FC = () => {
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
               <p className="text-primary-100">Manage scholarships, applications, and platform analytics</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Link to="/admin/scholarships" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white font-semibold rounded-xl hover:bg-white/30 hover:border-white/40 transition-all">
                 <GraduationCap className="w-4 h-4" />Scholarships
               </Link>
@@ -279,50 +279,50 @@ const AdminDashboard: React.FC = () => {
       <div className="container-app -mt-6 relative z-20 mb-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Total Students Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shadow-lg">
                 <Users className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded-full">Total Students</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.totalStudents.toLocaleString()}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.totalStudents.toLocaleString()}</div>
             <div className="text-sm text-slate-500">Registered</div>
           </div>
           
           {/* Scholarships Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-green-600 flex items-center justify-center shadow-lg">
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-1 rounded-full">Scholarships</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.totalScholarships}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.totalScholarships}</div>
             <div className="text-sm text-slate-500">Active Programs</div>
           </div>
           
           {/* Applications Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
                 <FileText className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Applications</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.totalApplications}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.totalApplications}</div>
             <div className="text-sm text-slate-500">Total Submitted</div>
           </div>
           
           {/* Pending Review Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-12 h-12 rounded-xl bg-red-500 flex items-center justify-center shadow-lg">
                 <AlertCircle className="w-6 h-6 text-white" />
               </div>
               <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">Pending Review</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.pendingReviews}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.pendingReviews}</div>
             <div className="text-sm text-slate-500">Needs Attention</div>
           </div>
         </div>

@@ -162,7 +162,7 @@ const AdminActivityLog: React.FC = () => {
               <s.icon className={`w-4 h-4 ${s.color}`} />
               <span className="text-xs font-medium text-slate-500">{s.label}</span>
             </div>
-            <p className={`text-2xl font-bold ${s.color}`}>
+            <p className={`text-xl sm:text-2xl font-bold ${s.color}`}>
               {statsLoading ? '...' : typeof s.value === 'number' ? s.value.toLocaleString() : s.value}
             </p>
           </div>

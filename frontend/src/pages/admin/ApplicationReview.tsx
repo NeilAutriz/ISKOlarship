@@ -727,7 +727,7 @@ const ApplicationReview: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-6 h-6" />
                   <div>
-                    <div className="text-3xl font-bold">
+                    <div className="text-2xl sm:text-3xl font-bold">
                       {currentPrediction.probabilityPercentage ?? Math.round(currentPrediction.probability * 100)}%
                       {loadingPrediction && <Loader2 className="w-4 h-4 inline ml-2 animate-spin" />}
                     </div>
@@ -819,7 +819,7 @@ const ApplicationReview: React.FC = () => {
                   </div>
                   <div>
                     <div className="bg-primary-50 rounded-xl p-4 text-center border border-primary-100">
-                      <div className="text-3xl font-bold text-primary-600">{application.gwa.toFixed(2)}</div>
+                      <div className="text-2xl sm:text-3xl font-bold text-primary-600">{application.gwa.toFixed(2)}</div>
                       <div className="text-sm text-primary-700 font-medium">GWA</div>
                     </div>
                   </div>
@@ -1057,7 +1057,7 @@ const ApplicationReview: React.FC = () => {
 
                       return (
                         <div key={index} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                          <div className="flex items-center justify-between p-4 hover:bg-slate-100 transition-colors">
+                          <div className="flex items-start justify-between p-4 hover:bg-slate-100 transition-colors gap-2 flex-wrap">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
                                 isPDF ? 'bg-red-100' : isImage ? 'bg-blue-100' : 'bg-primary-100'
@@ -1209,7 +1209,8 @@ const ApplicationReview: React.FC = () => {
 
                                 {/* Field-by-field comparison */}
                                 {docOcr.comparisonResults && docOcr.comparisonResults.length > 0 && (
-                                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+                                  <div className="overflow-x-auto -mx-2">
+                                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-white min-w-[500px]">
                                     {/* Table header */}
                                     <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-slate-100 border-b border-slate-200">
                                       <div className="col-span-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Field</div>
@@ -1250,6 +1251,7 @@ const ApplicationReview: React.FC = () => {
                                         </div>
                                       );
                                     })}
+                                  </div>
                                   </div>
                                 )}
 
@@ -1579,7 +1581,7 @@ const ApplicationReview: React.FC = () => {
                 Reject Application
               </h3>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <p className="text-slate-600 mb-4">
                 Please provide a reason for rejecting this application. This will be visible to the applicant.
               </p>
@@ -1677,7 +1679,7 @@ const ApplicationReview: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-between flex-shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-2xl flex items-center justify-between flex-shrink-0 flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => handleDownloadDocument(previewDoc)}

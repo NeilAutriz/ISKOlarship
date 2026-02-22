@@ -223,8 +223,8 @@ const PredictionExplanation: React.FC = () => {
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Hero Section - Your Result */}
         <div className="bg-white rounded-3xl shadow-lg overflow-hidden mb-8">
-          <div className="bg-primary-600 px-8 py-6">
-            <div className="flex items-center justify-between">
+          <div className="bg-primary-600 px-4 sm:px-8 py-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center">
                   <Brain className="w-7 h-7 text-white" />
@@ -269,7 +269,7 @@ const PredictionExplanation: React.FC = () => {
             </div>
           </div>
           
-          <div className="p-8">
+          <div className="p-4 sm:p-8">
             <div className="flex flex-col md:flex-row items-center gap-8">
               {/* Big Percentage Circle */}
               <div className="relative">
@@ -322,7 +322,7 @@ const PredictionExplanation: React.FC = () => {
         </div>
 
         {/* How It Works Section */}
-        <div className="bg-white rounded-3xl shadow-lg p-8 mb-8">
+        <div className="bg-white rounded-3xl shadow-lg p-4 sm:p-8 mb-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <HelpCircle className="w-6 h-6 text-blue-600" />
@@ -333,7 +333,7 @@ const PredictionExplanation: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
             {/* Step 1 */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 relative">
               <div className="absolute -top-3 -left-3 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg">1</div>
@@ -374,7 +374,7 @@ const PredictionExplanation: React.FC = () => {
 
         {/* Detailed Calculation Table */}
         <div className="bg-white rounded-3xl shadow-lg overflow-hidden mb-8">
-          <div className="bg-primary-700 px-8 py-6">
+          <div className="bg-primary-700 px-4 sm:px-8 py-6">
             <div className="flex items-center gap-3">
               <Calculator className="w-6 h-6 text-white" />
               <h2 className="text-xl font-bold text-white">Detailed Calculation Breakdown</h2>
@@ -515,7 +515,7 @@ const PredictionExplanation: React.FC = () => {
           </div>
 
           {/* Formula Explanation */}
-          <div className="px-8 py-6 bg-slate-50 border-t border-slate-200">
+          <div className="px-4 sm:px-8 py-6 bg-slate-50 border-t border-slate-200">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Info className="w-5 h-5 text-indigo-600" />
@@ -537,7 +537,7 @@ const PredictionExplanation: React.FC = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-2xl shadow-md p-6 border-l-4 border-green-500">
             <div className="flex items-center gap-3 mb-2">
               <TrendingUp className="w-5 h-5 text-green-600" />
@@ -622,7 +622,7 @@ const PredictionExplanation: React.FC = () => {
 
         {/* Model Info Footer */}
         <div className="text-center">
-          <div className="inline-flex items-center gap-4 px-6 py-3 bg-white rounded-full shadow-sm text-sm text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-4 sm:px-6 py-3 bg-white rounded-2xl shadow-sm text-sm text-slate-500">
             <span className="flex items-center gap-2">
               <Brain className="w-4 h-4 text-primary-500" />
               Logistic Regression Model

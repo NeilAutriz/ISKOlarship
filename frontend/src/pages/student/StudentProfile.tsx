@@ -779,8 +779,8 @@ const StudentProfile: React.FC = () => {
                               : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                             : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                         }`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
                               <div className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center ${
                                 uploadedDoc
                                   ? uploadedDoc.verificationStatus === 'verified'
@@ -816,7 +816,7 @@ const StudentProfile: React.FC = () => {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-0 sm:ml-2">
                               {uploadedDoc ? (
                                 <>
                                   {/* Verification Status Badge */}
@@ -963,8 +963,8 @@ const StudentProfile: React.FC = () => {
 
                 <div className="p-6 space-y-5">
                   {/* Master toggle */}
-                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Mail className="w-5 h-5 text-slate-600" />
                       <div>
                         <p className="font-semibold text-slate-900">Email Notifications</p>
@@ -983,8 +983,8 @@ const StudentProfile: React.FC = () => {
                   {/* Sub-toggles */}
                   <div className={`space-y-4 transition-opacity ${notifPrefs.emailEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
                     {/* Application updates */}
-                    <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <Award className="w-5 h-5 text-blue-500" />
                         <div>
                           <p className="font-medium text-slate-900">Application Updates</p>
@@ -1001,8 +1001,8 @@ const StudentProfile: React.FC = () => {
                     </div>
 
                     {/* Document updates */}
-                    <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <FileText className="w-5 h-5 text-emerald-500" />
                         <div>
                           <p className="font-medium text-slate-900">Document Updates</p>
@@ -1525,7 +1525,7 @@ const StudentProfile: React.FC = () => {
               )}
               
               {/* Document Details */}
-              <div className="mt-4 grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
                 <div>
                   <p className="text-xs text-slate-600 mb-1">File Size</p>
                   <p className="text-sm font-medium text-slate-900">{(previewDoc.fileSize / 1024).toFixed(1)} KB</p>

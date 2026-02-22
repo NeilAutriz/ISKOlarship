@@ -1273,13 +1273,13 @@ const AddScholarship: React.FC = () => {
             ].map(({ num, label, icon: Icon }) => (
               <React.Fragment key={num}>
                 <div className={`flex flex-col items-center ${num <= currentStep ? 'text-primary-600' : 'text-slate-400'}`}>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold mb-2 transition-all
+                  <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-semibold mb-2 transition-all
                     ${num < currentStep ? 'bg-primary-600 text-white shadow-lg' : 
                       num === currentStep ? 'bg-primary-600 text-white ring-4 ring-primary-100 shadow-lg' : 
                       'bg-slate-200'}`}>
-                    {num < currentStep ? <CheckCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
+                    {num < currentStep ? <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6" /> : <Icon className="w-4 h-4 sm:w-6 sm:h-6" />}
                   </div>
-                  <span className="text-xs font-medium text-center">{label}</span>
+                  <span className="text-xs font-medium text-center hidden sm:block">{label}</span>
                 </div>
                 {num < totalSteps && (
                   <div className={`flex-1 h-1 mx-2 mb-6 rounded transition-all ${num < currentStep ? 'bg-primary-600' : 'bg-slate-200'}`} />
@@ -1298,7 +1298,7 @@ const AddScholarship: React.FC = () => {
         )}
 
         {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8 border border-slate-200">
           <form onSubmit={handleSubmit}>
             
             {/* ================================================================ */}
@@ -1950,7 +1950,7 @@ const AddScholarship: React.FC = () => {
                         <label className="block text-sm font-semibold text-slate-700 mb-3">
                           Eligible Socialized Tuition (ST) Brackets
                         </label>
-                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
                           {STBrackets.map(bracket => (
                             <label
                               key={bracket}
@@ -2213,7 +2213,7 @@ const AddScholarship: React.FC = () => {
                           <label className="block text-sm font-semibold text-indigo-800 mb-2">
                             Step 1: What type of condition?
                           </label>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <button
                               type="button"
                               onClick={() => handleTypeChange(ConditionType.RANGE)}
@@ -2635,7 +2635,7 @@ const AddScholarship: React.FC = () => {
                         placeholder="Brief description of the document"
                       />
 
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {/* File Type Selection */}
                         <select
                           value={customDocument.fileType}
@@ -2985,7 +2985,7 @@ const AddScholarship: React.FC = () => {
             )}
 
             {/* Navigation Buttons */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-200">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between mt-8 pt-6 border-t border-slate-200 gap-3">
               <button
                 type="button"
                 onClick={(e) => {

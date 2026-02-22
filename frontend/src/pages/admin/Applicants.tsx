@@ -380,11 +380,11 @@ const Applicants: React.FC = () => {
             </div>
             
             <div className="flex flex-wrap gap-3">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20 min-w-[100px]">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/20 min-w-[80px] sm:min-w-[100px]">
                 <div className="text-2xl font-bold text-white">{stats.total}</div>
                 <div className="text-xs text-primary-200">Total</div>
               </div>
-              <div className="bg-rose-500/30 backdrop-blur-sm rounded-xl px-4 py-3 border border-rose-400/40 min-w-[100px]">
+              <div className="bg-rose-500/30 backdrop-blur-sm rounded-xl px-4 py-3 border border-rose-400/40 min-w-[80px] sm:min-w-[100px]">
                 <div className="text-2xl font-bold text-white">{stats.pendingReview + stats.underReview}</div>
                 <div className="text-xs text-rose-100">Needs Action</div>
               </div>
@@ -421,7 +421,7 @@ const Applicants: React.FC = () => {
       <div className={`container-app ${scholarshipFilter ? '' : '-mt-6'} relative z-20 mb-6`}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div 
-            className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-amber-200 transition-all group cursor-pointer"
+            className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-amber-200 transition-all group cursor-pointer"
             onClick={() => { setActiveTab('pending'); setStatusFilter('pending'); }}
           >
             <div className="flex items-center justify-between mb-3">
@@ -430,12 +430,12 @@ const Applicants: React.FC = () => {
               </div>
               <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-200">Pending</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.pendingReview}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.pendingReview}</div>
             <div className="text-sm text-slate-500">Awaiting Review</div>
           </div>
           
           <div 
-            className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-blue-200 transition-all group cursor-pointer"
+            className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-blue-200 transition-all group cursor-pointer"
             onClick={() => { setActiveTab('pending'); setStatusFilter('under_review'); }}
           >
             <div className="flex items-center justify-between mb-3">
@@ -444,7 +444,7 @@ const Applicants: React.FC = () => {
               </div>
               <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200">In Progress</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.underReview}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.underReview}</div>
             <div className="text-sm text-slate-500">Under Review</div>
           </div>
           
@@ -458,12 +458,12 @@ const Applicants: React.FC = () => {
               </div>
               <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200">Success</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.approved}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.approved}</div>
             <div className="text-sm text-slate-500">Approved</div>
           </div>
           
           <div 
-            className="bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-red-200 transition-all group cursor-pointer"
+            className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:border-red-200 transition-all group cursor-pointer"
             onClick={() => { setActiveTab('processed'); setStatusFilter('rejected'); }}
           >
             <div className="flex items-center justify-between mb-3">
@@ -472,7 +472,7 @@ const Applicants: React.FC = () => {
               </div>
               <span className="text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-full border border-red-200">Rejected</span>
             </div>
-            <div className="text-3xl font-bold text-slate-900">{stats.rejected}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.rejected}</div>
             <div className="text-sm text-slate-500">Not Approved</div>
           </div>
         </div>
@@ -498,7 +498,7 @@ const Applicants: React.FC = () => {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as ApplicationStatus)}
-                  className="appearance-none px-4 py-3 pr-10 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 font-medium min-w-[160px]"
+                  className="appearance-none px-4 py-3 pr-10 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 font-medium min-w-0 w-full sm:min-w-[160px] sm:w-auto"
                 >
                   <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
