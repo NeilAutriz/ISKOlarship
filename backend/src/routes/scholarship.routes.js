@@ -617,6 +617,7 @@ router.post('/',
       logScholarshipCreate(req.user, scholarship, req.ip);
       
       res.status(201).json({
+        success: true,
         data: scholarship
       });
     } catch (error) {
@@ -739,6 +740,7 @@ router.put('/:id',
       logScholarshipUpdate(req.user, scholarship, req.ip);
 
       res.json({
+        success: true,
         data: scholarship
       });
     } catch (error) {
