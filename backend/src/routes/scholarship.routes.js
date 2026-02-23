@@ -620,6 +620,26 @@ router.post('/',
         data: scholarship
       });
     } catch (error) {
+      // Enhanced error logging for debugging
+      console.error('❌ Scholarship creation error:', {
+        errorName: error.name,
+        errorMessage: error.message,
+        validationErrors: error.errors ? Object.keys(error.errors).map(key => ({
+          field: key,
+          message: error.errors[key].message,
+          value: error.errors[key].value
+        })) : null,
+        adminLevel: req.user?.adminProfile?.accessLevel,
+        scholarshipLevel: req.body?.scholarshipLevel,
+        requestBody: {
+          name: req.body?.name,
+          type: req.body?.type,
+          scholarshipLevel: req.body?.scholarshipLevel,
+          managingCollegeCode: req.body?.managingCollegeCode,
+          managingAcademicUnitCode: req.body?.managingAcademicUnitCode,
+          eligibleClassifications: req.body?.eligibilityCriteria?.eligibleClassifications
+        }
+      });
       next(error);
     }
   }

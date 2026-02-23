@@ -63,7 +63,11 @@ export const YEAR_LEVEL_MAP: Record<string, string> = {
   'FRESHMAN': 'Freshman',
   'SOPHOMORE': 'Sophomore',
   'JUNIOR': 'Junior',
-  'SENIOR': 'Senior'
+  'SENIOR': 'Senior',
+  'GRADUATE': 'Graduate',
+  'GRAD': 'Graduate',
+  'MS': 'Graduate',
+  'PHD': 'Graduate'
 };
 
 export const COLLEGE_CODE_MAP: Record<string, string> = {

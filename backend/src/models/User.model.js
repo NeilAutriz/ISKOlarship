@@ -21,7 +21,8 @@ const Classification = {
   FRESHMAN: 'Freshman',
   SOPHOMORE: 'Sophomore',
   JUNIOR: 'Junior',
-  SENIOR: 'Senior'
+  SENIOR: 'Senior',
+  GRADUATE: 'Graduate'
 };
 
 // Alias for backward compatibility
