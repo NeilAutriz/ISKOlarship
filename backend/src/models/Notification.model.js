@@ -9,10 +9,12 @@ const NotificationType = {
   APPLICATION_APPROVED: 'application_approved',
   APPLICATION_REJECTED: 'application_rejected',
   APPLICATION_UNDER_REVIEW: 'application_under_review',
+  APPLICATION_REVERTED: 'application_reverted',
   DOCUMENT_VERIFIED: 'document_verified',
   DOCUMENT_REJECTED: 'document_rejected',
   DOCUMENT_RESUBMIT: 'document_resubmit',
   ALL_DOCUMENTS_VERIFIED: 'all_documents_verified',
+  PASSWORD_CHANGED: 'password_changed',
 };
 
 const notificationSchema = new mongoose.Schema(

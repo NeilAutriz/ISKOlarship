@@ -386,10 +386,18 @@ export const userApi = {
     return response.data;
   },
 
-  changePassword: async (currentPassword: string, newPassword: string) => {
+  changePassword: async (currentPassword: string, newPassword: string, otp: string) => {
     const response = await api.put<ApiResponse<null>>('/users/password', {
       currentPassword,
       newPassword,
+      otp,
+    });
+    return response.data;
+  },
+
+  requestPasswordChangeOTP: async (currentPassword: string) => {
+    const response = await api.post<ApiResponse<{ maskedEmail: string }>>('/users/password/request-otp', {
+      currentPassword,
     });
     return response.data;
   },
@@ -741,6 +749,14 @@ export const applicationApi = {
       status,
       notes,
       reason,
+    });
+    return response.data;
+  },
+
+  revertDecision: async (id: string, reason?: string, notes?: string) => {
+    const response = await api.put<ApiResponse<Application>>(`/applications/${id}/revert`, {
+      reason,
+      notes,
     });
     return response.data;
   },

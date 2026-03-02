@@ -8,7 +8,7 @@ import {
   Activity, LogIn, UserPlus, FileEdit, Upload, Send, XCircle,
   CheckCircle, RefreshCw, Clock, Filter, Search, Users, Shield,
   ChevronLeft, ChevronRight, Calendar, TrendingUp, BarChart3,
-  BookOpen, Brain, Trash2, Bell, GraduationCap
+  BookOpen, Brain, Trash2, Bell, GraduationCap, Key, RotateCcw as RotateCcwIcon
 } from 'lucide-react';
 import { activityLogApi, ActivityLogEntry, ActivityLogPagination, ActivityLogStats } from '../../services/apiClient';
 
@@ -38,6 +38,9 @@ const ACTION_CONFIG: Record<string, { icon: React.ElementType; color: string; bg
   model_train:                    { icon: Brain,       color: 'text-violet-600',  bg: 'bg-violet-50',  label: 'Model Trained' },
   model_train_all:                { icon: Brain,       color: 'text-violet-600',  bg: 'bg-violet-50',  label: 'Train All Models' },
   notification_preferences_update:{ icon: Bell,        color: 'text-amber-600',   bg: 'bg-amber-50',   label: 'Notif. Settings' },
+  password_change:                { icon: Key,         color: 'text-orange-600',  bg: 'bg-orange-50',  label: 'Password Changed' },
+  password_reset:                 { icon: Key,         color: 'text-orange-600',  bg: 'bg-orange-50',  label: 'Password Reset' },
+  application_revert:             { icon: RotateCcwIcon, color: 'text-amber-600', bg: 'bg-amber-50',  label: 'App Reverted' },
 };
 
 const DEFAULT_CONFIG = { icon: Activity, color: 'text-slate-600', bg: 'bg-slate-50', label: 'Other' };

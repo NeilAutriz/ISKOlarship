@@ -8,8 +8,10 @@ const router = express.Router();
 const { body, param, validationResult } = require('express-validator');
 const { User, UserRole, UPLBCollege, YearLevel, STBracket } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
-const { logProfileUpdate, logDocumentUpload, logDocumentDelete } = require('../services/activityLog.service');
+const { logProfileUpdate, logDocumentUpload, logDocumentDelete, logPasswordChange } = require('../services/activityLog.service');
 const { uploadSingle, uploadMultiple, handleUploadError, uploadFilesToCloudinary, uploadToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
+const { generateOTP, sendOTPEmail } = require('../services/email.service');
+const { notifyPasswordChanged } = require('../services/notification.service');
 const {
   getScholarshipScopeFilter,
   getScopedScholarshipIds
@@ -372,19 +374,14 @@ router.get('/profile/completeness', authMiddleware, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/users/password
- * @desc    Change password
+ * @route   POST /api/users/password/request-otp
+ * @desc    Request OTP for password change (step 1)
  * @access  Private
  */
-router.put('/password',
+router.post('/password/request-otp',
   authMiddleware,
   [
-    body('currentPassword').notEmpty().withMessage('Current password is required'),
-    body('newPassword')
-      .isLength({ min: 8 })
-      .withMessage('New password must be at least 8 characters')
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      .withMessage('Password must contain uppercase, lowercase, and number')
+    body('currentPassword').notEmpty().withMessage('Current password is required')
   ],
   async (req, res, next) => {
     try {
@@ -396,7 +393,7 @@ router.put('/password',
         });
       }
 
-      const { currentPassword, newPassword } = req.body;
+      const { currentPassword } = req.body;
 
       // Get user with password
       const user = await User.findById(req.user._id).select('+password');
@@ -410,9 +407,131 @@ router.put('/password',
         });
       }
 
+      // Generate and store OTP
+      const otp = generateOTP();
+      const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      await User.findByIdAndUpdate(user._id, {
+        otpCode: otp,
+        otpExpires,
+        otpAttempts: 0
+      });
+
+      // Determine first name for email personalization
+      const firstName = user.studentProfile?.firstName ||
+        user.adminProfile?.firstName ||
+        'User';
+
+      // Send OTP email
+      await sendOTPEmail(user.email, otp, firstName);
+
+      res.json({
+        success: true,
+        message: 'Verification code sent to your email',
+        data: {
+          maskedEmail: user.email.replace(/^(.)(.*)(@.*)$/, (_, first, middle, domain) =>
+            first + '*'.repeat(Math.min(middle.length, 5)) + domain
+          )
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @route   PUT /api/users/password
+ * @desc    Change password with OTP verification (step 2)
+ * @access  Private
+ */
+router.put('/password',
+  authMiddleware,
+  [
+    body('currentPassword').notEmpty().withMessage('Current password is required'),
+    body('newPassword')
+      .isLength({ min: 8 })
+      .withMessage('New password must be at least 8 characters')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('Password must contain uppercase, lowercase, and number'),
+    body('otp').isLength({ min: 6, max: 6 }).isNumeric().withMessage('A valid 6-digit OTP is required')
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array()
+        });
+      }
+
+      const { currentPassword, newPassword, otp } = req.body;
+
+      // Get user with password and OTP fields
+      const user = await User.findById(req.user._id).select('+password +otpCode +otpExpires +otpAttempts');
+
+      // Verify current password
+      const isMatch = await user.comparePassword(currentPassword);
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+
+      // Check if OTP has expired
+      if (!user.otpExpires || new Date() > user.otpExpires) {
+        return res.status(401).json({
+          success: false,
+          message: 'Verification code has expired. Please request a new one.',
+          data: { expired: true }
+        });
+      }
+
+      // Check attempt limit (max 5 attempts)
+      if (user.otpAttempts >= 5) {
+        await User.findByIdAndUpdate(user._id, {
+          otpCode: null,
+          otpExpires: null,
+          otpAttempts: 0
+        });
+        return res.status(429).json({
+          success: false,
+          message: 'Too many incorrect attempts. Please request a new verification code.',
+          data: { tooManyAttempts: true }
+        });
+      }
+
+      // Verify OTP
+      if (user.otpCode !== otp) {
+        await User.findByIdAndUpdate(user._id, {
+          otpAttempts: (user.otpAttempts || 0) + 1
+        });
+        const remaining = 5 - ((user.otpAttempts || 0) + 1);
+        return res.status(401).json({
+          success: false,
+          message: `Invalid verification code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+        });
+      }
+
+      // OTP is valid — clear it
+      await User.findByIdAndUpdate(user._id, {
+        otpCode: null,
+        otpExpires: null,
+        otpAttempts: 0
+      });
+
       // Update password
       user.password = newPassword;
+      user.passwordChangedAt = new Date();
       await user.save();
+
+      // Log activity (fire-and-forget)
+      logPasswordChange(user, req.ip).catch(() => {});
+
+      // Send security notification email + in-app (fire-and-forget)
+      notifyPasswordChanged(user._id).catch(() => {});
 
       res.json({
         success: true,

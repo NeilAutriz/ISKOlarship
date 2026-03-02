@@ -37,7 +37,8 @@ import {
   BarChart2,
   Shield,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  RotateCcw
 } from 'lucide-react';
 import { applicationApi, ocrApi, API_SERVER_URL } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
@@ -122,8 +123,10 @@ const ApplicationReview: React.FC = () => {
   const [isScopeError, setIsScopeError] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showRevertModal, setShowRevertModal] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [revertReason, setRevertReason] = useState('');
   
   // Document preview state
   const [previewDoc, setPreviewDoc] = useState<{ _id?: string; name: string; type: string; mimeType?: string; url: string } | null>(null);
@@ -578,6 +581,37 @@ const ApplicationReview: React.FC = () => {
         toast.error(err.response?.data?.message || 'You do not have permission to update this application. It is outside your administrative scope.');
       } else {
         toast.error(err.message || 'Failed to update application status');
+      }
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle revert decision (undo approve/reject)
+  const handleRevert = async () => {
+    if (!id) return;
+    
+    setProcessing(true);
+    try {
+      const response = await applicationApi.revertDecision(id, revertReason, reviewNotes);
+      
+      if (response.success) {
+        toast.info('Application decision has been reverted', {
+          position: 'top-right',
+          autoClose: 3000
+        });
+        setApplication(prev => prev ? { ...prev, status: 'under_review', rejectionReason: undefined } : null);
+        setShowRevertModal(false);
+        setRevertReason('');
+      } else {
+        throw new Error(response.message || 'Failed to revert decision');
+      }
+    } catch (err: any) {
+      console.error('Failed to revert decision:', err);
+      if (err.response?.status === 403) {
+        toast.error(err.response?.data?.message || 'You do not have permission to revert this application. It is outside your administrative scope.');
+      } else {
+        toast.error(err.response?.data?.message || err.message || 'Failed to revert application decision');
       }
     } finally {
       setProcessing(false);
@@ -1565,6 +1599,23 @@ const ApplicationReview: React.FC = () => {
                     </>
                   )}
                 </div>
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <button
+                    onClick={() => setShowRevertModal(true)}
+                    disabled={processing}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-50 text-amber-700 font-semibold rounded-xl hover:bg-amber-100 transition-colors border border-amber-200 disabled:opacity-50"
+                  >
+                    {processing ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-5 h-5" />
+                    )}
+                    Revert Decision
+                  </button>
+                  <p className="text-xs text-slate-500 text-center mt-2">
+                    This will move the application back to &ldquo;Under Review&rdquo; status.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -1610,6 +1661,52 @@ const ApplicationReview: React.FC = () => {
                     <XCircle className="w-5 h-5" />
                   )}
                   Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revert Decision Modal */}
+      {showRevertModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+            <div className="px-6 py-4 bg-amber-50 border-b border-amber-100">
+              <h3 className="text-lg font-semibold text-amber-800 flex items-center gap-2">
+                <RotateCcw className="w-5 h-5" />
+                Revert Decision
+              </h3>
+            </div>
+            <div className="p-4 sm:p-6">
+              <p className="text-slate-600 mb-4">
+                This will move the application back to <strong>Under Review</strong> status, undoing the current {application?.status === 'approved' ? 'approval' : 'rejection'}. The applicant will be notified.
+              </p>
+              <textarea
+                value={revertReason}
+                onChange={(e) => setRevertReason(e.target.value)}
+                placeholder="Reason for reverting the decision (optional)..."
+                className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                autoFocus
+              />
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => { setShowRevertModal(false); setRevertReason(''); }}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRevert}
+                  disabled={processing}
+                  className="flex-1 px-4 py-2.5 bg-amber-600 text-white font-medium rounded-xl hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {processing ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-5 h-5" />
+                  )}
+                  Revert
                 </button>
               </div>
             </div>

@@ -7,7 +7,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   Activity, LogIn, UserPlus, FileEdit, Upload, Send, XCircle,
   CheckCircle, RefreshCw, Clock, Filter, Search,
-  ChevronLeft, ChevronRight, Calendar, ScanLine, Bell, Trash2
+  ChevronLeft, ChevronRight, Calendar, ScanLine, Bell, Trash2, Key
 } from 'lucide-react';
 import { activityLogApi, ActivityLogEntry, ActivityLogPagination } from '../../services/apiClient';
 
@@ -32,6 +32,8 @@ const ACTION_CONFIG: Record<string, { icon: React.ElementType; color: string; bg
   document_resubmit:              { icon: RefreshCw,   color: 'text-amber-600',   bg: 'bg-amber-50',   label: 'Resubmit Requested' },
   document_verify_all:            { icon: CheckCircle, color: 'text-green-600',   bg: 'bg-green-50',   label: 'All Docs Verified' },
   notification_preferences_update:{ icon: Bell,        color: 'text-amber-600',   bg: 'bg-amber-50',   label: 'Notification Settings' },
+  password_change:                { icon: Key,         color: 'text-orange-600',  bg: 'bg-orange-50',  label: 'Password Changed' },
+  password_reset:                 { icon: Key,         color: 'text-orange-600',  bg: 'bg-orange-50',  label: 'Password Reset' },
 };
 
 const DEFAULT_CONFIG = { icon: Activity, color: 'text-slate-600', bg: 'bg-slate-50', label: 'Other' };
@@ -63,6 +65,7 @@ const timeAgo = (dateStr: string): string => {
 const STUDENT_ACTIONS = [
   'login', 'register', 'profile_update', 'document_upload', 'document_delete',
   'application_create', 'application_submit', 'application_withdraw',
+  'password_change', 'password_reset',
 ];
 
 // ============================================================================

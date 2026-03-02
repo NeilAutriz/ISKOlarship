@@ -121,6 +121,7 @@ const notifyApplicationStatusChange = (applicantId, status, scholarshipName, rea
     approved: templates.applicationApproved,
     rejected: templates.applicationRejected,
     under_review: templates.applicationUnderReview,
+    reverted: templates.applicationReverted,
   };
 
   const templateFn = templateMap[status];
@@ -147,6 +148,11 @@ const notifyApplicationStatusChange = (applicantId, status, scholarshipName, rea
       type: 'application_under_review',
       title: 'Application Under Review',
       message: `Your application for ${name} is now being reviewed by the scholarship committee.`,
+    },
+    reverted: {
+      type: 'application_reverted',
+      title: 'Application Decision Reverted',
+      message: `The decision on your application for ${name} has been reverted and is now back under review.${reason ? ' Reason: ' + reason : ''}`,
     },
   };
 
@@ -249,6 +255,62 @@ const notifyAllDocumentsVerified = (userId, documents) => {
 };
 
 // =============================================================================
+// Public API — Password Change Notification
+// =============================================================================
+
+/**
+ * Notify user that their password was changed (security notification).
+ * Always sends regardless of notification preferences (security email).
+ * @param {string} userId - User ID
+ */
+const notifyPasswordChanged = async (userId) => {
+  try {
+    const user = await User.findById(userId).select('email role studentProfile.firstName adminProfile.firstName');
+    if (!user) return;
+
+    const firstName =
+      user.studentProfile?.firstName ||
+      user.adminProfile?.firstName ||
+      'there';
+
+    // Always send security emails — skip preference check
+    const { subject, html } = templates.passwordChanged({ firstName });
+
+    const type = getTransportType();
+    if (type === 'console') {
+      console.log('');
+      console.log('╔════════════════════════════════════════════════════════╗');
+      console.log('║  🔒 PASSWORD CHANGED NOTIFICATION (console fallback)  ║');
+      console.log('╠════════════════════════════════════════════════════════╣');
+      console.log(`║  To:      ${user.email}`);
+      console.log(`║  Subject: ${subject}`);
+      console.log('╚════════════════════════════════════════════════════════╝');
+      console.log('');
+    } else {
+      const mailOptions = {
+        from: `"ISKOlarship" <${process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'noreply@iskolarship.ph'}>`,
+        to: user.email,
+        subject,
+        html,
+      };
+      await emailService.sendEmail(mailOptions);
+      console.log(`🔒 Password change notification sent → ${user.email}`);
+    }
+
+    // In-app notification
+    createInAppNotification(
+      userId,
+      'password_changed',
+      'Password Changed',
+      'Your account password was changed successfully. If you did not make this change, please reset your password immediately.',
+      {}
+    ).catch(() => {});
+  } catch (err) {
+    console.error(`🔒 Password change notification error (user ${userId}): ${err.message}`);
+  }
+};
+
+// =============================================================================
 // Exports
 // =============================================================================
 
@@ -256,4 +318,5 @@ module.exports = {
   notifyApplicationStatusChange,
   notifyDocumentStatusChange,
   notifyAllDocumentsVerified,
+  notifyPasswordChanged,
 };

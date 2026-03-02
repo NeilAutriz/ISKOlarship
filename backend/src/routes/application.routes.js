@@ -20,7 +20,7 @@ const {
 const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
 const { onApplicationDecision } = require('../services/autoTraining.service');
 const { notifyApplicationStatusChange } = require('../services/notification.service');
-const { logApplicationCreate, logApplicationSubmit, logApplicationWithdraw, logApplicationStatusChange } = require('../services/activityLog.service');
+const { logApplicationCreate, logApplicationSubmit, logApplicationWithdraw, logApplicationStatusChange, logApplicationRevert } = require('../services/activityLog.service');
 
 // =============================================================================
 // Validation Rules
@@ -1332,6 +1332,126 @@ router.put('/:id/status',
       res.json({
         success: true,
         message: `Application ${status} successfully`,
+        data: application
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// =============================================================================
+// Revert Application Decision Route
+// =============================================================================
+
+/**
+ * @route   PUT /api/applications/:id/revert
+ * @desc    Revert an approved or rejected application back to under_review
+ * @access  Admin (scope-checked)
+ */
+router.put('/:id/revert',
+  authMiddleware,
+  requireRole('admin'),
+  attachAdminScope,
+  [param('id').isMongoId()],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array()
+        });
+      }
+
+      const application = await Application.findById(req.params.id)
+        .populate('scholarship');
+
+      if (!application) {
+        return res.status(404).json({
+          success: false,
+          message: 'Application not found'
+        });
+      }
+
+      // Check if admin can manage this application
+      if (!canManageApplication(req.user, application)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to revert this application',
+          details: {
+            yourLevel: req.adminScope?.level,
+            scholarshipLevel: application.scholarship?.scholarshipLevel,
+            scholarshipCollege: application.scholarship?.managingCollege
+          }
+        });
+      }
+
+      // Only allow reverting approved or rejected applications
+      const previousStatus = application.status;
+      if (previousStatus !== ApplicationStatus.APPROVED && previousStatus !== ApplicationStatus.REJECTED) {
+        // If already under review, treat as success (idempotent)
+        if (previousStatus === ApplicationStatus.UNDER_REVIEW || previousStatus === ApplicationStatus.SUBMITTED) {
+          return res.json({
+            success: true,
+            message: `Application is already in ${previousStatus} status`,
+            data: application
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Cannot revert an application with status "${previousStatus}". Only approved or rejected applications can be reverted.`
+        });
+      }
+
+      const { reason, notes } = req.body;
+
+      // Update status back to under_review
+      application.updateStatus(ApplicationStatus.UNDER_REVIEW, req.user._id, notes || `Decision reverted from ${previousStatus}`, reason);
+      application.reviewedBy = req.user._id;
+      application.reviewNotes = notes || `Decision reverted from ${previousStatus}`;
+      application.decisionDate = undefined;
+
+      // If it was previously approved, clear approval notes
+      if (previousStatus === ApplicationStatus.APPROVED) {
+        application.approvalNotes = undefined;
+      }
+
+      // If it was previously rejected, clear rejection reason
+      if (previousStatus === ApplicationStatus.REJECTED) {
+        application.rejectionReason = undefined;
+      }
+
+      // Handle scholarship filledSlots — if reverting an approval, decrement slots
+      if (previousStatus === ApplicationStatus.APPROVED) {
+        await Scholarship.findByIdAndUpdate(
+          application.scholarship._id,
+          { $inc: { filledSlots: -1 } }
+        );
+      }
+
+      await application.save();
+
+      // ── Email notification to student (fire-and-forget) ───────────────
+      notifyApplicationStatusChange(
+        application.applicant.toString(),
+        'reverted',
+        application.scholarship?.name || application.scholarship?.title || 'a scholarship',
+        reason
+      );
+
+      // Log admin action (fire-and-forget)
+      logApplicationRevert(
+        req.user,
+        application,
+        application.scholarship?.name || application.scholarship?.title || 'Unknown',
+        previousStatus,
+        req.ip
+      );
+
+      res.json({
+        success: true,
+        message: `Application decision reverted from ${previousStatus} to under review`,
         data: application
       });
     } catch (error) {

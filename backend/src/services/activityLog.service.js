@@ -198,6 +198,23 @@ const logApplicationWithdraw = (user, application, scholarshipTitle, ip = '') =>
 // Convenience Methods — Applications (admin)
 // =============================================================================
 
+const logApplicationRevert = (admin, application, scholarshipTitle, previousStatus, ip = '') => {
+  const adminName = getName(admin);
+  logActivity({
+    userId: admin._id,
+    userRole: 'admin',
+    userName: adminName,
+    userEmail: admin.email,
+    action: ActivityAction.APPLICATION_REVERT,
+    description: `${adminName} reverted ${previousStatus} decision on application for "${scholarshipTitle}"`,
+    targetType: 'application',
+    targetId: application._id,
+    targetName: scholarshipTitle,
+    metadata: { previousStatus, newStatus: 'under_review', applicantId: application.applicant?.toString() },
+    ipAddress: ip,
+  });
+};
+
 const logApplicationStatusChange = (admin, application, scholarshipTitle, newStatus, ip = '') => {
   const adminName = getName(admin);
   const actionMap = {
@@ -353,6 +370,24 @@ const logModelTrainAll = (admin, successful, failed, ip = '') => {
   });
 };
 
+/**
+ * Log a password change
+ */
+const logPasswordChange = (user, ip = '') => {
+  const userName = getName(user);
+  return logActivity({
+    userId: user._id,
+    userRole: user.role || 'student',
+    userName,
+    userEmail: user.email,
+    action: ActivityAction.PASSWORD_CHANGE,
+    description: `${userName} changed their password`,
+    targetType: 'user',
+    targetId: user._id,
+    ipAddress: ip,
+  });
+};
+
 module.exports = {
   logActivity,
   logLogin,
@@ -363,6 +398,7 @@ module.exports = {
   logApplicationCreate,
   logApplicationSubmit,
   logApplicationWithdraw,
+  logApplicationRevert,
   logApplicationStatusChange,
   logDocumentVerification,
   logDocumentVerifyAll,
@@ -371,5 +407,6 @@ module.exports = {
   logScholarshipDelete,
   logModelTrain,
   logModelTrainAll,
+  logPasswordChange,
   ActivityAction,
 };

@@ -18,6 +18,8 @@ import {
   XCircle,
   RefreshCw,
   Trash2,
+  Key,
+  RotateCcw,
 } from 'lucide-react';
 import { notificationApi, InAppNotification } from '../services/apiClient';
 
@@ -29,10 +31,12 @@ const typeConfig: Record<string, { icon: React.ElementType; color: string; bg: s
   application_approved:       { icon: CheckCircle2, color: 'text-green-600',  bg: 'bg-green-50' },
   application_rejected:       { icon: XCircle,      color: 'text-red-600',    bg: 'bg-red-50' },
   application_under_review:   { icon: Clock,        color: 'text-blue-600',   bg: 'bg-blue-50' },
+  application_reverted:       { icon: RotateCcw,    color: 'text-amber-600',  bg: 'bg-amber-50' },
   document_verified:          { icon: CheckCircle2, color: 'text-green-600',  bg: 'bg-green-50' },
   document_rejected:          { icon: XCircle,      color: 'text-red-600',    bg: 'bg-red-50' },
   document_resubmit:          { icon: RefreshCw,    color: 'text-amber-600',  bg: 'bg-amber-50' },
   all_documents_verified:     { icon: CheckCheck,   color: 'text-green-600',  bg: 'bg-green-50' },
+  password_changed:           { icon: Key,          color: 'text-orange-600', bg: 'bg-orange-50' },
 };
 
 const defaultConfig = { icon: Bell, color: 'text-slate-600', bg: 'bg-slate-50' };

@@ -12,6 +12,7 @@ const ActivityAction = {
   LOGOUT: 'logout',
   REGISTER: 'register',
   PASSWORD_RESET: 'password_reset',
+  PASSWORD_CHANGE: 'password_change',
 
   // Profile
   PROFILE_UPDATE: 'profile_update',
@@ -27,6 +28,7 @@ const ActivityAction = {
   APPLICATION_APPROVE: 'application_approve',
   APPLICATION_REJECT: 'application_reject',
   APPLICATION_REVIEW: 'application_review',
+  APPLICATION_REVERT: 'application_revert',
 
   // Document verification (admin)
   DOCUMENT_VERIFY: 'document_verify',
