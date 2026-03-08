@@ -23,6 +23,7 @@ interface SearchBarProps {
   showSuggestions?: boolean;
   variant?: 'default' | 'hero' | 'compact';
   className?: string;
+  value?: string;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
@@ -30,14 +31,24 @@ const SearchBar: React.FC<SearchBarProps> = ({
   placeholder = 'Search scholarships...',
   showSuggestions = true,
   variant = 'default',
-  className = ''
+  className = '',
+  value
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(value ?? '');
   const [isFocused, setIsFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Scholarship[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Sync internal query when parent value changes (e.g. clear filters, URL navigation)
+  useEffect(() => {
+    if (value !== undefined && value !== query) {
+      setQuery(value);
+    }
+    // Only react to external value changes, not internal query changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   // Recent searches (would be stored in localStorage in production)
   const recentSearches = ['AASP', 'thesis grant', 'financial assistance'];
@@ -48,9 +59,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
   // Handle search
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (query.trim()) {
-      onSearch?.(query);
-      navigate(`/scholarships?search=${encodeURIComponent(query)}`);
+    const trimmed = query.trim();
+    onSearch?.(trimmed);
+    if (trimmed) {
+      navigate(`/scholarships?search=${encodeURIComponent(trimmed)}`, { replace: true });
+    } else {
+      navigate('/scholarships', { replace: true });
     }
   };
 

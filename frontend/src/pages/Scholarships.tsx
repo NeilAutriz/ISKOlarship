@@ -24,20 +24,28 @@ const Scholarships: React.FC = () => {
   const studentUser = isStudentProfile(user) ? user : undefined;
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Get initial search from URL
-  const initialSearch = searchParams.get('search') || '';
-  
   // State
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<FilterCriteria>({
-    searchQuery: initialSearch,
+  const [filters, setFilters] = useState<FilterCriteria>(() => ({
+    searchQuery: searchParams.get('search') || '',
     scholarshipTypes: [],
     colleges: [],
     yearLevels: [],
     showEligibleOnly: false
-  });
+  }));
+
+  // Sync filters.searchQuery when URL search param changes externally (back/forward navigation)
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    setFilters(prev => {
+      if (prev.searchQuery !== urlSearch) {
+        return { ...prev, searchQuery: urlSearch };
+      }
+      return prev;
+    });
+  }, [searchParams]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Track student's existing application statuses per scholarship
@@ -229,6 +237,7 @@ const Scholarships: React.FC = () => {
                 variant="hero"
                 showSuggestions={false}
                 className="w-full shadow-2xl"
+                value={filters.searchQuery}
               />
             </div>
           </div>

@@ -1318,13 +1318,960 @@ const academicUnitScholarships = [
 ];
 
 // =============================================================================
+// UPLB COMMITTEE ON SCHOLARSHIPS AND FINANCIAL ASSISTANCE (CSFA) SCHOLARSHIPS
+// Actual UPLB scholarship programs administered by the CSFA
+// =============================================================================
+
+// Standard CSFA required documents (common across CSFA-administered scholarships)
+const csfaDocuments = [
+  { name: 'Application Form with Photo', description: 'Official CSFA application form with recent photo', isRequired: true },
+  { name: 'Proof of Income', description: 'ITR, payslip (last 3 months), employment certificate (last 6 months), employment contract, or notarized affidavit of income/no income (last 3 months)', isRequired: true },
+  { name: 'Current Form 5', description: 'Current semester enrollment form (can be submitted later if unavailable)', isRequired: true },
+  { name: 'True Copy of Grades (All Semesters)', description: 'TCG from all previous semesters - request early from College Secretary', isRequired: true },
+  { name: 'Certificate of Good Moral Character', description: 'From respective College Secretary office', isRequired: true },
+  { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+  { name: 'Recommendation Letter', description: 'From previous professor/instructor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+];
+
+const csfaScholarships = [
+  // =========================================================================
+  // AASP - Institute of Mathematical Sciences (IMSP)
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Institute of Mathematical Sciences',
+    description: `The AASP Institute of Mathematical Sciences scholarship supports senior students enrolled in BS Applied Mathematics or BS Mathematics at UPLB. Applicants must be in senior standing, enrolled in at least 15 units (unless graduating with certification from the college), maintain good academic standing, and belong to SLAS bracket PD 80 to FDS. Recipients must not hold any other scholarship grant.`,
+    sponsor: 'Institute of Mathematical Sciences and Physics',
+    type: ScholarshipType.COLLEGE,
+    scholarshipLevel: ScholarshipLevel.ACADEMIC_UNIT,
+    managingCollegeCode: 'CAS',
+    managingAcademicUnitCode: 'IMSP',
+    totalGrant: 40000,
+    awardDescription: '₱40,000 per academic year',
+    eligibilityCriteria: {
+      eligibleCourses: ['BS Applied Mathematics', 'BS Mathematics'],
+      eligibleColleges: [UPLBCollege.CAS],
+      eligibleClassifications: [Classification.SENIOR],
+      minUnitsEnrolled: 15,
+      minGWA: 1.0,
+      maxGWA: 3.0,
+      eligibleSTBrackets: [STBracket.PD80, STBracket.FULL_DISCOUNT, STBracket.FULL_DISCOUNT_WITH_STIPEND],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveOtherScholarship: true,
+      additionalRequirements: [
+        { description: 'Must have good academic standing', isRequired: true },
+        { description: 'Must belong to SLAS bracket PD 80 to FDS', isRequired: true },
+        { description: 'Graduating students may enroll in fewer than 15 units with college certification', isRequired: false }
+      ]
+    },
+    requiredDocuments: csfaDocuments,
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'imsp', 'mathematics', 'applied math', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - Camilla Yandoc Ables
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Camilla Yandoc Ables',
+    description: `The AASP Camilla Yandoc Ables scholarship supports junior or senior students of BS Agriculture major in Plant Pathology at UPLB. Applicants must have a GWA of 2.50 or better, belong to a family whose gross income does not exceed ₱150,000 per annum, must not be a recipient of any other scholarship, and must be enrolled in at least 15 units at the time of the award.`,
+    sponsor: 'Camilla Yandoc Ables',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.COLLEGE,
+    managingCollegeCode: 'CAFS',
+    managingAcademicUnitCode: null,
+    totalGrant: 45000,
+    awardDescription: '₱45,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.JUNIOR, Classification.SENIOR],
+      eligibleCourses: ['BS Agriculture'],
+      eligibleMajors: ['Plant Pathology'],
+      eligibleColleges: [UPLBCollege.CAFS],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 150000,
+      mustNotHaveOtherScholarship: true,
+      minUnitsEnrolled: 15,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be a student of BS Agriculture major in Plant Pathology', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR, payslip, employment certificate, employment contract, or notarized affidavit of income/no income', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From respective College Secretary office', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 3,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'plant pathology', 'agriculture', 'ables', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - Norma P. Ables
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Norma P. Ables',
+    description: `The AASP Norma P. Ables scholarship supports junior or senior students of BS Agriculture major in Animal Science or BS Nutrition at UPLB. Applicants must have a GWA of 2.50 or better, belong to a family whose gross income does not exceed ₱150,000 per annum, must not be a recipient of any other scholarship, and must be enrolled in at least 15 units at the time of the award.`,
+    sponsor: 'Norma P. Ables',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.COLLEGE,
+    managingCollegeCode: 'CAFS',
+    managingAcademicUnitCode: null,
+    totalGrant: 45000,
+    awardDescription: '₱45,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.JUNIOR, Classification.SENIOR],
+      eligibleCourses: ['BS Agriculture', 'BS Nutrition'],
+      eligibleMajors: ['Animal Science'],
+      eligibleColleges: [UPLBCollege.CAFS, UPLBCollege.CHE],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 150000,
+      mustNotHaveOtherScholarship: true,
+      minUnitsEnrolled: 15,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be a student of BS Agriculture major in Animal Science or BS Nutrition', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR, payslip, employment certificate, employment contract, or notarized affidavit of income/no income', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From respective College Secretary office', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 3,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'animal science', 'nutrition', 'agriculture', 'ables', 'csfa']
+  },
+
+  // =========================================================================
+  // Archie B.M. Laaño Quezonian Scholarships
+  // =========================================================================
+  {
+    name: 'Archie B.M. Laaño Quezonian Scholarships',
+    description: `The Archie B.M. Laaño Quezonian Scholarship is available to bonafide students in any bachelor degree program in UP Diliman, UP Los Baños, and UP Manila who are from the province of Quezon. Applicants must have a GWA of at least 2.5 with no grade of 5.00 or unremoved 4 or Inc. in the immediately preceding semester, must be financially needy, and must not have been subject of any disciplinary action.`,
+    sponsor: 'Archie B.M. Laaño Foundation',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 40000,
+    awardDescription: '₱40,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      eligibleProvinces: ['Quezon'],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveDisciplinaryAction: true,
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      additionalRequirements: [
+        { description: 'Must be from the province of Quezon', isRequired: true },
+        { description: 'Must be financially needy', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR or equivalent income documentation', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College or OSA', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Certificate of Residency', description: 'Proof of residence in Quezon province', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['quezonian', 'quezon', 'laano', 'province-based', 'csfa']
+  },
+
+  // =========================================================================
+  // Adolfo S. Suzara Foundation, Inc. Scholarship - Systemwide
+  // =========================================================================
+  {
+    name: 'Adolfo S. Suzara Foundation, Inc. Scholarship',
+    description: `The Adolfo S. Suzara Foundation, Inc. Scholarship is a systemwide scholarship for Filipino students enrolled in at least 15 units. Entering freshmen must have passed UPCAT; already enrolled students must have obtained a GWA of 2.0 or better with no grade of 3.0 or unremoved 4.0 or Inc. in the semester immediately preceding the application. Applicants must be financially needy with gross income not exceeding ₱200,000 and must not have been the subject of any disciplinary action.`,
+    sponsor: 'Adolfo S. Suzara Foundation, Inc.',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 50000,
+    awardDescription: '₱50,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      minGWA: 1.0,
+      maxGWA: 2.0,
+      minUnitsEnrolled: 15,
+      maxAnnualFamilyIncome: 200000,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveDisciplinaryAction: true,
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      additionalRequirements: [
+        { description: 'Entering freshmen must have passed UPCAT', isRequired: false },
+        { description: 'Already enrolled students must have no grade of 3.0 in the preceding semester', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR or equivalent income documentation', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College or OSA', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 10,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['suzara', 'systemwide', 'need-based', 'csfa']
+  },
+
+  // =========================================================================
+  // Scholarship Program for Foreign Students (PhD)
+  // =========================================================================
+  {
+    name: 'Scholarship Program for Foreign Students (PhD)',
+    description: `The Scholarship Program for Foreign Students supports foreign graduate (PhD) students at UPLB. Applicants must have a load of at least 9 academic units with no grade of 5.00, 4.00, or INC in the preceding semester, must have a cumulative GWA of 1.75, and must be enrolling in at least 9 units. A letter of nomination from home government and letter of financial support from parents/immediate family are required.`,
+    sponsor: 'University of the Philippines Los Baños',
+    type: ScholarshipType.UNIVERSITY,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 80000,
+    awardDescription: '₱80,000 per academic year',
+    eligibilityCriteria: {
+      minGWA: 1.0,
+      maxGWA: 1.75,
+      minUnitsEnrolled: 9,
+      eligibleColleges: [UPLBCollege.GS],
+      eligibleCitizenship: [Citizenship.FOREIGN],
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      additionalRequirements: [
+        { description: 'Must be a foreign graduate (PhD) student in UPLB', isRequired: true },
+        { description: 'Must have cumulative GWA of 1.75 or better', isRequired: true },
+        { description: 'Must be enrolling in at least 9 units for the semester', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Application Form with Photo', description: 'Official application form with recent photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR, payslip, employment certificate, or notarized affidavit of income/no income', isRequired: true },
+      { name: 'True Copy of Grades (All Semesters)', description: 'TCG from all previous semesters', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College Secretary', isRequired: true },
+      { name: 'Birth Certificate', description: 'Official birth certificate', isRequired: true },
+      { name: 'Recommendation Letters (3)', description: 'Three (3) from previous professors, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true },
+      { name: 'Letter of Nomination from Home Government', description: 'Official nomination from home country government', isRequired: true },
+      { name: 'Letter of Financial Support', description: 'From parents or immediate family', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['foreign', 'phd', 'graduate', 'international', 'csfa']
+  },
+
+  // =========================================================================
+  // SMPFC Future Leaders Scholarship Program
+  // =========================================================================
+  {
+    name: 'SMPFC Future Leaders Scholarship Program',
+    description: `The SMPFC Future Leaders Scholarship Program supports Filipino sophomore students enrolled at UPLB. Applicants must have a GWA of 2.00 or better with at least 18 units and no grade of 5.00 or unremoved 4.00 or INC in the preceding semester. Must not be a recipient of any scholarship grant including educational plans, and parents' annual gross income must not exceed ₱500,000. Must not have been held liable in any disciplinary action.`,
+    sponsor: 'San Miguel Pure Foods Company',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 60000,
+    awardDescription: '₱60,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SOPHOMORE],
+      minGWA: 1.0,
+      maxGWA: 2.0,
+      minUnitsEnrolled: 18,
+      maxAnnualFamilyIncome: 500000,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveOtherScholarship: true,
+      mustNotHaveDisciplinaryAction: true,
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      additionalRequirements: [
+        { description: 'Must be a Filipino citizen residing in the Philippines for at least 4 years', isRequired: true },
+        { description: 'Must not be a recipient of any scholarship grant including educational plans', isRequired: true },
+        { description: 'Cumulative GWA should be 1.75 or better', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Income Tax Return', description: 'Current ITR of parents; if exempt, attach BIR Certificate of Exemption; if unemployed, attach notarized affidavit of income', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s) - cumulative GWA should be 1.75', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College or OSA', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letters (3)', description: 'Three (3) from previous professors', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 10,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['smpfc', 'san miguel', 'future leaders', 'sophomore', 'csfa']
+  },
+
+  // =========================================================================
+  // UPAA Hongkong Scholarship Grant - Systemwide
+  // =========================================================================
+  {
+    name: 'UPAA Hongkong Scholarship Grant',
+    description: `The UP Alumni Association Hongkong Scholarship Grant is a systemwide scholarship for graduating students enrolled in any degree at UPLB. Applicants must not hold any other scholarship or financial grant, must be enrolled in at least 15 units, and must be financially deserving. Priority is given to dependents of Overseas Filipino Workers based in Hongkong at the time of application. Must not have been the subject of any disciplinary action.`,
+    sponsor: 'UP Alumni Association - Hongkong Chapter',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 50000,
+    awardDescription: '₱50,000 one-time grant',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SENIOR],
+      minUnitsEnrolled: 15,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveOtherScholarship: true,
+      mustNotHaveDisciplinaryAction: true,
+      mustBeGraduating: true,
+      additionalRequirements: [
+        { description: 'Must be a graduating student enrolled in any degree', isRequired: true },
+        { description: 'Must be financially deserving', isRequired: true },
+        { description: 'Priority given to dependents of OFWs based in Hongkong', isRequired: false }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR or equivalent income documentation', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College or OSA', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'OFW Certification (if applicable)', description: 'Proof of parent/guardian OFW status in Hongkong', isRequired: false }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['upaa', 'hongkong', 'graduating', 'ofw', 'systemwide', 'csfa']
+  },
+
+  // =========================================================================
+  // UT Foundation, Inc. Scholarship
+  // =========================================================================
+  {
+    name: 'UT Foundation, Inc. Scholarship',
+    description: `The UT Foundation, Inc. Scholarship supports top graduate high school students admitted to UP. Applicants must be a regular Freshman (4-year course) or Sophomore (5-year course), have a GWA of at least 2.50 with no grade of 5.00 or unremoved 4.00 or Inc., must not be a recipient of any scholarship grant, be enrolled in at least 15 units, qualify for Full Discount under STS, and must not have been held liable in any disciplinary action.`,
+    sponsor: 'UT Foundation, Inc.',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 50000,
+    awardDescription: '₱50,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      minUnitsEnrolled: 15,
+      eligibleSTBrackets: [STBracket.FULL_DISCOUNT, STBracket.FULL_DISCOUNT_WITH_STIPEND],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveOtherScholarship: true,
+      mustNotHaveDisciplinaryAction: true,
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      additionalRequirements: [
+        { description: 'Must be among top graduate high school students with leadership potential', isRequired: true },
+        { description: 'Must qualify for Full Discount (FD) under STS', isRequired: true },
+        { description: 'Student in Doctor of Medicine must be 4th year standing at time of application', isRequired: false }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Income Tax Return', description: 'Current ITR of parents; if exempt, attach BIR Certificate of Exemption; if unemployed, notarized affidavit of income', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letters (3)', description: 'Three (3) from previous professors, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['ut foundation', 'freshman', 'sophomore', 'full discount', 'csfa']
+  },
+
+  // =========================================================================
+  // UPSILON SIGMA PHI - SIGMA DELTA PHI '69 Scholarship
+  // =========================================================================
+  {
+    name: "Upsilon Sigma Phi - Sigma Delta Phi '69 Scholarship",
+    description: `The Upsilon Sigma Phi - Sigma Delta Phi '69 Scholarship supports bona fide students enrolled in any BS or BA course in UP Diliman, Los Baños, or Manila. Applicants must be at least Sophomore standing with a minimum GWA of 1.75 or better, with 15 units of normal load and no grade of 5.0, 4.0, or Inc. Must not be a recipient of any other scholarship and must not have been the subject of any disciplinary action.`,
+    sponsor: 'Upsilon Sigma Phi - Sigma Delta Phi Batch 1969',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 45000,
+    awardDescription: '₱45,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      minGWA: 1.0,
+      maxGWA: 1.75,
+      minUnitsEnrolled: 15,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveOtherScholarship: true,
+      mustNotHaveDisciplinaryAction: true,
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      additionalRequirements: [
+        { description: 'Must be enrolled in any BS or BA course', isRequired: true },
+        { description: 'Cumulative GWA should be 1.75 or better', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Income Tax Return', description: 'Current ITR of parents; if exempt, attach BIR Certificate of Exemption; if unemployed, notarized affidavit of income', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s) - cumulative GWA should be 1.75', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College or OSA', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letters (3)', description: 'Three (3) from previous professors', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['upsilon sigma phi', 'fraternity', 'sigma delta phi', 'merit', 'csfa']
+  },
+
+  // =========================================================================
+  // UPSILON SIGMA PHI NORTH AMERICA (USPNA) Scholarship Program
+  // =========================================================================
+  {
+    name: 'Upsilon Sigma Phi North America (USPNA) Scholarship Program',
+    description: `The USPNA Scholarship Program supports bona fide sophomore students enrolled in the fields of Science and Engineering at UP Diliman and UP Los Baños. Applicants must have an average grade of 2.5 or better for a load of at least 15 units with no grades of 5.0 (any 4.0 or Inc. must be removed or completed). Must have actively participated in social and community services, parents' annual gross income must not exceed ₱500,000, and must not be a recipient of another scholarship grant providing at least 30% of the USPNA award.`,
+    sponsor: 'Upsilon Sigma Phi North America',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 50000,
+    awardDescription: '₱50,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SOPHOMORE],
+      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CEAT, UPLBCollege.CAFS],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      minUnitsEnrolled: 15,
+      maxAnnualFamilyIncome: 500000,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      mustNotHaveDisciplinaryAction: true,
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      additionalRequirements: [
+        { description: 'Must be enrolled in the fields of Science and Engineering', isRequired: true },
+        { description: 'Must have actively participated in social and community services', isRequired: true },
+        { description: 'Must not be a recipient of another scholarship grant providing at least 30% of the USPNA award', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Income Tax Return', description: 'Current ITR of parents; if exempt, attach BIR Certificate of Exemption; if unemployed, notarized affidavit of income', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s) - cumulative GWA should be 1.75', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College or OSA', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letters (3)', description: 'Three (3) from previous professors', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 10,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['uspna', 'upsilon sigma phi', 'north america', 'science', 'engineering', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - Sterix Incorporated Gift of HOPE Thesis Grant
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Sterix Incorporated Gift of HOPE Thesis Grant',
+    description: `The Sterix Incorporated Gift of HOPE (Holistic Offerings to Promote Excellence) Thesis Grant supports senior BS Biology and BS Agriculture (Major in Entomology) students who are working on their undergraduate thesis. Applicants must be Filipino citizens with an approved thesis outline, a GWA of 2.5 or better, and must belong to a family whose gross income is not more than ₱250,000 per annum. Recipients must not hold any other thesis grants.`,
+    sponsor: 'Sterix Incorporated',
+    type: ScholarshipType.THESIS_GRANT,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 25000,
+    awardDescription: '₱25,000 one-time thesis grant',
+    eligibilityCriteria: {
+      eligibleCourses: ['BS Biology', 'BS Agriculture'],
+      eligibleMajors: ['Entomology'],
+      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CAFS],
+      eligibleClassifications: [Classification.SENIOR],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      requiresApprovedThesisOutline: true,
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveThesisGrant: true,
+      additionalRequirements: [
+        { description: 'Must have an approved Thesis Outline duly signed by Thesis Adviser', isRequired: true },
+        { description: 'Must not be a recipient of other thesis grants', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Application Form with Photo', description: 'Official application form with recent photo', isRequired: true },
+      { name: 'Proof of Income', description: "Parents' ITR (BIR Form 2316/SALN), Affidavit of Income, Tax Exemption, Certificate of Employment, or Certificate of Indigency", isRequired: true },
+      { name: 'True Copy of Grades (All Semesters)', description: 'TCG from all previous semesters - request early from College Secretary', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College Secretary', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor/instructor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true },
+      { name: 'Approved Thesis Outline', description: 'Duly approved and signed by Thesis Adviser', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'sterix', 'hope', 'thesis', 'biology', 'entomology', 'csfa']
+  },
+
+  // =========================================================================
+  // Lifebank Microfinance Foundation, Inc. (LBMFI) Undergraduate Thesis Grant
+  // =========================================================================
+  {
+    name: 'Lifebank Microfinance Foundation, Inc. (LBMFI) Undergraduate Thesis Grant',
+    description: `The Lifebank Microfinance Foundation Undergraduate Thesis Grant supports UPLB students conducting thesis research in the basic, applied, or interdisciplinary aspects of organic agriculture. Applicants must be enrolled in any BS course at UPLB, have passed at least 38 units, have no grade of 5, 4, or Inc. in the preceding semester, and must not have been held liable in any disciplinary action. Research themes include socio-cultural, technological, economic, environmental, and policy-institutional aspects of organic agriculture.`,
+    sponsor: 'Lifebank Microfinance Foundation, Inc.',
+    type: ScholarshipType.THESIS_GRANT,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 30000,
+    awardDescription: '₱30,000 thesis research grant',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.JUNIOR, Classification.SENIOR],
+      minUnitsPassed: 38,
+      mustNotHaveFailingGrade: true,
+      mustNotHaveGradeOf4: true,
+      mustNotHaveIncompleteGrade: true,
+      mustNotHaveDisciplinaryAction: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be enrolled in any BS course at UPLB', isRequired: true },
+        { description: 'Must have passed at least 38 units of course work', isRequired: true },
+        { description: 'Must be interested in pursuing thesis in organic agriculture', isRequired: true },
+        { description: 'Research themes: socio-cultural, technological, economic, environmental, or policy-institutional aspects of organic agriculture', isRequired: false }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Application Form with Photo', description: 'Official application form with recent photo', isRequired: true },
+      { name: 'Proof of Income', description: "Parents' ITR or equivalent income documentation", isRequired: true },
+      { name: 'True Copy of Grades (All Semesters)', description: 'TCG from all previous semesters', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College Secretary', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Thesis/Research Proposal', description: 'Proposal related to organic agriculture research', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['lbmfi', 'lifebank', 'thesis', 'organic agriculture', 'research', 'csfa']
+  },
+
+  // =========================================================================
+  // Sterix Incorporated Gift of HOPE Scholarship Program
+  // =========================================================================
+  {
+    name: 'Sterix Incorporated Gift of HOPE Scholarship Program',
+    description: `The Sterix Incorporated Gift of HOPE (Holistic Offerings to Promote Excellence) Scholarship Program supports junior BS Biology and BS Agriculture (Major in Entomology) students. Applicants must be Filipino citizens with a GWA of 2.5 or better, enrolling in at least 15 units, and must belong to a family whose gross income is not more than ₱250,000 per annum. Recipients must not hold any other scholarship grants.`,
+    sponsor: 'Sterix Incorporated',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 40000,
+    awardDescription: '₱40,000 per academic year',
+    eligibilityCriteria: {
+      eligibleCourses: ['BS Biology', 'BS Agriculture'],
+      eligibleMajors: ['Entomology'],
+      eligibleColleges: [UPLBCollege.CAS, UPLBCollege.CAFS],
+      eligibleClassifications: [Classification.JUNIOR],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      minUnitsEnrolled: 15,
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveOtherScholarship: true,
+      additionalRequirements: [
+        { description: 'Must not be a recipient of other scholarship grants', isRequired: true }
+      ]
+    },
+    requiredDocuments: csfaDocuments,
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['sterix', 'hope', 'biology', 'entomology', 'scholarship', 'csfa']
+  },
+
+  // =========================================================================
+  // SM Sustainability Scholarship
+  // =========================================================================
+  {
+    name: 'SM Sustainability Scholarship',
+    description: `The SM Sustainability Scholarship supports junior BS Forestry students at UPLB. Applicants must belong to families whose annual gross income is not more than ₱150,000 (includes income of single siblings with no dependents), must be a Filipino citizen, and must not be a beneficiary of any other scholarships or educational grants.`,
+    sponsor: 'SM Foundation',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.COLLEGE,
+    managingCollegeCode: 'CFNR',
+    managingAcademicUnitCode: null,
+    totalGrant: 50000,
+    awardDescription: '₱50,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.JUNIOR],
+      eligibleCourses: ['BS Forestry'],
+      eligibleColleges: [UPLBCollege.CFNR],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      maxAnnualFamilyIncome: 150000,
+      mustNotHaveOtherScholarship: true,
+      additionalRequirements: [
+        { description: "Family annual gross income includes income of siblings who are single and have no dependents", isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Application Form with Photo', description: 'Official application form with recent photo', isRequired: true },
+      { name: 'Proof of Income', description: "Parents' ITR (BIR Form 2316/SALN), Affidavit of Income, Tax Exemption, Certificate of Employment, or Certificate of Indigency", isRequired: true },
+      { name: 'Notice of Acceptance/Admission', description: 'Notice of acceptance to UPLB', isRequired: true },
+      { name: 'Form 138', description: 'Grade 11 and Grade 12 grades', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From previous school', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor/teacher, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(3),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['sm', 'sustainability', 'forestry', 'cfnr', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - College of Human Ecology Alumni Association Thesis Grant
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - College of Human Ecology Alumni Association Thesis Grant',
+    description: `The AASP College of Human Ecology Alumni Association Thesis Grant supports CHE students who are graduating and working on their thesis. Applicants must belong to ST Bracket PD80, Full Discount, or Full Discount with Stipend, must not have been subjected to disciplinary action, must have an approved thesis proposal certified by Thesis/Academic Adviser, Unit Heads, and CHE Dean, and must not be a recipient of any other thesis grant.`,
+    sponsor: 'College of Human Ecology Alumni Association',
+    type: ScholarshipType.THESIS_GRANT,
+    scholarshipLevel: ScholarshipLevel.COLLEGE,
+    managingCollegeCode: 'CHE',
+    managingAcademicUnitCode: null,
+    totalGrant: 25000,
+    awardDescription: '₱25,000 thesis grant',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SENIOR],
+      eligibleColleges: [UPLBCollege.CHE],
+      eligibleSTBrackets: [STBracket.PD80, STBracket.FULL_DISCOUNT, STBracket.FULL_DISCOUNT_WITH_STIPEND],
+      mustBeGraduating: true,
+      mustNotHaveDisciplinaryAction: true,
+      mustNotHaveThesisGrant: true,
+      requiresApprovedThesisOutline: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be a CHE student graduating this semester', isRequired: true },
+        { description: 'Must have approved thesis proposal certified by Thesis/Academic Adviser, Unit Heads and CHE Dean', isRequired: true },
+        { description: 'Must belong to ST Bracket PD80, Full Discount or Full Discount with Stipend', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Application Form with Photo', description: 'Official application form with recent photo', isRequired: true },
+      { name: 'Proof of Income', description: "Parents' ITR (BIR Form 2316/SALN), Affidavit of Income, Tax Exemption, Certificate of Employment, or Certificate of Indigency", isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From respective College Secretary office', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true },
+      { name: 'Approved Thesis Proposal', description: 'Certified by Thesis/Academic Adviser, Unit Heads and CHE Dean', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'che', 'alumni', 'thesis', 'human ecology', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - Dr. Higino A. Ables
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Dr. Higino A. Ables',
+    description: `The AASP Dr. Higino A. Ables scholarship supports bonafide UPLB students from Sorsogon or Camarines Sur. Applicants must have an Old Freshman, Sophomore, Junior, or Senior standing with a GWA of 2.5 or better, enrolling in at least 15 units, and must belong to a family whose gross income is not more than ₱150,000 per annum. Recipients must not hold any other scholarship grants.`,
+    sponsor: 'Dr. Higino A. Ables Foundation',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 40000,
+    awardDescription: '₱40,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleProvinces: ['Sorsogon', 'Camarines Sur'],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      minUnitsEnrolled: 15,
+      maxAnnualFamilyIncome: 150000,
+      mustNotHaveOtherScholarship: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must come from Sorsogon or Camarines Sur', isRequired: true },
+        { description: 'Must be a bonafide UPLB student', isRequired: true }
+      ]
+    },
+    requiredDocuments: csfaDocuments,
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 3,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'ables', 'sorsogon', 'camarines sur', 'bicol', 'province-based', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - Corazon Dayro Ong (CDO Odyssey Foundation, Inc.)
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Corazon Dayro Ong (CDO Odyssey Foundation, Inc.)',
+    description: `The AASP Corazon Dayro Ong (CDO Odyssey Foundation, Inc.) scholarship supports senior students graduating who are currently enrolled in BS Agriculture major in Animal Science, or BS Forestry. Applicants must be financially in need with gross annual family income not exceeding ₱250,000, must not be a beneficiary of any other scholarships or educational grants, and must not have been the subject of any disciplinary action worse than a five-day class suspension.`,
+    sponsor: 'CDO Odyssey Foundation, Inc.',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 45000,
+    awardDescription: '₱45,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SENIOR],
+      eligibleCourses: ['BS Agriculture', 'BS Forestry'],
+      eligibleMajors: ['Animal Science'],
+      eligibleColleges: [UPLBCollege.CAFS, UPLBCollege.CFNR],
+      mustBeGraduating: true,
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveOtherScholarship: true,
+      mustNotHaveDisciplinaryAction: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be senior standing graduating this semester', isRequired: true },
+        { description: 'Must be enrolled in BS Agriculture major in Animal Science, or BS Forestry', isRequired: true },
+        { description: 'Must not have been subject of disciplinary action worse than five-day class suspension', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Application Form with Photo', description: 'Official application form with recent photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR, payslip (last 3 months), employment certificate (last 6 months), employment contract, or notarized affidavit of income/no income (last 3 months)', isRequired: true },
+      { name: 'True Copy of Grades (All Semesters)', description: 'TCG from all previous semesters - request early from College Secretary', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From College Secretary', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor/instructor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'cdo', 'odyssey', 'animal science', 'forestry', 'graduating', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - FDF
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - FDF',
+    description: `The AASP FDF scholarship is a grant for graduating UPLB students. The primary qualification is that the applicant must be a graduating student in the current semester. This scholarship provides financial support to help students complete their final semester.`,
+    sponsor: 'FDF Foundation',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 30000,
+    awardDescription: '₱30,000 one-time graduating grant',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SENIOR],
+      mustBeGraduating: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be a graduating student this semester', isRequired: true }
+      ]
+    },
+    requiredDocuments: csfaDocuments,
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'fdf', 'graduating', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - Nicolas Nick Angel II
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Nicolas Nick Angel II',
+    description: `The AASP Nicolas Nick Angel II scholarship supports senior BS Agriculture or BS Forestry students who will graduate by the 2nd Semester. Applicants must have a GWA of 2.50 or better, belong to a family whose gross income is not more than ₱250,000 per annum, must not be a recipient of any other scholarship, and must be enrolled in at least 15 units at the time of the award.`,
+    sponsor: 'Nicolas Nick Angel II',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 45000,
+    awardDescription: '₱45,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SENIOR],
+      eligibleCourses: ['BS Agriculture', 'BS Forestry'],
+      eligibleColleges: [UPLBCollege.CAFS, UPLBCollege.CFNR],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      minUnitsEnrolled: 15,
+      maxAnnualFamilyIncome: 250000,
+      mustNotHaveOtherScholarship: true,
+      mustBeGraduating: true,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be a BS Agriculture or BS Forestry student graduating this academic year', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Proof of Income', description: 'ITR, payslip (last 3 months), employment certificate (last 6 months), employment contract, or notarized affidavit of income/no income (last 3 months)', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From respective College Secretary office', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 3,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'nicolas angel', 'agriculture', 'forestry', 'graduating', 'csfa']
+  },
+
+  // =========================================================================
+  // AASP - Human Ecology Institute of the Philippines, Inc. (HUMEIN-Phils)
+  // =========================================================================
+  {
+    name: 'Adopt-a-Student Program (AASP) - Human Ecology Institute of the Philippines, Inc. (HUMEIN-Phils)',
+    description: `The AASP Human Ecology Institute of the Philippines (HUMEIN-Phils) scholarship supports financially needy CHE students at UPLB. Applicants must be financially in need with gross annual family income from all sources not exceeding ₱250,000. This scholarship aims to assist students in the College of Human Ecology who demonstrate financial need.`,
+    sponsor: 'Human Ecology Institute of the Philippines, Inc. (HUMEIN-Phils)',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.COLLEGE,
+    managingCollegeCode: 'CHE',
+    managingAcademicUnitCode: null,
+    totalGrant: 35000,
+    awardDescription: '₱35,000 per academic year',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.FRESHMAN, Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleColleges: [UPLBCollege.CHE],
+      maxAnnualFamilyIncome: 250000,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be a CHE student at UPLB', isRequired: true },
+        { description: 'Must be financially in need (gross annual family income not exceeding ₱250,000)', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: '2x2 Photo', description: 'One (1) recent 2x2 ID photo', isRequired: true },
+      { name: 'Income Tax Return', description: 'Current ITR of parents; if exempt, attach BIR Certificate of Exemption; if unemployed, notarized affidavit of income', isRequired: true },
+      { name: 'Current Form 5', description: 'Current semester enrollment form', isRequired: true },
+      { name: 'True Copy of Grades', description: 'TCG from previous semester(s)', isRequired: true },
+      { name: 'Certificate of Good Moral Character', description: 'From respective College Secretary office', isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true },
+      { name: 'Recommendation Letter', description: 'One (1) from previous professor, addressed to Dr. Janette H. Malata-Silva, Chair, UPLB CSFA, VCSA', isRequired: true },
+      { name: 'Form 13', description: 'Form 13 document', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 5,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['aasp', 'humein', 'human ecology', 'che', 'need-based', 'csfa']
+  }
+];
+
+// =============================================================================
 // EXPORT ALL SCHOLARSHIPS
 // =============================================================================
 
 const realisticScholarshipsData = [
   ...universityScholarships,
   ...collegeScholarships,
-  ...academicUnitScholarships
+  ...academicUnitScholarships,
+  ...csfaScholarships
 ];
 
 module.exports = {
@@ -1332,7 +2279,9 @@ module.exports = {
   universityScholarships,
   collegeScholarships,
   academicUnitScholarships,
+  csfaScholarships,
   standardDocuments,
   financialAidDocuments,
-  researchGrantDocuments
+  researchGrantDocuments,
+  csfaDocuments
 };
