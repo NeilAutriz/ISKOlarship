@@ -128,7 +128,7 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
   const renderFilterButton = (label: string, icon: React.ReactNode, isActive: boolean, count: number | undefined, onClick: () => void) => (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+      className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
         isActive || (count && count > 0)
           ? 'bg-uplb-50 border-uplb-300 text-uplb-700 shadow-sm'
           : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
@@ -137,11 +137,11 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
       {icon}
       <span>{label}</span>
       {count && count > 0 && (
-        <span className="w-5 h-5 rounded-full bg-uplb-600 text-white text-xs flex items-center justify-center">
+        <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-uplb-600 text-white text-[10px] sm:text-xs flex items-center justify-center">
           {count}
         </span>
       )}
-      <ChevronDown className={`w-4 h-4 transition-transform ${activeDropdown === label.toLowerCase() ? 'rotate-180' : ''}`} />
+      <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${activeDropdown === label.toLowerCase() ? 'rotate-180' : ''}`} />
     </button>
   );
 
@@ -150,7 +150,7 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
     if (activeDropdown !== id) return null;
     
     return (
-      <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 min-w-[240px] max-h-[320px] overflow-y-auto">
+      <div className="absolute top-full left-0 sm:left-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 p-3 sm:p-4 z-50 min-w-[200px] sm:min-w-[240px] max-w-[calc(100vw-2rem)] max-h-[280px] sm:max-h-[320px] overflow-y-auto">
         {children}
       </div>
     );
@@ -158,25 +158,25 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
 
   return (
     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-4 ${className}`} ref={dropdownRef}>
-      <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3 w-full sm:w-auto">
           {/* Filter Icon */}
-          <div className="flex items-center gap-2 text-slate-600 pr-2 sm:pr-3 border-r border-slate-200">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-slate-600 pr-2 sm:pr-3 border-r border-slate-200">
             <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="text-sm font-medium hidden sm:inline">Filters</span>
+            <span className="text-xs sm:text-sm font-medium hidden sm:inline">Filters</span>
           </div>
 
         {/* Eligible Only Toggle */}
         {showEligibleToggle && (
           <button
             onClick={() => onFilterChange({ showEligibleOnly: !filters.showEligibleOnly })}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition-all ${
               filters.showEligibleOnly
                 ? 'bg-green-50 border-green-300 text-green-700'
                 : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
             }`}
           >
-            {filters.showEligibleOnly && <Check className="w-4 h-4" />}
+            {filters.showEligibleOnly && <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             <span>Eligible Only</span>
           </button>
         )}
@@ -309,11 +309,11 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
         </div>
 
         {/* Spacer */}
-        <div className="flex-1" />
+        <div className="hidden sm:block flex-1" />
 
         {/* Active Filter Tags */}
         {activeFilterCount > 0 && (
-          <div className="hidden md:flex items-center gap-2 px-3 border-l border-slate-200">
+          <div className="flex items-center gap-2 px-2 sm:px-3 sm:border-l border-slate-200">
             <span className="text-xs text-slate-500">{activeFilterCount} active</span>
             <button
               onClick={onClearFilters}
@@ -327,17 +327,17 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
         </div>
 
         {/* Inline Stats */}
-        <div className="flex items-center gap-2 sm:gap-4 pl-2 sm:pl-4 border-l border-slate-200">
+        <div className="flex items-center gap-2 sm:gap-4 pl-2 sm:pl-4 border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 w-full sm:w-auto justify-center sm:justify-end">
           {totalCount !== undefined && (
             <div className="text-center px-2 sm:px-3">
-              <div className="text-base sm:text-lg font-bold text-slate-900">{totalCount}</div>
-              <div className="text-xs text-slate-500">Total</div>
+              <div className="text-sm sm:text-lg font-bold text-slate-900">{totalCount}</div>
+              <div className="text-[10px] sm:text-xs text-slate-500">Total</div>
             </div>
           )}
           {resultCount !== undefined && (
             <div className="text-center px-2 sm:px-3 py-1 bg-primary-50 rounded-lg">
-              <div className="text-base sm:text-lg font-bold text-primary-700">{resultCount}</div>
-              <div className="text-xs text-primary-600">Showing</div>
+              <div className="text-sm sm:text-lg font-bold text-primary-700">{resultCount}</div>
+              <div className="text-[10px] sm:text-xs text-primary-600">Showing</div>
             </div>
           )}
         </div>
@@ -345,7 +345,7 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
 
       {/* Selected Filter Pills */}
       {activeFilterCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100">
           {filters.showEligibleOnly && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-medium">
               Eligible Only

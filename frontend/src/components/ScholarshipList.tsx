@@ -270,12 +270,12 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div>
           {title && (
-            <h2 className="text-2xl font-display font-bold text-slate-900">{title}</h2>
+            <h2 className="text-xl sm:text-2xl font-display font-bold text-slate-900">{title}</h2>
           )}
-          <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1 text-xs sm:text-sm text-slate-500">
             <span className="flex items-center gap-1">
               <Award className="w-4 h-4" />
               {filteredScholarships.length} scholarship{filteredScholarships.length !== 1 ? 's' : ''}
@@ -429,8 +429,8 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
         // Loading skeleton
         <div className={
           viewMode === 'grid'
-            ? 'grid grid-cols-1 xl:grid-cols-2 gap-6'
-            : 'space-y-4'
+            ? 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'
+            : 'space-y-3 sm:space-y-4'
         }>
           {Array.from({ length: 6 }).map((_, i) => (
             <div 
@@ -475,8 +475,8 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
       ) : filteredScholarships.length > 0 ? (
         <div className={
           viewMode === 'grid'
-            ? 'grid grid-cols-1 xl:grid-cols-2 gap-6'
-            : 'space-y-4'
+            ? 'grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6'
+            : 'space-y-3 sm:space-y-4'
         }>
           {filteredScholarships.map(scholarship => {
             const scholarshipId = scholarship.id || (scholarship as any)._id;

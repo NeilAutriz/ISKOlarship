@@ -144,7 +144,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const getInputStyles = () => {
     switch (variant) {
       case 'hero':
-        return 'py-4 pl-14 pr-14 text-lg rounded-2xl shadow-lg';
+        return 'py-3 sm:py-4 pl-11 sm:pl-14 pr-12 sm:pr-14 text-sm sm:text-lg rounded-xl sm:rounded-2xl shadow-lg';
       case 'compact':
         return 'py-2.5 pl-10 pr-10 text-sm rounded-lg';
       default:

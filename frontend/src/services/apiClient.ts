@@ -33,23 +33,26 @@ const api: AxiosInstance = axios.create({
  * Map API scholarship type to frontend ScholarshipType enum value
  */
 const normalizeScholarshipType = (apiType: string): string => {
-  if (!apiType) return 'university';
+  if (!apiType) return 'University Scholarship';
   
+  // Map all known variations to the canonical ScholarshipType enum values
   const typeMap: Record<string, string> = {
-    // API values -> Frontend enum values
-    'Thesis/Research Grant': 'thesis_grant',
-    'thesis_grant': 'thesis_grant',
-    'thesis grant': 'thesis_grant',
-    'Private Scholarship': 'private',
-    'private': 'private',
-    'Government Scholarship': 'government',
-    'government': 'government',
-    'University Scholarship': 'university',
-    'university': 'university',
-    'College Scholarship': 'college',
-    'college': 'college',
-    'DOST Scholarship': 'government',
-    'CHED Scholarship': 'government',
+    // API values (already canonical)
+    'Thesis/Research Grant': 'Thesis/Research Grant',
+    'Private Scholarship': 'Private Scholarship',
+    'Government Scholarship': 'Government Scholarship',
+    'University Scholarship': 'University Scholarship',
+    'College Scholarship': 'College Scholarship',
+    // Shorthand / legacy values
+    'thesis_grant': 'Thesis/Research Grant',
+    'thesis grant': 'Thesis/Research Grant',
+    'private': 'Private Scholarship',
+    'government': 'Government Scholarship',
+    'university': 'University Scholarship',
+    'college': 'College Scholarship',
+    // Known external scholarship sponsors
+    'DOST Scholarship': 'Government Scholarship',
+    'CHED Scholarship': 'Government Scholarship',
   };
   
   // Try exact match first
@@ -67,19 +70,19 @@ const normalizeScholarshipType = (apiType: string): string => {
   
   // Try partial match
   if (lowerType.includes('thesis') || lowerType.includes('grant') || lowerType.includes('research')) {
-    return 'thesis_grant';
+    return 'Thesis/Research Grant';
   }
   if (lowerType.includes('private')) {
-    return 'private';
+    return 'Private Scholarship';
   }
   if (lowerType.includes('government') || lowerType.includes('dost') || lowerType.includes('ched')) {
-    return 'government';
+    return 'Government Scholarship';
   }
   if (lowerType.includes('college')) {
-    return 'college';
+    return 'College Scholarship';
   }
   
-  return 'university'; // Default
+  return 'University Scholarship'; // Default
 };
 
 /**

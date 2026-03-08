@@ -47,6 +47,17 @@ const typeColorSchemes: Record<string, {
   headerBg: string;
   tagIcon: string;
 }> = {
+  'University Scholarship': {
+    gradient: 'from-blue-600 to-blue-700',
+    accent: 'blue',
+    badge: 'bg-blue-600 text-white',
+    badgeGradient: 'from-blue-500 to-blue-600',
+    icon: 'text-blue-600',
+    iconBg: 'bg-blue-100',
+    border: 'border-l-blue-500',
+    headerBg: 'bg-blue-50',
+    tagIcon: 'GraduationCap',
+  },
   'university': {
     gradient: 'from-blue-600 to-blue-700',
     accent: 'blue',
@@ -57,6 +68,17 @@ const typeColorSchemes: Record<string, {
     border: 'border-l-blue-500',
     headerBg: 'bg-blue-50',
     tagIcon: 'GraduationCap',
+  },
+  'Government Scholarship': {
+    gradient: 'from-amber-500 to-amber-600',
+    accent: 'amber',
+    badge: 'bg-amber-600 text-white',
+    badgeGradient: 'from-amber-500 to-amber-600',
+    icon: 'text-amber-600',
+    iconBg: 'bg-amber-100',
+    border: 'border-l-amber-500',
+    headerBg: 'bg-amber-50',
+    tagIcon: 'Building2',
   },
   'government': {
     gradient: 'from-amber-500 to-amber-600',
@@ -112,6 +134,17 @@ const typeColorSchemes: Record<string, {
     border: 'border-l-purple-500',
     headerBg: 'bg-purple-50',
     tagIcon: 'Sparkles',
+  },
+  'College Scholarship': {
+    gradient: 'from-teal-500 to-teal-600',
+    accent: 'teal',
+    badge: 'bg-teal-600 text-white',
+    badgeGradient: 'from-teal-500 to-cyan-600',
+    icon: 'text-teal-600',
+    iconBg: 'bg-teal-100',
+    border: 'border-l-teal-500',
+    headerBg: 'bg-teal-50',
+    tagIcon: 'GraduationCap',
   },
   'college': {
     gradient: 'from-teal-500 to-teal-600',
@@ -257,37 +290,37 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         className={`block bg-white rounded-xl border-l-4 ${colorScheme.border} border border-slate-200 
                    hover:shadow-lg hover:border-slate-300 transition-all duration-300 overflow-hidden`}
       >
-        <div className="p-4">
-          <div className="flex items-center justify-between gap-4">
+        <div className="p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-3 sm:gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${colorScheme.badge}`}>
-                  <FileText className="w-3 h-3" />
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                <span className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide ${colorScheme.badge}`}>
+                  <FileText className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                   {formatType(scholarship.type)}
                 </span>
               </div>
-              <h4 className="font-semibold text-slate-900 truncate text-base">{scholarship.name}</h4>
-              <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-                <span className="flex items-center gap-1.5 font-semibold text-gold-700">
-                  <Award className="w-4 h-4" />
+              <h4 className="font-semibold text-slate-900 truncate text-sm sm:text-base">{scholarship.name}</h4>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1.5 sm:mt-2 text-xs sm:text-sm text-slate-500">
+                <span className="flex items-center gap-1 sm:gap-1.5 font-semibold text-gold-700">
+                  <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   {amount > 0 ? formatCurrency(amount) : 'Varies'}
                 </span>
                 {scholarship.applicationDeadline && (
-                  <span className="flex items-center gap-1.5 text-slate-400">
-                    <Clock className="w-4 h-4" />
+                  <span className="flex items-center gap-1 sm:gap-1.5 text-slate-400">
+                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     {formatDate(scholarship.applicationDeadline)}
                   </span>
                 )}
               </div>
             </div>
             {matchResult && (
-              <div className={`flex items-center justify-center w-11 h-11 rounded-xl shadow-sm ${
+              <div className={`flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-xl shadow-sm flex-shrink-0 ${
                 matchResult.isEligible ? 'bg-green-100' : 'bg-red-100'
               }`}>
                 {matchResult.isEligible ? (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 ) : (
-                  <XCircle className="w-5 h-5 text-red-600" />
+                  <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                 )}
               </div>
             )}
@@ -304,30 +337,30 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                     border-l-4 ${colorScheme.border} flex flex-col h-full`}>
       
       {/* Color-coded Header */}
-      <div className={`${colorScheme.headerBg} px-6 py-5 border-b border-slate-100`}>
-        <div className="flex items-start justify-between gap-4">
+      <div className={`${colorScheme.headerBg} px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100`}>
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
             {/* Type & Status Badges - Enhanced Design */}
-            <div className="flex flex-wrap items-center gap-2.5 mb-4">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2.5 mb-3 sm:mb-4">
               {/* Type Badge - Clean Gradient Style */}
-              <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide ${colorScheme.badge}`}>
-                <Award className="w-4 h-4" />
+              <span className={`inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-wide ${colorScheme.badge}`}>
+                <Award className="w-3 h-3 sm:w-4 sm:h-4" />
                 {formatType(scholarship.type)}
               </span>
               {eligibilityStatus && (
-                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 ${eligibilityStatus.className}`}>
-                  <eligibilityStatus.icon className="w-4 h-4" />
+                <span className={`inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border-2 ${eligibilityStatus.className}`}>
+                  <eligibilityStatus.icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   {eligibilityStatus.text}
                 </span>
               )}
               {daysUntil !== null && daysUntil > 0 && daysUntil <= 7 && (
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white shadow-sm">
-                  <Clock className="w-3.5 h-3.5" />
+                <span className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold bg-orange-500 text-white shadow-sm">
+                  <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                   {daysUntil} days left
                 </span>
               )}
               {applicationStatus && (
-                <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 ${
+                <span className={`inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold border-2 ${
                   applicationStatus === ApplicationStatus.APPROVED
                     ? 'bg-green-50 text-green-700 border-green-200'
                     : applicationStatus === ApplicationStatus.REJECTED
@@ -336,7 +369,7 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
                     ? 'bg-amber-50 text-amber-700 border-amber-200'
                     : 'bg-blue-50 text-blue-700 border-blue-200'
                 }`}>
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                   {applicationStatus === ApplicationStatus.APPROVED ? 'Approved' :
                    applicationStatus === ApplicationStatus.REJECTED ? 'Rejected' :
                    applicationStatus === ApplicationStatus.DRAFT ? 'Draft' :
@@ -346,41 +379,41 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
             </div>
             
             {/* Title */}
-            <h3 className="text-xl font-bold text-slate-900 leading-tight mb-2">
+            <h3 className="text-base sm:text-xl font-bold text-slate-900 leading-tight mb-1.5 sm:mb-2">
               {scholarship.name}
             </h3>
             
             {/* Sponsor */}
-            <p className="text-sm text-slate-600 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center">
-                <Building2 className="w-3.5 h-3.5 text-slate-500" />
+            <p className="text-xs sm:text-sm text-slate-600 flex items-center gap-1.5 sm:gap-2">
+              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-500" />
               </span>
-              <span className="font-medium">{scholarship.sponsor}</span>
+              <span className="font-medium truncate">{scholarship.sponsor}</span>
             </p>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="px-6 py-5 flex-1">
+      <div className="px-4 sm:px-6 py-4 sm:py-5 flex-1">
         {/* Grant Amount - Prominent Display */}
-        <div className="flex items-center gap-4 mb-5 p-4 bg-amber-50 rounded-xl border border-amber-200">
-          <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-sm">
-            <Award className="w-6 h-6 text-white" />
+        <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5 p-3 sm:p-4 bg-amber-50 rounded-xl border border-amber-200">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-sm flex-shrink-0">
+            <Award className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
-          <div className="flex-1">
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Grant Amount</div>
-            <div className="text-2xl font-bold text-slate-900">
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Grant Amount</div>
+            <div className="text-lg sm:text-2xl font-bold text-slate-900 truncate">
               {amount > 0 ? formatCurrency(amount) : (scholarship.awardDescription || 'Varies')}
             </div>
             {scholarship.awardDescription && amount > 0 && (
-              <div className="text-xs text-slate-500 mt-0.5">{scholarship.awardDescription}</div>
+              <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 truncate">{scholarship.awardDescription}</div>
             )}
           </div>
           {scholarship.slots !== undefined && scholarship.slots > 0 && (
-            <div className="text-right">
-              <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Slots</div>
-              <div className="text-lg font-bold text-primary-600">
+            <div className="text-right flex-shrink-0">
+              <div className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Slots</div>
+              <div className="text-base sm:text-lg font-bold text-primary-600">
                 {scholarship.remainingSlots ?? scholarship.slots}/{scholarship.slots}
               </div>
             </div>
@@ -388,16 +421,16 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         </div>
 
         {/* Key Requirements Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-5">
           {/* GWA Requirement */}
           {(scholarship.eligibilityCriteria?.maxGWA || scholarship.eligibilityCriteria?.minGWA) && (
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div className={`w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center`}>
-                <TrendingUp className="w-4 h-4 text-blue-600" />
+            <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-slate-50 rounded-lg">
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0`}>
+                <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
               </div>
-              <div>
-                <div className="text-xs text-slate-500">GWA Required</div>
-                <div className="font-semibold text-slate-900">
+              <div className="min-w-0">
+                <div className="text-[10px] sm:text-xs text-slate-500">GWA Required</div>
+                <div className="font-semibold text-slate-900 text-xs sm:text-sm text-xs sm:text-sm">
                   {(scholarship.eligibilityCriteria.maxGWA || scholarship.eligibilityCriteria.minGWA || 0).toFixed(2)} or better
                 </div>
               </div>
@@ -406,13 +439,13 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
           
           {/* Year Levels */}
           {yearLevels.length > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-purple-600" />
+            <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-slate-50 rounded-lg">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <GraduationCap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
               </div>
-              <div>
-                <div className="text-xs text-slate-500">Year Level</div>
-                <div className="font-semibold text-slate-900 text-sm">
+              <div className="min-w-0">
+                <div className="text-[10px] sm:text-xs text-slate-500">Year Level</div>
+                <div className="font-semibold text-slate-900 text-xs sm:text-sm truncate">
                   {yearLevels.slice(0, 2).map((y: string) => y.charAt(0).toUpperCase() + y.slice(1)).join(', ')}
                   {yearLevels.length > 2 && ` +${yearLevels.length - 2}`}
                 </div>
@@ -422,13 +455,13 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
 
           {/* Colleges */}
           {scholarship.eligibilityCriteria?.eligibleColleges && scholarship.eligibilityCriteria.eligibleColleges.length > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
-                <Users className="w-4 h-4 text-teal-600" />
+            <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-slate-50 rounded-lg">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
+                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600" />
               </div>
-              <div>
-                <div className="text-xs text-slate-500">Colleges</div>
-                <div className="font-semibold text-slate-900 text-sm">
+              <div className="min-w-0">
+                <div className="text-[10px] sm:text-xs text-slate-500">Colleges</div>
+                <div className="font-semibold text-slate-900 text-xs sm:text-sm truncate">
                   {scholarship.eligibilityCriteria.eligibleColleges.length === 1
                     ? (scholarship.eligibilityCriteria.eligibleColleges[0] as string).replace('College of ', '')
                     : `${scholarship.eligibilityCriteria.eligibleColleges.length} eligible`}
@@ -439,13 +472,13 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
 
           {/* Income */}
           {scholarship.eligibilityCriteria?.maxAnnualFamilyIncome && (
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                <DollarSign className="w-4 h-4 text-green-600" />
+            <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-slate-50 rounded-lg">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
               </div>
-              <div>
-                <div className="text-xs text-slate-500">Max Income</div>
-                <div className="font-semibold text-slate-900 text-sm">
+              <div className="min-w-0">
+                <div className="text-[10px] sm:text-xs text-slate-500">Max Income</div>
+                <div className="font-semibold text-slate-900 text-xs sm:text-sm truncate">
                   {formatCurrency(scholarship.eligibilityCriteria.maxAnnualFamilyIncome)}
                 </div>
               </div>
@@ -454,13 +487,13 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
 
           {/* Province */}
           {scholarship.eligibilityCriteria?.eligibleProvinces && scholarship.eligibilityCriteria.eligibleProvinces.length > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-                <MapPin className="w-4 h-4 text-orange-600" />
+            <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-slate-50 rounded-lg">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600" />
               </div>
-              <div>
-                <div className="text-xs text-slate-500">Province</div>
-                <div className="font-semibold text-slate-900 text-sm">
+              <div className="min-w-0">
+                <div className="text-[10px] sm:text-xs text-slate-500">Province</div>
+                <div className="font-semibold text-slate-900 text-xs sm:text-sm truncate">
                   {scholarship.eligibilityCriteria.eligibleProvinces.length === 1
                     ? scholarship.eligibilityCriteria.eligibleProvinces[0]
                     : `${scholarship.eligibilityCriteria.eligibleProvinces.length} provinces`}
@@ -571,18 +604,18 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         {/* Failed Criteria */}
         {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && 
          matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 0 && (
-          <div className="bg-red-50 rounded-xl p-4 mb-4 border border-red-100">
-            <div className="flex items-center gap-2 text-red-700 mb-2">
-              <AlertCircle className="w-4 h-4" />
-              <span className="text-sm font-semibold">Requirements Not Met:</span>
+          <div className="bg-red-50 rounded-xl p-3 sm:p-4 mb-4 border border-red-100">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-red-700 mb-1.5 sm:mb-2">
+              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="text-xs sm:text-sm font-semibold">Requirements Not Met:</span>
             </div>
-            <ul className="space-y-1.5">
+            <ul className="space-y-1 sm:space-y-1.5">
               {matchResult.eligibilityDetails
                 .filter((detail: any) => !detail.passed)
                 .slice(0, 3)
                 .map((detail: any, index: number) => (
-                  <li key={index} className="text-sm text-red-600 flex items-start gap-2">
-                    <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <li key={index} className="text-xs sm:text-sm text-red-600 flex items-start gap-1.5 sm:gap-2">
+                    <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
                     <span>{detail.criterion}</span>
                   </li>
                 ))}
@@ -597,38 +630,38 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
       </div>
 
       {/* Footer - Always at bottom */}
-      <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 mt-auto">
-        <div className="flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-t border-slate-100 mt-auto">
+        <div className="flex items-center justify-between gap-2">
           {/* Deadline */}
-          <div className="flex items-center gap-2">
-            <Calendar className={`w-4 h-4 ${daysUntil !== null && daysUntil <= 7 ? 'text-orange-500' : 'text-slate-400'}`} />
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <Calendar className={`w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 ${daysUntil !== null && daysUntil <= 7 ? 'text-orange-500' : 'text-slate-400'}`} />
             {scholarship.applicationDeadline ? (
-              <div className="text-sm">
+              <div className="text-xs sm:text-sm truncate">
                 <span className="text-slate-600 font-medium">
                   {formatDate(scholarship.applicationDeadline)}
                 </span>
                 {daysUntil !== null && daysUntil > 0 && daysUntil <= 14 && (
-                  <span className={`ml-2 font-semibold ${daysUntil <= 7 ? 'text-orange-600' : 'text-slate-500'}`}>
-                    ({daysUntil} days left)
+                  <span className={`ml-1.5 sm:ml-2 font-semibold ${daysUntil <= 7 ? 'text-orange-600' : 'text-slate-500'}`}>
+                    ({daysUntil}d)
                   </span>
                 )}
                 {daysUntil !== null && daysUntil <= 0 && (
-                  <span className="ml-2 text-red-600 font-semibold">(Closed)</span>
+                  <span className="ml-1.5 sm:ml-2 text-red-600 font-semibold">(Closed)</span>
                 )}
               </div>
             ) : (
-              <span className="text-sm text-slate-500">No deadline specified</span>
+              <span className="text-xs sm:text-sm text-slate-500">No deadline</span>
             )}
           </div>
 
           {/* View Details Button */}
           <Link
             to={`/scholarships/${getScholarshipId()}`}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-semibold 
-                       rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow-md"
+            className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-primary-600 text-white text-xs sm:text-sm font-semibold 
+                       rounded-lg hover:bg-primary-700 transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0"
           >
-            View Details
-            <ChevronRight className="w-4 h-4" />
+            <span className="hidden xs:inline">View</span> Details
+            <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </Link>
         </div>
       </div>

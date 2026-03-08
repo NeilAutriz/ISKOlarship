@@ -156,15 +156,17 @@ const Scholarships: React.FC = () => {
   // Filter scholarships locally (for filters not handled by API)
   const filteredScholarships = useMemo(() => {
     return scholarships.filter(s => {
-      // Apply type filter
+      // Apply type filter (case-insensitive comparison for robustness)
       if (filters.scholarshipTypes && filters.scholarshipTypes.length > 0) {
-        if (!filters.scholarshipTypes.includes(s.type)) {
-          return false;
-        }
+        const sType = (s.type || '').toLowerCase().trim();
+        const matches = filters.scholarshipTypes.some(
+          ft => ft.toLowerCase().trim() === sType
+        );
+        if (!matches) return false;
       }
 
-      // Apply amount filter
-      const amount = s.awardAmount || 0;
+      // Apply amount filter (check both awardAmount and totalGrant)
+      const amount = s.awardAmount ?? s.totalGrant ?? 0;
       if (filters.minAmount !== undefined && amount < filters.minAmount) {
         return false;
       }
@@ -209,23 +211,23 @@ const Scholarships: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />
         </div>
         
-        <div className="relative w-full px-6 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 py-12 md:py-16 lg:py-20">
+        <div className="relative w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-24 py-8 sm:py-12 md:py-16 lg:py-20">
           <div className="max-w-[1800px] mx-auto text-center">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2.5 bg-white/15 backdrop-blur-sm px-5 py-2.5 rounded-full mb-6 border border-white/20">
-              <GraduationCap className="w-5 h-5 text-gold-400" />
-              <span className="text-sm font-semibold uppercase tracking-widest text-gold-300">
+            <div className="inline-flex items-center gap-2 sm:gap-2.5 bg-white/15 backdrop-blur-sm px-3 sm:px-5 py-2 sm:py-2.5 rounded-full mb-4 sm:mb-6 border border-white/20">
+              <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 text-gold-400" />
+              <span className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-gold-300">
                 Browse Scholarships
               </span>
             </div>
             
             {/* Title */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-5 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-display font-bold text-white mb-3 sm:mb-5 tracking-tight">
               Available Scholarships
             </h1>
             
             {/* Description */}
-            <p className="text-primary-100 text-lg md:text-xl max-w-3xl mx-auto mb-10 leading-relaxed">
+            <p className="text-primary-100 text-sm sm:text-base md:text-lg lg:text-xl max-w-3xl mx-auto mb-6 sm:mb-10 leading-relaxed px-2">
               Explore all scholarship opportunities available through the UPLB Office of 
               Scholarships and Grants (OSG). Use filters to find scholarships that match your profile.
             </p>
@@ -246,7 +248,7 @@ const Scholarships: React.FC = () => {
       </div>
 
       {/* Main Content - Maximized Width */}
-      <div className="w-full px-6 sm:px-8 lg:px-12 xl:px-16 2xl:px-24 py-10">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-24 py-6 sm:py-10">
         <div className="max-w-[1800px] mx-auto">
           {/* Horizontal Filter Bar with Stats */}
           <HorizontalFilterBar
@@ -260,8 +262,8 @@ const Scholarships: React.FC = () => {
           />
 
           {/* View Toggle and Sort */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-8 pb-6 border-b border-slate-200">
-            <div className="text-sm sm:text-base text-slate-600 min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-slate-200">
+            <div className="text-xs sm:text-sm md:text-base text-slate-600 min-w-0">
               {filters.searchQuery ? (
                 <span>
                   Showing results for "<span className="font-semibold text-primary-700">{filters.searchQuery}</span>"
@@ -272,8 +274,8 @@ const Scholarships: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-500 hidden sm:block">View:</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xs sm:text-sm text-slate-500 hidden sm:block">View:</span>
               <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
                 <button
                   onClick={() => setViewMode('grid')}
