@@ -38,6 +38,7 @@ import {
   Lock
 } from 'lucide-react';
 import { userApi, API_SERVER_URL } from '../../services/apiClient';
+import { UPLBCollege } from '../../types';
 
 // API Response structure from backend
 interface StudentProfileData {
@@ -157,6 +158,68 @@ const REQUIRED_DOCUMENTS = [
   { type: 'student_id', name: 'Student ID / Proof of Enrollment' },
   { type: 'latest_grades', name: 'Latest Grades / Transcript' },
   { type: 'certificate_of_registration', name: 'Certificate of Registration (Current Semester)' },
+];
+
+// UPLB Colleges and their respective programs (matching ProfileCompletion)
+const uplbPrograms: Record<string, string[]> = {
+  [UPLBCollege.CAFS]: [
+    'BS Agriculture', 'BS Agricultural Biotechnology', 'BS Agricultural Chemistry',
+    'BS Food Science and Technology', 'BS Nutrition',
+    'BS Agricultural and Applied Economics', 'BS Agribusiness Management and Entrepreneurship',
+    'Other CAFS Program'
+  ],
+  [UPLBCollege.CAS]: [
+    'BS Biology', 'BS Applied Mathematics', 'BS Applied Physics', 'BS Chemistry',
+    'BS Computer Science', 'BS Mathematics', 'BS Mathematics and Science Teaching',
+    'BS Statistics', 'BA Communication Arts', 'BA Philosophy', 'BA Sociology',
+    'BS Human Kinetics', 'Associate in Arts in Sports Studies', 'Other CAS Program'
+  ],
+  [UPLBCollege.CDC]: [
+    'BS Development Communication', 'Associate of Science in Development Communication',
+    'Other CDC Program'
+  ],
+  [UPLBCollege.CEM]: [
+    'BS Accountancy', 'BS Agricultural and Applied Economics',
+    'BS Agribusiness Management and Entrepreneurship', 'BS Economics',
+    'Associate in Arts in Entrepreneurship', 'Other CEM Program'
+  ],
+  [UPLBCollege.CEAT]: [
+    'BS Agricultural and Biosystems Engineering', 'BS Chemical Engineering',
+    'BS Civil Engineering', 'BS Electrical Engineering', 'BS Industrial Engineering',
+    'BS Mechanical Engineering', 'BS Materials Engineering', 'Other CEAT Program'
+  ],
+  [UPLBCollege.CFNR]: [
+    'BS Forestry', 'Associate of Science in Forestry', 'Other CFNR Program'
+  ],
+  [UPLBCollege.CHE]: [
+    'BS Human Ecology', 'BS Nutrition', 'Other CHE Program'
+  ],
+  [UPLBCollege.CVM]: [
+    'Doctor of Veterinary Medicine', 'Other CVM Program'
+  ],
+  [UPLBCollege.GS]: [
+    'Graduate Programs', 'Other Graduate Program'
+  ]
+};
+
+const collegeOptions = [
+  { value: UPLBCollege.CAFS, label: 'College of Agriculture and Food Science (CAFS)' },
+  { value: UPLBCollege.CAS, label: 'College of Arts and Sciences (CAS)' },
+  { value: UPLBCollege.CDC, label: 'College of Development Communication (CDC)' },
+  { value: UPLBCollege.CEM, label: 'College of Economics and Management (CEM)' },
+  { value: UPLBCollege.CEAT, label: 'College of Engineering and Agro-industrial Technology (CEAT)' },
+  { value: UPLBCollege.CFNR, label: 'College of Forestry and Natural Resources (CFNR)' },
+  { value: UPLBCollege.CHE, label: 'College of Human Ecology (CHE)' },
+  { value: UPLBCollege.CVM, label: 'College of Veterinary Medicine (CVM)' },
+  { value: UPLBCollege.GS, label: 'Graduate School (GS)' },
+];
+
+const provinceOptions = [
+  'Metro Manila', 'Laguna', 'Cavite', 'Batangas', 'Rizal', 'Quezon', 'Bulacan',
+  'Pampanga', 'Pangasinan', 'Ilocos Norte', 'Ilocos Sur', 'La Union', 'Zambales',
+  'Cebu', 'Davao del Sur', 'Davao del Norte', 'Negros Occidental', 'Negros Oriental',
+  'Leyte', 'Samar', 'Bohol', 'Palawan', 'Mindoro', 'Albay', 'Camarines Sur',
+  'Other'
 ];
 
 const StudentProfile: React.FC = () => {
@@ -1374,21 +1437,30 @@ const StudentProfile: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">College *</label>
-                      <input
-                        type="text"
+                      <select
                         value={editFormData.college}
-                        onChange={(e) => setEditFormData({...editFormData, college: e.target.value})}
+                        onChange={(e) => setEditFormData({...editFormData, college: e.target.value, course: ''})}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
+                      >
+                        <option value="">Select College</option>
+                        {collegeOptions.map(c => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Course *</label>
-                      <input
-                        type="text"
+                      <select
                         value={editFormData.course}
                         onChange={(e) => setEditFormData({...editFormData, course: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
+                        disabled={!editFormData.college}
+                      >
+                        <option value="">Select Course</option>
+                        {(uplbPrograms[editFormData.college] || []).map((course: string) => (
+                          <option key={course} value={course}>{course}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Major</label>
@@ -1479,32 +1551,40 @@ const StudentProfile: React.FC = () => {
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                       >
                         <option value="">Select ST Bracket</option>
-                        <option value="FDS">FDS - Full Discount with Stipend</option>
-                        <option value="FD">FD - Full Discount</option>
-                        <option value="PD80">PD80 - 80% Partial Discount</option>
-                        <option value="PD60">PD60 - 60% Partial Discount</option>
-                        <option value="PD40">PD40 - 40% Partial Discount</option>
-                        <option value="PD20">PD20 - 20% Partial Discount</option>
-                        <option value="ND">ND - No Discount</option>
+                        <option value="Full Discount with Stipend">Full Discount with Stipend (FDS)</option>
+                        <option value="Full Discount">Full Discount (FD)</option>
+                        <option value="PD80">80% Partial Discount (PD80)</option>
+                        <option value="PD60">60% Partial Discount (PD60)</option>
+                        <option value="PD40">40% Partial Discount (PD40)</option>
+                        <option value="PD20">20% Partial Discount (PD20)</option>
+                        <option value="No Discount">No Discount (ND)</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Province of Origin</label>
-                      <input
-                        type="text"
+                      <select
                         value={editFormData.provinceOfOrigin}
                         onChange={(e) => setEditFormData({...editFormData, provinceOfOrigin: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
+                      >
+                        <option value="">Select Province</option>
+                        {provinceOptions.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Citizenship</label>
-                      <input
-                        type="text"
+                      <select
                         value={editFormData.citizenship}
                         onChange={(e) => setEditFormData({...editFormData, citizenship: e.target.value})}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      />
+                      >
+                        <option value="">Select Citizenship</option>
+                        <option value="Filipino">Filipino</option>
+                        <option value="Dual Citizen">Dual Citizen</option>
+                        <option value="Foreign National">Foreign National</option>
+                      </select>
                     </div>
                   </div>
                 </div>

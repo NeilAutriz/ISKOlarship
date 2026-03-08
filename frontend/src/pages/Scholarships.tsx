@@ -183,8 +183,9 @@ const Scholarships: React.FC = () => {
 
       // Apply year level filter
       if (filters.yearLevels && filters.yearLevels.length > 0) {
-        if (s.eligibilityCriteria?.requiredYearLevels && s.eligibilityCriteria.requiredYearLevels.length > 0) {
-          if (!filters.yearLevels.some(y => s.eligibilityCriteria.requiredYearLevels!.includes(y))) {
+        const scholarshipYearLevels = s.eligibilityCriteria?.eligibleClassifications || s.eligibilityCriteria?.requiredYearLevels || [];
+        if (scholarshipYearLevels.length > 0) {
+          if (!filters.yearLevels.some(y => scholarshipYearLevels.includes(y))) {
             return false;
           }
         }

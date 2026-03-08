@@ -90,8 +90,9 @@ export const COLLEGE_CODE_MAP: Record<string, string> = {
 
 export function normalizeSTBracket(bracket: string | undefined | null): string | null {
   if (!bracket) return null;
-  const normalized = bracket.toString().trim().toUpperCase();
-  return ST_BRACKET_MAP[normalized] || bracket;
+  const trimmed = bracket.toString().trim();
+  // Try exact match first, then uppercase for legacy codes (FDS, FD, ND)
+  return ST_BRACKET_MAP[trimmed] || ST_BRACKET_MAP[trimmed.toUpperCase()] || bracket;
 }
 
 export function normalizeYearLevel(yearLevel: string | undefined | null): string | null {
