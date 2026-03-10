@@ -276,7 +276,30 @@ router.post('/login', loginValidation, async (req, res, next) => {
       });
     }
 
-    // --- 2FA: Generate and send OTP ---
+    // Admin users skip 2FA — issue tokens directly
+    if (user.role === UserRole.ADMIN) {
+      const accessToken = generateToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
+
+      user.refreshTokens.push({ token: refreshToken });
+      user.lastLoginAt = new Date();
+      await user.save();
+
+      // Log login activity (fire-and-forget)
+      logLogin(user, req.ip);
+
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: user.getPublicProfile(),
+          accessToken,
+          refreshToken
+        }
+      });
+    }
+
+    // --- 2FA for students: Generate and send OTP ---
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -290,7 +313,6 @@ router.post('/login', loginValidation, async (req, res, next) => {
     // Determine first name for email personalization
     const firstName = user.firstName || 
       user.studentProfile?.firstName || 
-      user.adminProfile?.firstName || 
       'User';
 
     // Send OTP email

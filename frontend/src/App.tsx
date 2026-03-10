@@ -201,7 +201,7 @@ const App: React.FC = () => {
         };
       }
       
-      // Fallback: if server somehow returns tokens directly (shouldn't happen)
+      // Direct login (admin users skip 2FA and get tokens directly)
       if (response.success && response.data?.user) {
         const userData = response.data.user as User;
         if ((role === 'admin' && userData.role !== UserRole.ADMIN) ||
