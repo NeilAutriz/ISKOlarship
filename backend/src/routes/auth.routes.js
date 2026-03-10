@@ -276,6 +276,28 @@ router.post('/login', loginValidation, async (req, res, next) => {
       });
     }
 
+    // Skip 2FA for admin users — issue tokens directly
+    if (user.role === UserRole.ADMIN) {
+      const accessToken = generateToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
+
+      user.refreshTokens.push({ token: refreshToken });
+      user.lastLoginAt = new Date();
+      await user.save();
+
+      logLogin(user, req.ip);
+
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          user: user.getPublicProfile(),
+          accessToken,
+          refreshToken
+        }
+      });
+    }
+
     // --- 2FA: Generate and send OTP ---
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
