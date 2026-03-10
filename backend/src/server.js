@@ -41,6 +41,10 @@ app.use(cors({
     'http://localhost:3000',
     'http://localhost:3001',
     'https://iskolarship.vercel.app',
+    'https://iskolarship.space',
+    'https://www.iskolarship.space',
+    'https://freedns.space',
+    'https://www.freedns.space',
     process.env.FRONTEND_URL
   ].filter(Boolean),
   credentials: true
