@@ -29,6 +29,9 @@ import {
   Edit3
 } from 'lucide-react';
 import { applicationApi, API_SERVER_URL } from '../../services/apiClient';
+import PaginationControls from '../../components/PaginationControls';
+
+const PAGE_SIZE = 10;
 
 type ApplicationStatus = 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected' | 'withdrawn';
 
@@ -59,6 +62,10 @@ const StudentApplications: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'drafts' | 'in_progress' | 'completed'>('all');
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  // Stats fetched separately for accuracy across all pages
+  const [allStats, setAllStats] = useState({ total: 0, inProgress: 0, approved: 0, drafts: 0, rejected: 0, withdrawn: 0 });
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<{ _id: string; applicationId: string; name: string; type: string } | null>(null);
@@ -67,6 +74,19 @@ const StudentApplications: React.FC = () => {
   const [withdrawReason, setWithdrawReason] = useState('');
   const [withdrawing, setWithdrawing] = useState(false);
 
+  // Map tab to status filter sent to API
+  const tabToStatus: Record<string, string | undefined> = {
+    all: undefined,
+    drafts: 'draft',
+    in_progress: undefined, // handled client-side for submitted+under_review combo
+    completed: undefined,   // handled client-side for approved+rejected+withdrawn
+  };
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   // Fetch applications from API
   useEffect(() => {
     let isMounted = true; // Track if component is mounted
@@ -74,7 +94,9 @@ const StudentApplications: React.FC = () => {
     const fetchApplications = async () => {
       try {
         if (isMounted) setLoading(true);
-        const response = await applicationApi.getMyApplications();
+        // Pass pagination and optional status filter to server
+        const statusFilter = tabToStatus[activeTab];
+        const response = await applicationApi.getMyApplications(statusFilter, currentPage, PAGE_SIZE);
         if (isMounted && response.success && response.data?.applications) {
           setApplications(response.data.applications.map((app: any) => ({
             id: app._id || app.id,
@@ -92,6 +114,12 @@ const StudentApplications: React.FC = () => {
             prediction: app.prediction,
             eligibilityChecks: app.eligibilityChecks
           })));
+          if (response.data.pagination) {
+            setPagination({
+              total: response.data.pagination.total,
+              totalPages: response.data.pagination.totalPages,
+            });
+          }
         }
       } catch (error) {
         if (isMounted) {
@@ -108,6 +136,25 @@ const StudentApplications: React.FC = () => {
     return () => {
       isMounted = false;
     };
+  }, [activeTab, currentPage]);
+
+  // Fetch overall stats from the stats endpoint (accurate across all pages)
+  useEffect(() => {
+    let isMounted = true;
+    applicationApi.getMyStats().then((resp) => {
+      if (isMounted && resp.success && resp.data) {
+        const d = resp.data;
+        setAllStats({
+          total: d.total ?? 0,
+          inProgress: (d.byStatus?.submitted ?? 0) + (d.byStatus?.under_review ?? 0),
+          approved: d.approved ?? d.byStatus?.approved ?? 0,
+          drafts: d.draft ?? d.byStatus?.draft ?? 0,
+          rejected: d.rejected ?? d.byStatus?.rejected ?? 0,
+          withdrawn: d.byStatus?.withdrawn ?? 0,
+        });
+      }
+    }).catch(() => { /* non-critical */ });
+    return () => { isMounted = false; };
   }, []);
 
   // Fetch full application details
@@ -154,9 +201,24 @@ const StudentApplications: React.FC = () => {
     try {
       setWithdrawing(true);
       await applicationApi.withdraw(withdrawingAppId, withdrawReason || undefined);
+      // Update local state optimistically
       setApplications(prev => prev.map(app =>
         app.id === withdrawingAppId ? { ...app, status: 'withdrawn' as ApplicationStatus } : app
       ));
+      // Refresh stats
+      applicationApi.getMyStats().then((resp) => {
+        if (resp.success && resp.data) {
+          const d = resp.data;
+          setAllStats({
+            total: d.total ?? 0,
+            inProgress: (d.byStatus?.submitted ?? 0) + (d.byStatus?.under_review ?? 0),
+            approved: d.approved ?? d.byStatus?.approved ?? 0,
+            drafts: d.draft ?? d.byStatus?.draft ?? 0,
+            rejected: d.rejected ?? d.byStatus?.rejected ?? 0,
+            withdrawn: d.byStatus?.withdrawn ?? 0,
+          });
+        }
+      }).catch(() => {});
       setShowWithdrawModal(false);
       setWithdrawingAppId(null);
       setWithdrawReason('');
@@ -167,19 +229,12 @@ const StudentApplications: React.FC = () => {
     }
   };
 
-  const stats = useMemo(() => {
-    const total = applications.length;
-    const inProgress = applications.filter(a => a.status === 'submitted' || a.status === 'under_review').length;
-    const approved = applications.filter(a => a.status === 'approved').length;
-    const drafts = applications.filter(a => a.status === 'draft').length;
-    const rejected = applications.filter(a => a.status === 'rejected').length;
-    const withdrawn = applications.filter(a => a.status === 'withdrawn').length;
-    return { total, inProgress, approved, drafts, rejected, withdrawn };
-  }, [applications]);
+  const stats = allStats;
 
+  // For 'all' and 'drafts' tabs, server already filters; for 'in_progress' and 'completed',
+  // we do client-side sub-filtering on the current page (these tabs load ALL status items)
   const filteredApplications = useMemo(() => {
     switch (activeTab) {
-      case 'drafts': return applications.filter(a => a.status === 'draft');
       case 'in_progress': return applications.filter(a => a.status === 'submitted' || a.status === 'under_review');
       case 'completed': return applications.filter(a => a.status === 'approved' || a.status === 'rejected' || a.status === 'withdrawn');
       default: return applications;
@@ -198,7 +253,8 @@ const StudentApplications: React.FC = () => {
     return configs[status];
   };
 
-  if (loading) {
+  // Show full-screen loader only on the very first load (no data yet)
+  if (loading && applications.length === 0 && currentPage === 1) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
@@ -314,7 +370,11 @@ const StudentApplications: React.FC = () => {
 
         {/* Applications List */}
         <div className="space-y-4">
-          {filteredApplications.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+            </div>
+          ) : filteredApplications.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
               <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-8 h-8 text-slate-400" />
@@ -485,6 +545,23 @@ const StudentApplications: React.FC = () => {
             })
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && pagination.totalPages > 1 && (
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={PAGE_SIZE}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              itemLabel="applications"
+            />
+          </div>
+        )}
       </div>
 
       {/* Application Details Modal */}

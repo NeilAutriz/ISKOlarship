@@ -3,7 +3,7 @@
 // Review and process scholarship applications
 // ============================================================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Search,
@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { applicationApi, scholarshipApi } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
+import PaginationControls from '../../components/PaginationControls';
 
 interface ApplicationData {
   id: string;
@@ -66,11 +67,41 @@ const Applicants: React.FC = () => {
   const [applications, setApplications] = useState<ApplicationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingPredictions, setLoadingPredictions] = useState(false);
-  const hasFetchedPredictions = useRef(false);
   const [adminScope, setAdminScope] = useState<{ level: string; description: string } | null>(null);
   const [scholarshipFilter, setScholarshipFilter] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isScopeError, setIsScopeError] = useState(false);
+
+  const PAGE_SIZE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [allStats, setAllStats] = useState<Record<string, number>>({});
+  const [predictionsKey, setPredictionsKey] = useState(0);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, statusFilter, scholarshipIdFilter, debouncedSearch]);
+
+  // Fetch accurate stats independently (not affected by pagination)
+  useEffect(() => {
+    let isMounted = true;
+    applicationApi.getStatsOverview(scholarshipIdFilter ? { scholarshipId: scholarshipIdFilter } : undefined)
+      .then(res => {
+        if (isMounted && res.success && res.data?.byStatus) {
+          setAllStats(res.data.byStatus);
+        }
+      })
+      .catch(err => console.warn('Could not fetch application stats:', err));
+    return () => { isMounted = false; };
+  }, [scholarshipIdFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,43 +110,60 @@ const Applicants: React.FC = () => {
       try {
         if (isMounted) setLoading(true);
         
-        try {
-          const scopeResponse = await applicationApi.getAdminScope();
-          if (isMounted && scopeResponse.success && scopeResponse.data) {
-            setAdminScope({
-              level: scopeResponse.data.level,
-              description: scopeResponse.data.description
-            });
-            
-            if (!scopeResponse.data.level) {
-              console.error('Admin profile not configured');
-              setApplications([]);
-              return;
+        if (!adminScope) {
+          try {
+            const scopeResponse = await applicationApi.getAdminScope();
+            if (isMounted && scopeResponse.success && scopeResponse.data) {
+              setAdminScope({
+                level: scopeResponse.data.level,
+                description: scopeResponse.data.description
+              });
+              
+              if (!scopeResponse.data.level) {
+                console.error('Admin profile not configured');
+                setApplications([]);
+                return;
+              }
             }
+          } catch (scopeError) {
+            console.error('Failed to fetch admin scope:', scopeError);
           }
-        } catch (scopeError) {
-          console.error('Failed to fetch admin scope:', scopeError);
         }
         
         if (scholarshipIdFilter) {
-          try {
-            const scholarshipResponse = await scholarshipApi.getById(scholarshipIdFilter);
-            if (scholarshipResponse.success && scholarshipResponse.data) {
-              setScholarshipFilter({
-                id: scholarshipIdFilter,
-                name: scholarshipResponse.data.name || 'Unknown Scholarship'
-              });
+          if (!scholarshipFilter || scholarshipFilter.id !== scholarshipIdFilter) {
+            try {
+              const scholarshipResponse = await scholarshipApi.getById(scholarshipIdFilter);
+              if (scholarshipResponse.success && scholarshipResponse.data) {
+                setScholarshipFilter({
+                  id: scholarshipIdFilter,
+                  name: scholarshipResponse.data.name || 'Unknown Scholarship'
+                });
+              }
+            } catch (err) {
+              console.error('Failed to fetch scholarship:', err);
             }
-          } catch (err) {
-            console.error('Failed to fetch scholarship:', err);
           }
         } else {
           setScholarshipFilter(null);
         }
+
+        // Build server-side status filter from tab + statusFilter
+        let serverStatus: string | undefined;
+        if (statusFilter !== 'all') {
+          serverStatus = statusFilter === 'pending' ? 'pending,submitted' : statusFilter;
+        } else if (activeTab === 'pending') {
+          serverStatus = 'pending,submitted,under_review';
+        } else if (activeTab === 'processed') {
+          serverStatus = 'approved,rejected';
+        }
         
         const response = await applicationApi.getAll({ 
-          limit: 100,
-          scholarshipId: scholarshipIdFilter || undefined
+          limit: PAGE_SIZE,
+          page: currentPage,
+          scholarshipId: scholarshipIdFilter || undefined,
+          status: serverStatus,
+          search: debouncedSearch || undefined,
         });
         if (isMounted && response.success && response.data?.applications) {
           setApplications(response.data.applications.map((app: any) => ({
@@ -136,8 +184,16 @@ const Applicants: React.FC = () => {
             status: app.status || 'pending',
             matchScore: 0, // Placeholder - will be updated with fresh ML predictions
           })));
+          if (response.data.pagination) {
+            setPagination({
+              total: response.data.pagination.total,
+              totalPages: response.data.pagination.totalPages,
+            });
+          }
+          setPredictionsKey(prev => prev + 1);
         } else if (isMounted) {
           setApplications([]);
+          setPagination({ total: 0, totalPages: 1 });
         }
       } catch (error: any) {
         if (isMounted) {
@@ -159,12 +215,11 @@ const Applicants: React.FC = () => {
 
     fetchApplications();
     return () => { isMounted = false; };
-  }, [scholarshipIdFilter]);
+  }, [scholarshipIdFilter, currentPage, activeTab, statusFilter, debouncedSearch]);
 
-  // Fetch fresh ML predictions for each loaded application
+  // Fetch fresh ML predictions for each page of applications
   useEffect(() => {
-    if (applications.length === 0 || hasFetchedPredictions.current) return;
-    hasFetchedPredictions.current = true;
+    if (applications.length === 0) return;
 
     let isMounted = true;
 
@@ -198,7 +253,7 @@ const Applicants: React.FC = () => {
     fetchPredictions();
 
     return () => { isMounted = false; };
-  }, [applications.length]);
+  }, [predictionsKey]);
 
   const clearScholarshipFilter = () => {
     setSearchParams({});
@@ -206,32 +261,15 @@ const Applicants: React.FC = () => {
   };
 
   const stats = {
-    total: applications.length,
-    pendingReview: applications.filter(a => a.status === 'pending' || a.status === 'submitted').length,
-    underReview: applications.filter(a => a.status === 'under_review').length,
-    approved: applications.filter(a => a.status === 'approved').length,
-    rejected: applications.filter(a => a.status === 'rejected').length,
+    total: pagination.total,
+    pendingReview: (allStats['submitted'] || 0) + (allStats['pending'] || 0),
+    underReview: allStats['under_review'] || 0,
+    approved: allStats['approved'] || 0,
+    rejected: allStats['rejected'] || 0,
   };
 
-  const filteredApplications = applications.filter(app => {
-    const matchesSearch = 
-      app.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.scholarship.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.course.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.email.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    let matchesTab = true;
-    if (activeTab === 'pending') {
-      matchesTab = app.status === 'pending' || app.status === 'submitted' || app.status === 'under_review';
-    } else if (activeTab === 'processed') {
-      matchesTab = app.status === 'approved' || app.status === 'rejected';
-    }
-
-    const matchesStatus = statusFilter === 'all' || app.status === statusFilter ||
-      (statusFilter === 'pending' && (app.status === 'pending' || app.status === 'submitted'));
-
-    return matchesSearch && matchesTab && matchesStatus;
-  });
+  // Server handles status, tab, and search filtering — results are already scoped
+  const filteredApplications = applications;
 
   const getStatusBadge = (status: string, size: 'sm' | 'md' = 'sm') => {
     const baseClasses = size === 'sm' 
@@ -287,12 +325,12 @@ const Applicants: React.FC = () => {
   };
 
   const tabCounts = {
-    all: applications.length,
-    pending: applications.filter(a => a.status === 'pending' || a.status === 'submitted' || a.status === 'under_review').length,
-    processed: applications.filter(a => a.status === 'approved' || a.status === 'rejected').length,
+    all: (allStats['submitted'] || 0) + (allStats['pending'] || 0) + (allStats['under_review'] || 0) + (allStats['approved'] || 0) + (allStats['rejected'] || 0),
+    pending: (allStats['submitted'] || 0) + (allStats['pending'] || 0) + (allStats['under_review'] || 0),
+    processed: (allStats['approved'] || 0) + (allStats['rejected'] || 0),
   };
 
-  if (loading) {
+  if (loading && applications.length === 0 && currentPage === 1) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -332,6 +370,7 @@ const Applicants: React.FC = () => {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
       <div className="relative overflow-hidden">
@@ -586,13 +625,17 @@ const Applicants: React.FC = () => {
         {/* Results Info */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-slate-500">
-            Showing <span className="font-semibold text-slate-700">{filteredApplications.length}</span> of {applications.length} applications
+            Showing <span className="font-semibold text-slate-700">{filteredApplications.length}</span> of <span className="font-semibold text-slate-700">{pagination.total}</span> applications
           </p>
+          {loading && applications.length > 0 && (
+            <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />
+          )}
         </div>
 
         {/* Card View */}
         {viewMode === 'card' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" id="applicants-list">
             {filteredApplications.map((app) => (
               <div 
                 key={app.id} 
@@ -671,22 +714,35 @@ const Applicants: React.FC = () => {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => navigate(`/admin/applications/${app.id}`)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200/50 group-hover:shadow-primary-300/50"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Review Application
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => navigate(`/admin/applications/${app.id}`)}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors shadow-lg shadow-primary-200/50 group-hover:shadow-primary-300/50"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Review
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            itemsPerPage={PAGE_SIZE}
+            onPageChange={(page) => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            itemLabel="applications"
+            className="mt-6"
+          />
+          </>
         )}
 
         {/* Table View */}
         {viewMode === 'table' && (
+          <>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -747,13 +803,15 @@ const Applicants: React.FC = () => {
                         <span className="text-sm text-slate-600">{app.submittedDate}</span>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <button
-                          onClick={() => navigate(`/admin/applications/${app.id}`)}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
-                        >
-                          <Eye className="w-4 h-4" />
-                          Review
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/applications/${app.id}`)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                          >
+                            <Eye className="w-4 h-4" />
+                            Review
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -761,6 +819,16 @@ const Applicants: React.FC = () => {
               </table>
             </div>
           </div>
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            itemsPerPage={PAGE_SIZE}
+            onPageChange={(page) => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            itemLabel="applications"
+            className="mt-6"
+          />
+          </>
         )}
 
         {/* Empty State */}
@@ -788,6 +856,8 @@ const Applicants: React.FC = () => {
         )}
       </div>
     </div>
+
+    </>
   );
 };
 

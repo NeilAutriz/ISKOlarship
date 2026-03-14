@@ -14,7 +14,8 @@ import {
   Award,
   RotateCcw,
   Check,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Star
 } from 'lucide-react';
 import { FilterCriteria, ScholarshipType, YearLevel, UPLBCollege } from '../types';
 
@@ -23,6 +24,8 @@ interface HorizontalFilterBarProps {
   onFilterChange: (filters: Partial<FilterCriteria>) => void;
   onClearFilters: () => void;
   showEligibleToggle?: boolean;
+  onShowAllEligible?: () => void;
+  showAllEligibleActive?: boolean;
   resultCount?: number;
   totalCount?: number;
   className?: string;
@@ -33,6 +36,8 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
   onFilterChange,
   onClearFilters,
   showEligibleToggle = true,
+  onShowAllEligible,
+  showAllEligibleActive = false,
   resultCount,
   totalCount,
   className = ''
@@ -178,6 +183,22 @@ const HorizontalFilterBar: React.FC<HorizontalFilterBarProps> = ({
           >
             {filters.showEligibleOnly && <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             <span>Eligible Only</span>
+          </button>
+        )}
+
+        {/* All Eligible Scholarships Button */}
+        {showEligibleToggle && onShowAllEligible && (
+          <button
+            onClick={onShowAllEligible}
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition-all ${
+              showAllEligibleActive
+                ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'
+            }`}
+            title={showAllEligibleActive ? 'Reset to normal view' : 'Show all scholarships you are eligible for'}
+          >
+            <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>All Eligible</span>
           </button>
         )}
 

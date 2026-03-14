@@ -445,6 +445,9 @@ applicationSchema.index({ appliedDate: -1 });
 applicationSchema.index({ 'prediction.probability': -1 });
 applicationSchema.index({ eligibilityPercentage: -1 });
 applicationSchema.index({ academicYear: 1, semester: 1 });
+// Compound indexes for efficient paginated queries (filter + sort)
+applicationSchema.index({ applicant: 1, createdAt: -1 }); // Student's own apps sorted by date
+applicationSchema.index({ status: 1, createdAt: -1 }); // Admin listing filtered by status + sorted
 
 // =============================================================================
 // Pre-save Middleware

@@ -9,14 +9,18 @@ import {
   GraduationCap,
   Loader2,
   LayoutGrid,
-  List
+  List,
+  Layers
 } from 'lucide-react';
 import { AuthContext } from '../App';
 import { scholarshipApi, applicationApi } from '../services/apiClient';
 import ScholarshipList from '../components/ScholarshipList';
 import HorizontalFilterBar from '../components/HorizontalFilterBar';
 import SearchBar from '../components/SearchBar';
+import PaginationControls from '../components/PaginationControls';
 import { FilterCriteria, Scholarship, Application, ApplicationStatus, isStudentProfile } from '../types';
+
+const PAGE_SIZE = 12;
 
 const Scholarships: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -28,6 +32,9 @@ const Scholarships: React.FC = () => {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  const [showAll, setShowAll] = useState(false);
   const [filters, setFilters] = useState<FilterCriteria>(() => ({
     searchQuery: searchParams.get('search') || '',
     scholarshipTypes: [],
@@ -100,11 +107,18 @@ const Scholarships: React.FC = () => {
         }
         const response = await scholarshipApi.getAll({ 
           search: filters.searchQuery,
-          limit: 100
+          page: showAll ? 1 : currentPage,
+          limit: showAll ? (pagination.total || 500) : PAGE_SIZE
         });
         if (isMounted) {
           if (response.success && response.data?.scholarships) {
             setScholarships(response.data.scholarships);
+            if (response.data.pagination) {
+              setPagination({
+                total: response.data.pagination.total,
+                totalPages: response.data.pagination.totalPages
+              });
+            }
           } else {
             setError('Failed to load scholarships');
           }
@@ -124,16 +138,18 @@ const Scholarships: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [filters.searchQuery]);
+  }, [filters.searchQuery, currentPage, showAll]);  // re-fetch when page, search, or showAll changes
 
   // Handle filter changes
   const handleFilterChange = (newFilters: Partial<FilterCriteria>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
+    setCurrentPage(1); // reset to first page on filter change
   };
 
   // Handle search
   const handleSearch = (query: string) => {
     setFilters(prev => ({ ...prev, searchQuery: query }));
+    setCurrentPage(1); // reset to first page on new search
     if (query) {
       setSearchParams({ search: query });
     } else {
@@ -150,7 +166,46 @@ const Scholarships: React.FC = () => {
       yearLevels: [],
       showEligibleOnly: false
     });
+    setCurrentPage(1);
+    setShowAll(false);
     setSearchParams({});
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Reset to page 1 when local filters change (type, college, yearLevel, amount)
+  // These are client-side filters applied on the current page's data
+  // Note: showEligibleOnly is excluded because it's managed by handleShowAllEligible
+  useEffect(() => {
+    setCurrentPage(1);
+    setShowAll(false);
+  }, [filters.scholarshipTypes, filters.colleges, filters.yearLevels, filters.minAmount, filters.maxAmount]);
+
+  const handleToggleShowAll = () => {
+    if (showAll) {
+      setShowAll(false);
+      setCurrentPage(1);
+    } else {
+      setShowAll(true);
+      setCurrentPage(1);
+    }
+  };
+
+  const handleShowAllEligible = () => {
+    const isActive = showAll && filters.showEligibleOnly;
+    if (isActive) {
+      // Toggle off
+      setShowAll(false);
+      setFilters(prev => ({ ...prev, showEligibleOnly: false }));
+      setCurrentPage(1);
+    } else {
+      setShowAll(true);
+      setFilters(prev => ({ ...prev, showEligibleOnly: true }));
+      setCurrentPage(1);
+    }
   };
 
   // Filter scholarships locally (for filters not handled by API)
@@ -256,8 +311,10 @@ const Scholarships: React.FC = () => {
             onFilterChange={handleFilterChange}
             onClearFilters={clearFilters}
             showEligibleToggle={!!user}
+            onShowAllEligible={studentUser ? handleShowAllEligible : undefined}
+            showAllEligibleActive={showAll && filters.showEligibleOnly}
             resultCount={filteredScholarships.length}
-            totalCount={scholarships.length}
+            totalCount={pagination.total}
             className="mb-8"
           />
 
@@ -270,7 +327,8 @@ const Scholarships: React.FC = () => {
                 </span>
               ) : (
                 <span className="text-slate-500">
-                  Showing <span className="font-semibold text-slate-900">{filteredScholarships.length}</span> scholarships
+                  Showing <span className="font-semibold text-slate-900">{filteredScholarships.length}</span> of{' '}
+                  <span className="font-semibold text-slate-900">{pagination.total}</span> scholarships
                 </span>
               )}
             </div>
@@ -300,6 +358,21 @@ const Scholarships: React.FC = () => {
                   <List className="w-4 h-4" />
                 </button>
               </div>
+              {pagination.total > PAGE_SIZE && (
+                <button
+                  onClick={handleToggleShowAll}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
+                    showAll
+                      ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-700'
+                  }`}
+                  title={showAll ? 'Switch back to pages' : `Show all ${pagination.total} scholarships`}
+                >
+                  <Layers className="w-4 h-4" />
+                  <span className="hidden sm:inline">{showAll ? 'Paginate' : `View All ${pagination.total}`}</span>
+                  <span className="sm:hidden">{showAll ? 'Pages' : 'All'}</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -317,21 +390,36 @@ const Scholarships: React.FC = () => {
               </div>
             </div>
           ) : (
-            <ScholarshipList
-              scholarships={filteredScholarships}
-              studentProfile={studentUser}
-              showFilters={false}
-              showViewToggle={false}
-              viewMode={viewMode}
-              showEligibleOnly={filters.showEligibleOnly}
-              applicationStatuses={applicationStatuses}
-              title={undefined}
-              emptyMessage={
-                filters.searchQuery
-                  ? `No scholarships found matching "${filters.searchQuery}". Try adjusting your search or filters.`
-                  : 'No scholarships match your current filters. Try adjusting your criteria.'
-              }
-            />
+            <>
+              <ScholarshipList
+                scholarships={filteredScholarships}
+                studentProfile={studentUser}
+                showFilters={false}
+                showViewToggle={false}
+                viewMode={viewMode}
+                showEligibleOnly={filters.showEligibleOnly}
+                applicationStatuses={applicationStatuses}
+                title={undefined}
+                emptyMessage={
+                  filters.searchQuery
+                    ? `No scholarships found matching "${filters.searchQuery}". Try adjusting your search or filters.`
+                    : 'No scholarships match your current filters. Try adjusting your criteria.'
+                }
+              />
+              {/* Pagination Controls */}
+              {!showAll && pagination.totalPages > 1 && (
+                <div className="mt-8 pt-6 border-t border-slate-200">
+                  <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    totalItems={pagination.total}
+                    itemsPerPage={PAGE_SIZE}
+                    onPageChange={handlePageChange}
+                    itemLabel="scholarships"
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

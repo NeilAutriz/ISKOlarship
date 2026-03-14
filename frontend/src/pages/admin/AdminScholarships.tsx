@@ -3,7 +3,7 @@
 // Manage and create scholarship programs with admin scope filtering
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   GraduationCap,
@@ -29,6 +29,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { scholarshipApi } from '../../services/apiClient';
+import PaginationControls from '../../components/PaginationControls';
+
+const PAGE_SIZE = 20;
 
 interface Scholarship {
   id: string;
@@ -59,6 +62,7 @@ interface AdminScope {
 const AdminScholarships: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'closed' | 'draft'>('all');
   const [levelFilter, setLevelFilter] = useState<'all' | 'university' | 'college' | 'academic_unit' | 'external'>('all');
   const [showDropdown, setShowDropdown] = useState<string | null>(null);
@@ -69,6 +73,24 @@ const AdminScholarships: React.FC = () => {
   const [adminScope, setAdminScope] = useState<AdminScope | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Scholarship | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  const [allStats, setAllStats] = useState({ total: 0, active: 0, closed: 0, drafts: 0 });
+  const [statsLoaded, setStatsLoaded] = useState(false);
+
+  // Debounce search input to avoid firing API on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, levelFilter]);
 
   // Fetch scholarships and admin scope from API
   useEffect(() => {
@@ -78,27 +100,39 @@ const AdminScholarships: React.FC = () => {
       try {
         if (isMounted) setLoading(true);
         
-        // Fetch admin scope first
-        const scopeResponse = await scholarshipApi.getAdminScope();
-        if (isMounted && scopeResponse.success && scopeResponse.data) {
-          setAdminScope({
-            level: scopeResponse.data.level,
-            levelDisplay: scopeResponse.data.levelDisplay,
-            college: scopeResponse.data.college,
-            academicUnit: scopeResponse.data.academicUnit,
-            description: scopeResponse.data.description
-          });
-          
-          // CRITICAL: Check if admin profile is properly configured
-          if (!scopeResponse.data.level) {
-            console.error('❌ Admin profile not configured - access level is missing');
-            setScholarships([]);
-            return;
+        // Fetch admin scope first (only on first load)
+        if (currentPage === 1 && !adminScope) {
+          const scopeResponse = await scholarshipApi.getAdminScope();
+          if (isMounted && scopeResponse.success && scopeResponse.data) {
+            setAdminScope({
+              level: scopeResponse.data.level,
+              levelDisplay: scopeResponse.data.levelDisplay,
+              college: scopeResponse.data.college,
+              academicUnit: scopeResponse.data.academicUnit,
+              description: scopeResponse.data.description
+            });
+            
+            // CRITICAL: Check if admin profile is properly configured
+            if (!scopeResponse.data.level) {
+              console.error('❌ Admin profile not configured - access level is missing');
+              setScholarships([]);
+              return;
+            }
           }
         }
         
-        // Fetch scholarships using admin endpoint (scope-filtered)
-        const response = await scholarshipApi.getAdminList({ limit: 100, includeExpired: true });
+        // Build filters to pass server-side (faster than client-side)
+        const filters: Record<string, any> = {
+          page: currentPage,
+          limit: PAGE_SIZE,
+          includeExpired: true,
+        };
+        if (debouncedSearch) filters.search = debouncedSearch;
+        if (statusFilter !== 'all') filters.status = statusFilter;
+        if (levelFilter !== 'all') filters.scholarshipLevel = levelFilter;
+        
+        // Fetch paginated scholarships using admin endpoint (scope-filtered)
+        const response = await scholarshipApi.getAdminList(filters);
         if (isMounted && response.success && response.data?.scholarships) {
           setScholarships(response.data.scholarships.map((s: any) => {
             const amount = s.awardAmount ?? s.totalGrant ?? 0;
@@ -120,6 +154,13 @@ const AdminScholarships: React.FC = () => {
               canView: s.canView
             };
           }));
+
+          if (response.data.pagination) {
+            setPagination({
+              total: response.data.pagination.total,
+              totalPages: response.data.pagination.totalPages,
+            });
+          }
           
           // Check if server returned a message about profile configuration
           if ((response.data as any).message) {
@@ -128,6 +169,7 @@ const AdminScholarships: React.FC = () => {
         } else if (isMounted) {
           // Admin endpoint returned but with no scholarships - this is valid (admin has no scholarships in scope)
           setScholarships([]);
+          setPagination({ total: 0, totalPages: 1 });
         }
       } catch (error: any) {
         if (isMounted) {
@@ -140,9 +182,6 @@ const AdminScholarships: React.FC = () => {
           } else {
             setError('Failed to load scholarships. Please try again later.');
           }
-          // CRITICAL FIX: Do NOT fall back to public endpoint
-          // This would bypass admin scope filtering and show ALL scholarships
-          // Instead, show empty state with error indication
           setScholarships([]);
         }
       } finally {
@@ -155,21 +194,42 @@ const AdminScholarships: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentPage, debouncedSearch, statusFilter, levelFilter]);
 
-  const filteredScholarships = scholarships.filter(s => {
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.sponsor.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-    const matchesLevel = levelFilter === 'all' || s.scholarshipLevel === levelFilter;
-    return matchesSearch && matchesStatus && matchesLevel;
-  });
+  // Load accurate overall stats for the stats cards (separate from paginated list)
+  useEffect(() => {
+    if (statsLoaded) return;
+    let isMounted = true;
 
-  const stats = {
-    total: scholarships.length,
-    active: scholarships.filter(s => s.status === 'active').length,
-    closed: scholarships.filter(s => s.status === 'closed').length,
-    drafts: scholarships.filter(s => s.status === 'draft').length,
-  };
+    const fetchStats = async () => {
+      try {
+        const [allRes, activeRes, closedRes, draftRes] = await Promise.all([
+          scholarshipApi.getAdminList({ limit: 1, includeExpired: true }),
+          scholarshipApi.getAdminList({ limit: 1, status: 'active', includeExpired: false }),
+          scholarshipApi.getAdminList({ limit: 1, status: 'closed', includeExpired: true }),
+          scholarshipApi.getAdminList({ limit: 1, status: 'draft', includeExpired: true }),
+        ]);
+        if (isMounted) {
+          setAllStats({
+            total: allRes.data?.pagination?.total ?? 0,
+            active: activeRes.data?.pagination?.total ?? 0,
+            closed: closedRes.data?.pagination?.total ?? 0,
+            drafts: draftRes.data?.pagination?.total ?? 0,
+          });
+          setStatsLoaded(true);
+        }
+      } catch {
+        // Stats loading failure is non-critical; ignore
+      }
+    };
+
+    fetchStats();
+    return () => { isMounted = false; };
+  }, [statsLoaded]);
+
+  const stats = allStats;
+
+  const filteredScholarships = scholarships; // filtering is now done server-side
 
   const getStatusConfig = (status: Scholarship['status']) => {
     const configs = {
@@ -277,6 +337,8 @@ const AdminScholarships: React.FC = () => {
 
         // Remove from the list
         setScholarships(prev => prev.filter(s => s.id !== deleteTarget.id));
+        // Invalidate stats so they reload on next render
+        setStatsLoaded(false);
       } else {
         throw new Error((response as any).message || 'Failed to delete scholarship');
       }
@@ -710,6 +772,23 @@ const AdminScholarships: React.FC = () => {
             })
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.total}
+              itemsPerPage={PAGE_SIZE}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              itemLabel="scholarships"
+            />
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}

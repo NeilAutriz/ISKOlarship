@@ -512,6 +512,10 @@ scholarshipSchema.index({ 'eligibilityCriteria.eligibleColleges': 1 });
 scholarshipSchema.index({ 'eligibilityCriteria.eligibleClassifications': 1 });
 scholarshipSchema.index({ 'eligibilityCriteria.eligibleProvinces': 1 });
 scholarshipSchema.index({ isActive: 1, status: 1 });
+// Compound index for paginated public listing (the most common query)
+scholarshipSchema.index({ isActive: 1, status: 1, applicationDeadline: 1 });
+// Compound index for paginated admin listing with scope filter + sort
+scholarshipSchema.index({ scholarshipLevel: 1, isActive: 1, status: 1, applicationDeadline: 1 });
 // Index for admin scope filtering
 scholarshipSchema.index({ scholarshipLevel: 1, managingCollegeCode: 1, managingAcademicUnitCode: 1 });
 

@@ -48,6 +48,24 @@ const DEFAULT_CONFIG = { icon: Activity, color: 'text-slate-600', bg: 'bg-slate-
 // All action values for filter dropdown
 const ALL_ACTIONS = Object.keys(ACTION_CONFIG);
 
+// ============================================================================
+// Pagination helper — returns page numbers with null for ellipsis
+// ============================================================================
+
+const getPageNumbers = (currentPage: number, totalPages: number): (number | null)[] => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages: (number | null)[] = [1];
+  if (currentPage > 3) pages.push(null);
+  for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) pages.push(null);
+  pages.push(totalPages);
+  return pages;
+};
+
 const ROLE_TABS = [
   { key: '',       label: 'All',     icon: Users },
   { key: 'admin',  label: 'Admin',   icon: Shield },
@@ -338,30 +356,48 @@ const AdminActivityLog: React.FC = () => {
         )}
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+        {pagination.total > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex-wrap gap-3">
             <span className="text-sm text-slate-500">
               Showing {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
             </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchLogs(pagination.page - 1)}
-                disabled={pagination.page <= 1}
-                className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-sm font-medium text-slate-700 px-2">
-                {pagination.page} / {pagination.totalPages}
-              </span>
-              <button
-                onClick={() => fetchLogs(pagination.page + 1)}
-                disabled={pagination.page >= pagination.totalPages}
-                className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => fetchLogs(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {getPageNumbers(pagination.page, pagination.totalPages).map((p, idx) =>
+                  p === null ? (
+                    <span key={`ellipsis-${idx}`} className="px-1.5 text-slate-400 text-sm select-none">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => fetchLogs(p)}
+                      className={`min-w-[32px] h-8 px-2 text-sm font-medium rounded-lg transition ${
+                        p === pagination.page
+                          ? 'bg-primary-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => fetchLogs(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

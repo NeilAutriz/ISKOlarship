@@ -28,6 +28,15 @@ router.get('/my', async (req, res) => {
       filter.action = req.query.action;
     }
 
+    // Search by description or target name
+    if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { description: searchRegex },
+        { targetName: searchRegex },
+      ];
+    }
+
     // Optional date range
     if (req.query.from || req.query.to) {
       filter.createdAt = {};

@@ -690,7 +690,7 @@ export const applicationApi = {
   },
 
   // Admin endpoints
-  getAll: async (filters: { status?: string; scholarshipId?: string; page?: number; limit?: number }) => {
+  getAll: async (filters: { status?: string; scholarshipId?: string; page?: number; limit?: number; search?: string }) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value) params.append(key, String(value));
@@ -865,6 +865,28 @@ export const predictionApi = {
       scholarshipName: string;
       scholarshipId: string;
     }>>(`/predictions/application/${applicationId}`);
+    return response.data;
+  },
+
+  // Admin: Get all scholarships an applicant is eligible for
+  getEligibleScholarshipsForApplicant: async (applicationId: string) => {
+    const response = await api.get<ApiResponse<{
+      applicantName: string;
+      applicantEmail: string;
+      totalChecked: number;
+      eligibleCount: number;
+      scholarships: Array<{
+        scholarshipId: string;
+        scholarshipName: string;
+        scholarshipType: string;
+        sponsor: string;
+        awardAmount: number;
+        applicationDeadline: string;
+        eligible: boolean;
+        eligibilityScore: number;
+        checks: Array<{ criterion: string; passed: boolean; applicantValue?: string; requiredValue?: string }>;
+      }>;
+    }>>(`/predictions/eligible-scholarships/${applicationId}`);
     return response.data;
   },
 };
@@ -1489,11 +1511,12 @@ export interface ActivityLogStats {
 
 export const activityLogApi = {
   /** Get current user's activity logs */
-  getMy: async (params?: { page?: number; limit?: number; action?: string }) => {
+  getMy: async (params?: { page?: number; limit?: number; action?: string; search?: string }) => {
     const query = new URLSearchParams();
     if (params?.page) query.set('page', String(params.page));
     if (params?.limit) query.set('limit', String(params.limit));
     if (params?.action) query.set('action', params.action);
+    if (params?.search) query.set('search', params.search);
     const response = await api.get<ApiResponse<{
       logs: ActivityLogEntry[];
       pagination: ActivityLogPagination;

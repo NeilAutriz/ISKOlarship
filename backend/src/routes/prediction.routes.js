@@ -185,6 +185,88 @@ router.post('/application/:applicationId',
 );
 
 /**
+ * @route   GET /api/predictions/eligible-scholarships/:applicationId
+ * @desc    Get all scholarships an applicant is eligible for (admin view)
+ * @access  Admin
+ */
+router.get('/eligible-scholarships/:applicationId',
+  authMiddleware,
+  requireRole('admin'),
+  async (req, res, next) => {
+    try {
+      const { applicationId } = req.params;
+
+      // Fetch the application and populate the applicant
+      const application = await Application.findById(applicationId)
+        .populate('applicant', 'firstName lastName email studentProfile')
+        .populate('scholarship');
+
+      if (!application) {
+        return res.status(404).json({
+          success: false,
+          message: 'Application not found'
+        });
+      }
+
+      // Scope check: admin must be able to manage this application
+      if (!canManageApplication(req.user, application)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to view predictions for this applicant'
+        });
+      }
+
+      if (!application.applicant) {
+        return res.status(404).json({
+          success: false,
+          message: 'Applicant data not found'
+        });
+      }
+
+      // Fetch all active scholarships
+      const scholarships = await Scholarship.find({ status: { $in: ['open', 'active'] } });
+
+      // Check eligibility for each scholarship concurrently
+      const results = await Promise.allSettled(
+        scholarships.map(async (scholarship) => {
+          const eligibility = await predictionService.checkEligibility(application.applicant, scholarship);
+          return {
+            scholarshipId: scholarship._id,
+            scholarshipName: scholarship.name,
+            scholarshipType: scholarship.type,
+            sponsor: scholarship.sponsor,
+            awardAmount: scholarship.totalGrant || scholarship.awardAmount || 0,
+            applicationDeadline: scholarship.applicationDeadline,
+            eligible: eligibility.passed,
+            eligibilityScore: eligibility.score || 0,
+            checks: eligibility.checks || [],
+          };
+        })
+      );
+
+      // Collect only eligible scholarships and sort by score descending
+      const eligibleScholarships = results
+        .filter(r => r.status === 'fulfilled' && r.value.eligible)
+        .map(r => r.value)
+        .sort((a, b) => b.eligibilityScore - a.eligibilityScore);
+
+      return res.json({
+        success: true,
+        data: {
+          applicantName: `${application.applicant.firstName || ''} ${application.applicant.lastName || ''}`.trim(),
+          applicantEmail: application.applicant.email,
+          totalChecked: scholarships.length,
+          eligibleCount: eligibleScholarships.length,
+          scholarships: eligibleScholarships,
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * @route   POST /api/predictions/recommend
  * @desc    Get scholarship recommendations for user
  * @access  Private (Student)

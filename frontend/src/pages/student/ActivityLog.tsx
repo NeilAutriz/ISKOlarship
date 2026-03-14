@@ -69,6 +69,24 @@ const STUDENT_ACTIONS = [
 ];
 
 // ============================================================================
+// Pagination helper — returns page numbers with null for ellipsis
+// ============================================================================
+
+const getPageNumbers = (currentPage: number, totalPages: number): (number | null)[] => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages: (number | null)[] = [1];
+  if (currentPage > 3) pages.push(null);
+  for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) pages.push(null);
+  pages.push(totalPages);
+  return pages;
+};
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -77,7 +95,8 @@ const StudentActivityLog: React.FC = () => {
   const [pagination, setPagination] = useState<ActivityLogPagination>({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('');
-  const [localSearch, setLocalSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // ----------------------------------------------------------
   // Fetch activity logs
@@ -89,6 +108,7 @@ const StudentActivityLog: React.FC = () => {
         page,
         limit: 20,
         action: actionFilter || undefined,
+        search: searchQuery || undefined,
       });
       if (res.success) {
         setLogs(res.data.logs);
@@ -99,19 +119,16 @@ const StudentActivityLog: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [actionFilter]);
+  }, [actionFilter, searchQuery]);
 
   useEffect(() => {
     fetchLogs(1);
   }, [fetchLogs]);
 
-  // Client-side search filter
-  const filteredLogs = localSearch
-    ? logs.filter(l =>
-        l.description.toLowerCase().includes(localSearch.toLowerCase()) ||
-        (l.targetName || '').toLowerCase().includes(localSearch.toLowerCase())
-      )
-    : logs;
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(searchInput);
+  };
 
   // ----------------------------------------------------------
   // Render
@@ -135,16 +152,16 @@ const StudentActivityLog: React.FC = () => {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}
-          <div className="relative flex-1">
+          <form onSubmit={handleSearch} className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               placeholder="Search activities..."
-              value={localSearch}
-              onChange={e => setLocalSearch(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition"
             />
-          </div>
+          </form>
           {/* Action filter */}
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -177,7 +194,7 @@ const StudentActivityLog: React.FC = () => {
             <RefreshCw className="w-6 h-6 text-primary-500 animate-spin" />
             <span className="ml-3 text-slate-500 text-sm">Loading activities...</span>
           </div>
-        ) : filteredLogs.length === 0 ? (
+        ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-slate-400">
             <Activity className="w-12 h-12 mb-3 opacity-40" />
             <p className="font-medium">No activities found</p>
@@ -185,7 +202,7 @@ const StudentActivityLog: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {filteredLogs.map((log) => {
+            {logs.map((log) => {
               const config = ACTION_CONFIG[log.action] || DEFAULT_CONFIG;
               const Icon = config.icon;
               return (
@@ -224,30 +241,50 @@ const StudentActivityLog: React.FC = () => {
         )}
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+        {pagination.total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 bg-slate-50/50">
             <span className="text-sm text-slate-500">
-              Showing {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+              {pagination.total === 0
+                ? 'No results'
+                : `Showing ${((pagination.page - 1) * pagination.limit) + 1}–${Math.min(pagination.page * pagination.limit, pagination.total)} of ${pagination.total}`}
             </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchLogs(pagination.page - 1)}
-                disabled={pagination.page <= 1}
-                className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <span className="text-sm font-medium text-slate-700 px-2">
-                {pagination.page} / {pagination.totalPages}
-              </span>
-              <button
-                onClick={() => fetchLogs(pagination.page + 1)}
-                disabled={pagination.page >= pagination.totalPages}
-                className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => fetchLogs(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {getPageNumbers(pagination.page, pagination.totalPages).map((p, idx) =>
+                  p === null ? (
+                    <span key={`ellipsis-${idx}`} className="px-1.5 text-slate-400 text-sm select-none">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => fetchLogs(p)}
+                      className={`min-w-[32px] h-8 px-2 text-sm font-medium rounded-lg transition ${
+                        p === pagination.page
+                          ? 'bg-primary-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => fetchLogs(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="p-2 rounded-lg hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

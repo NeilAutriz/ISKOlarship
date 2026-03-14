@@ -531,7 +531,8 @@ router.get('/admin',
         page = 1,
         limit = 50,
         sortBy = 'submittedAt',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
+        search
       } = req.query;
 
       // First, get the scholarships this admin can see
@@ -566,7 +567,11 @@ router.get('/admin',
         scholarship: { $in: accessibleScholarshipIds }
       };
       
-      if (status) query.status = status;
+      if (status) {
+        // Support comma-separated status values for multi-status filtering (e.g. "submitted,under_review")
+        const statuses = String(status).split(',').map(s => s.trim()).filter(Boolean);
+        query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
+      }
       if (scholarshipId) {
         // Verify the requested scholarship is within admin's scope
         if (!accessibleScholarshipIds.some(id => id.toString() === scholarshipId)) {
@@ -578,6 +583,16 @@ router.get('/admin',
         query.scholarship = scholarshipId;
       }
 
+      if (search) {
+        // Escape special regex characters to prevent injection
+        const escapedSearch = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const searchRegex = new RegExp(escapedSearch, 'i');
+        query.$or = [
+          { 'applicantSnapshot.firstName': searchRegex },
+          { 'applicantSnapshot.lastName': searchRegex },
+          { 'applicantSnapshot.email': searchRegex },
+        ];
+      }
       const skip = (page - 1) * limit;
       const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
