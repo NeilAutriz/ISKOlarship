@@ -50,6 +50,7 @@ const profileUpdateValidation = [
  * @access  Private
  */
 router.get('/profile', authMiddleware, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   res.json({
     success: true,
     data: req.user.getPublicProfile()
@@ -352,13 +353,18 @@ router.put('/profile',
 
       await req.user.save();
       
+      // Re-read the saved user from DB to ensure response reflects
+      // any changes made by pre-save/post-save hooks
+      const freshUser = await User.findById(req.user._id);
+      
       // Log profile update (fire-and-forget)
       logProfileUpdate(req.user, req.ip);
 
+      res.set('Cache-Control', 'no-store');
       res.json({
         success: true,
         message: 'Profile updated successfully',
-        data: req.user.getPublicProfile()
+        data: freshUser.getPublicProfile()
       });
     } catch (error) {
       console.error('Profile update error:', error);

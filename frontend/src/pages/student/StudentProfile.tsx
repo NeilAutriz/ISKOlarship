@@ -199,6 +199,9 @@ const uplbPrograms: Record<string, string[]> = {
   ],
   [UPLBCollege.GS]: [
     'Graduate Programs', 'Other Graduate Program'
+  ],
+  [UPLBCollege.CPAF]: [
+    'BS Community Development', 'BA Political Science', 'Other CPAF Program'
   ]
 };
 
@@ -211,6 +214,7 @@ const collegeOptions = [
   { value: UPLBCollege.CFNR, label: 'College of Forestry and Natural Resources (CFNR)' },
   { value: UPLBCollege.CHE, label: 'College of Human Ecology (CHE)' },
   { value: UPLBCollege.CVM, label: 'College of Veterinary Medicine (CVM)' },
+  { value: UPLBCollege.CPAF, label: 'College of Public Affairs and Development (CPAF)' },
   { value: UPLBCollege.GS, label: 'Graduate School (GS)' },
 ];
 
@@ -1778,10 +1782,20 @@ const StudentProfile: React.FC = () => {
                     const response = await userApi.updateProfile(updateData);
                     
                     if (response.success) {
-                      // Refresh profile data
-                      const profileResponse = await userApi.getProfile();
-                      if (profileResponse.success && profileResponse.data) {
-                        setProfile(profileResponse.data as unknown as StudentProfileData);
+                      // Use the updated profile data directly from the PUT response
+                      // to avoid stale/cached data from a second GET request
+                      if (response.data) {
+                        setProfile(response.data as unknown as StudentProfileData);
+                      }
+                      
+                      // Also re-fetch fresh profile to ensure consistency
+                      try {
+                        const profileResponse = await userApi.getProfile();
+                        if (profileResponse.success && profileResponse.data) {
+                          setProfile(profileResponse.data as unknown as StudentProfileData);
+                        }
+                      } catch {
+                        // Ignore — we already applied the update response above
                       }
                       
                       // Refresh completeness

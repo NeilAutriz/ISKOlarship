@@ -277,7 +277,8 @@ router.post('/login', loginValidation, async (req, res, next) => {
     }
 
     // Admin users skip 2FA — issue tokens directly
-    if (user.role === UserRole.ADMIN) {
+    // TEMPORARY: Students also skip 2FA for now (to be re-enabled later)
+    if (user.role === UserRole.ADMIN || user.role === UserRole.STUDENT) {
       const accessToken = generateToken(user._id);
       const refreshToken = generateRefreshToken(user._id);
 

@@ -2402,6 +2402,47 @@ const csfaScholarships = [
     slots: 3,
     status: ScholarshipStatus.ACTIVE,
     tags: ['upaa', 'wisconsin', 'senior', 'graduating', 'up-system', 'need-based', 'csfa']
+  },
+
+  // =========================================================================
+  // Foundation For Philippine Progress Undergraduate Fellowship Grant
+  // =========================================================================
+  {
+    name: 'Foundation For Philippine Progress Undergraduate Fellowship Grant',
+    description: `The Foundation For Philippine Progress Undergraduate Fellowship Grant provides financial support to deserving UPLB students with Sophomore, Junior, or Senior classification. It is open to any student from the College of Agriculture and Food Sciences (CAFS), OR BS Industrial Engineering students, OR BS Computer Science students. Applicants must have a minimum GWA of 2.50 and belong to a family whose gross income does not exceed ₱300,000.00 per annum.`,
+    sponsor: 'Foundation For Philippine Progress',
+    type: ScholarshipType.PRIVATE,
+    scholarshipLevel: ScholarshipLevel.UNIVERSITY,
+    managingCollegeCode: null,
+    managingAcademicUnitCode: null,
+    totalGrant: 50000,
+    awardDescription: 'Undergraduate fellowship grant',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleCourses: ['BS Industrial Engineering', 'BS Computer Science', 'BS Agriculture'],
+      eligibleColleges: [UPLBCollege.CAFS],
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 300000,
+      additionalRequirements: [
+        { description: 'Must be any CAFS student, OR a BS Industrial Engineering student, OR a BS Computer Science student', isRequired: true },
+        { description: 'Must have a minimum GWA of 2.50', isRequired: true },
+        { description: 'Family gross income must not exceed ₱300,000.00 per annum', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Photo in the Application Form', description: 'Recent photo attached to the application form', isRequired: true },
+      { name: 'Proof of Income', description: "Parents' ITR, SALN, BIR Certification, Affidavit of Income, Tax Exemption, Certificate of Employment and Compensation, Contract with Employer, or Certificate of Indigency", isRequired: true },
+      { name: 'Birth Certificate', description: 'PSA-issued birth certificate', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: createStartDate(30),
+    academicYear: '2026-2027',
+    semester: 'First',
+    slots: 10,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['fpp', 'fellowship', 'agriculture', 'engineering', 'computer science', 'csfa']
   }
 ];
 

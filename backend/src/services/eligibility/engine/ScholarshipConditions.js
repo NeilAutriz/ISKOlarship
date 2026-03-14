@@ -357,6 +357,20 @@ const courseCondition = new ListCondition({
   caseSensitive: false,
   fuzzyMatch: true,
   
+  // OR logic: if the student's college already satisfies eligibleColleges,
+  // skip the course check — the student qualifies via college membership alone.
+  // This allows "any course from college X" OR "specific course from any college".
+  shouldSkip: (profile, criteria) => {
+    if (criteria.eligibleColleges?.length > 0) {
+      const studentCollege = profile.college || profile.studentProfile?.college;
+      if (studentCollege) {
+        const normalized = studentCollege.toLowerCase().trim();
+        return criteria.eligibleColleges.some(c => c.toLowerCase().trim() === normalized);
+      }
+    }
+    return false;
+  },
+  
   formatStudentValue: (v) => v || 'Not specified',
   formatCriteriaValue: (v) => {
     if (!v || v.length === 0) return 'All courses';

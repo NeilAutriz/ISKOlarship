@@ -51,11 +51,11 @@ The scholarship aims to nurture future scientists and agricultural experts who w
       ]
     },
     requiredDocuments: [
-      { name: 'Certificate of Registration', isRequired: true },
-      { name: 'True Copy of Grades (Latest Semester)', isRequired: true },
-      { name: 'Approved Thesis Outline', isRequired: true },
-      { name: 'Certificate of Family Income (ITR or BIR Certificate)', isRequired: true },
-      { name: 'Letter of Intent', isRequired: true }
+      { name: 'Photo in the Application Forms', isRequired: true },
+      { name: "Parents' Income Tax Return (BIR Form 2316 or SALN or Certification from BIR/Barangay) and other proof of income", isRequired: true },
+      { name: 'True Copy of Grades from all previous semesters', isRequired: true },
+      { name: 'Certificate of Good Moral Character (from College Secretary)', isRequired: true },
+      { name: 'Birth Certificate', isRequired: true }
     ],
     applicationDeadline: createDeadline(2),
     applicationStartDate: new Date(),
@@ -812,6 +812,44 @@ The CHE Alumni Association is dedicated to supporting current students and foste
     slots: 60,
     status: ScholarshipStatus.ACTIVE,
     tags: ['community service', 'merit', 'easy', 'civic']
+  },
+
+  // =========================================================================
+  // Foundation For Philippine Progress Undergraduate Fellowship Grant
+  // =========================================================================
+  {
+    name: 'Foundation For Philippine Progress Undergraduate Fellowship Grant',
+    description: `The Foundation For Philippine Progress Undergraduate Fellowship Grant provides financial support to deserving UPLB students with Sophomore, Junior, or Senior classification. It is open to any student from the College of Agriculture and Food Sciences (CAFS), OR BS Industrial Engineering students, OR BS Computer Science students who demonstrate academic excellence and financial need.`,
+    sponsor: 'Foundation For Philippine Progress',
+    type: ScholarshipType.PRIVATE,
+    totalGrant: 50000,
+    awardDescription: 'Undergraduate fellowship grant',
+    eligibilityCriteria: {
+      eligibleClassifications: [Classification.SOPHOMORE, Classification.JUNIOR, Classification.SENIOR],
+      eligibleCourses: ['BS Industrial Engineering', 'BS Computer Science', 'BS Agriculture'],
+      eligibleColleges: [UPLBCollege.CAFS],
+      minGWA: 1.0,
+      maxGWA: 2.5,
+      maxAnnualFamilyIncome: 300000,
+      eligibleCitizenship: [Citizenship.FILIPINO],
+      additionalRequirements: [
+        { description: 'Must be any CAFS student, OR a BS Industrial Engineering student, OR a BS Computer Science student', isRequired: true },
+        { description: 'Must have a minimum GWA of 2.50', isRequired: true },
+        { description: 'Family gross income must not exceed \u20B1300,000.00 per annum', isRequired: true }
+      ]
+    },
+    requiredDocuments: [
+      { name: 'Photo in the Application Form', isRequired: true },
+      { name: 'Proof of Income (ITR, SALN, BIR Certification, Affidavit of Income, Tax Exemption, Certificate of Employment and Compensation, Contract with Employer, or Certificate of Indigency)', isRequired: true },
+      { name: 'Birth Certificate', isRequired: true }
+    ],
+    applicationDeadline: createDeadline(2),
+    applicationStartDate: new Date(),
+    academicYear: '2025-2026',
+    semester: 'First',
+    slots: 10,
+    status: ScholarshipStatus.ACTIVE,
+    tags: ['fellowship', 'agriculture', 'engineering', 'computer science', 'fpp']
   }
 ];
 
