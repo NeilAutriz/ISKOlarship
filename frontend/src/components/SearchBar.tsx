@@ -40,6 +40,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  // Track last value sent to onSearch to avoid duplicate calls
+  const lastSearchedRef = useRef<string>(value ?? '');
+  const isFirstMount = useRef(true);
 
   // Sync internal query when parent value changes (e.g. clear filters, URL navigation)
   useEffect(() => {
@@ -49,6 +52,26 @@ const SearchBar: React.FC<SearchBarProps> = ({
     // Only react to external value changes, not internal query changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+
+  // Debounced search-as-you-type: trigger onSearch as user types (400ms delay)
+  useEffect(() => {
+    if (!onSearch) return;
+    // Skip on first mount — the parent already has the initial value
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    const trimmed = query.trim();
+    // Skip if the value already matches last search
+    if (trimmed === lastSearchedRef.current) return;
+
+    const timeoutId = setTimeout(() => {
+      lastSearchedRef.current = trimmed;
+      onSearch(trimmed);
+    }, 400);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   // Recent searches (would be stored in localStorage in production)
   const recentSearches = ['AASP', 'thesis grant', 'financial assistance'];
@@ -60,11 +83,17 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     const trimmed = query.trim();
-    onSearch?.(trimmed);
-    if (trimmed) {
-      navigate(`/scholarships?search=${encodeURIComponent(trimmed)}`, { replace: true });
+    lastSearchedRef.current = trimmed;
+    if (onSearch) {
+      // Parent handles search and URL updates — no navigate needed
+      onSearch(trimmed);
     } else {
-      navigate('/scholarships', { replace: true });
+      // No onSearch callback — navigate to scholarships page with search param
+      if (trimmed) {
+        navigate(`/scholarships?search=${encodeURIComponent(trimmed)}`, { replace: true });
+      } else {
+        navigate('/scholarships', { replace: true });
+      }
     }
   };
 
@@ -107,6 +136,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   // Clear search
   const handleClear = () => {
     setQuery('');
+    lastSearchedRef.current = '';
     inputRef.current?.focus();
     onSearch?.('');
   };
@@ -114,8 +144,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
   // Quick search
   const handleQuickSearch = (term: string) => {
     setQuery(term);
-    onSearch?.(term);
-    navigate(`/scholarships?search=${encodeURIComponent(term)}`);
+    lastSearchedRef.current = term;
+    if (onSearch) {
+      onSearch(term);
+    } else {
+      navigate(`/scholarships?search=${encodeURIComponent(term)}`);
+    }
     setIsFocused(false);
   };
 
