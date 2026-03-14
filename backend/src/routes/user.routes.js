@@ -154,13 +154,21 @@ router.put('/profile',
           'customFields'  // Custom fields for scholarship-specific requirements
         ];
 
+        // Fields that have enum validation in the schema — empty strings are invalid
+        const enumFields = [
+          'college', 'collegeCode', 'academicUnitCode', 'classification',
+          'provinceOfOrigin', 'citizenship', 'stBracket', 'gender',
+          'expectedGraduationSemester'
+        ];
+
         // Update each field if present
         for (const field of studentProfileFields) {
           if (studentData[field] !== undefined) {
-            req.user.studentProfile[field] = studentData[field];
-            // DEBUG: Log specific fields we care about
-            if (['collegeCode', 'academicUnitCode', 'academicUnit'].includes(field)) {
+            // Skip empty strings for enum-validated fields to prevent Mongoose ValidationError
+            if (enumFields.includes(field) && studentData[field] === '') {
+              continue;
             }
+            req.user.studentProfile[field] = studentData[field];
           }
         }
         

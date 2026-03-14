@@ -214,6 +214,20 @@ const collegeOptions = [
   { value: UPLBCollege.GS, label: 'Graduate School (GS)' },
 ];
 
+// Reverse map: college full name → college code (needed for backend pre-save hook sync)
+const collegeNameToCode: Record<string, string> = {
+  [UPLBCollege.CAFS]: 'CAFS',
+  [UPLBCollege.CAS]: 'CAS',
+  [UPLBCollege.CDC]: 'CDC',
+  [UPLBCollege.CEM]: 'CEM',
+  [UPLBCollege.CEAT]: 'CEAT',
+  [UPLBCollege.CFNR]: 'CFNR',
+  [UPLBCollege.CHE]: 'CHE',
+  [UPLBCollege.CVM]: 'CVM',
+  [UPLBCollege.CPAF]: 'CPAF',
+  [UPLBCollege.GS]: 'GS',
+};
+
 const provinceOptions = [
   'Metro Manila', 'Laguna', 'Cavite', 'Batangas', 'Rizal', 'Quezon', 'Bulacan',
   'Pampanga', 'Pangasinan', 'Ilocos Norte', 'Ilocos Sur', 'La Union', 'Zambales',
@@ -1731,26 +1745,29 @@ const StudentProfile: React.FC = () => {
                     setSaving(true);
                     setSaveError(null);
                     
-                    // Prepare update data
+                    // Prepare update data — use undefined instead of empty strings
+                    // for enum-validated fields to prevent Mongoose validation errors
+                    const parsedGwa = parseFloat(editFormData.gwa);
                     const updateData = {
                       studentProfile: {
-                        firstName: editFormData.firstName,
-                        lastName: editFormData.lastName,
-                        middleName: editFormData.middleName,
-                        studentNumber: editFormData.studentNumber,
-                        college: editFormData.college,
-                        course: editFormData.course,
-                        major: editFormData.major,
-                        classification: editFormData.classification,
-                        gwa: parseFloat(editFormData.gwa),
+                        firstName: editFormData.firstName || undefined,
+                        lastName: editFormData.lastName || undefined,
+                        middleName: editFormData.middleName || undefined,
+                        studentNumber: editFormData.studentNumber || undefined,
+                        college: editFormData.college || undefined,
+                        collegeCode: editFormData.college ? collegeNameToCode[editFormData.college] || undefined : undefined,
+                        course: editFormData.course || undefined,
+                        major: editFormData.major || undefined,
+                        classification: editFormData.classification || undefined,
+                        gwa: !isNaN(parsedGwa) ? parsedGwa : undefined,
                         unitsEnrolled: editFormData.unitsEnrolled ? parseInt(editFormData.unitsEnrolled) : undefined,
                         unitsPassed: editFormData.unitsPassed ? parseInt(editFormData.unitsPassed) : undefined,
                         annualFamilyIncome: editFormData.annualFamilyIncome ? parseInt(editFormData.annualFamilyIncome) : undefined,
                         householdSize: editFormData.householdSize ? parseInt(editFormData.householdSize) : undefined,
-                        stBracket: editFormData.stBracket,
-                        provinceOfOrigin: editFormData.provinceOfOrigin,
-                        contactNumber: editFormData.contactNumber,
-                        citizenship: editFormData.citizenship,
+                        stBracket: editFormData.stBracket || undefined,
+                        provinceOfOrigin: editFormData.provinceOfOrigin || undefined,
+                        contactNumber: editFormData.contactNumber || undefined,
+                        citizenship: editFormData.citizenship || undefined,
                         hasExistingScholarship: editFormData.hasExistingScholarship,
                         hasThesisGrant: editFormData.hasThesisGrant,
                         hasDisciplinaryAction: editFormData.hasDisciplinaryAction,
@@ -1773,6 +1790,7 @@ const StudentProfile: React.FC = () => {
                         setProfileCompletion(completenessResponse.data.percentage);
                       }
                       
+                      toast.success('Profile updated successfully!');
                       setIsEditModalOpen(false);
                     } else {
                       setSaveError(response.message || 'Failed to update profile');
