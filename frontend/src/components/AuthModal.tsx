@@ -4,8 +4,8 @@
 // Includes 2FA OTP verification step
 // ============================================================================
 
-import React, { useState, useEffect, useRef } from 'react';
-import { X, GraduationCap, User, Settings, Eye, EyeOff, ArrowRight, ArrowLeft, Mail, Lock, CheckCircle, ShieldCheck, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, GraduationCap, User, Settings, Eye, EyeOff, ArrowRight, ArrowLeft, Mail, Lock, CheckCircle, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -37,6 +37,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(false);
 
   // OTP state
@@ -82,6 +84,44 @@ const AuthModal: React.FC<AuthModalProps> = ({
     };
   }, [isOpen]);
 
+  // Field-level validation — must be declared before any early return
+  const validateEmail = useCallback((value: string): string => {
+    if (!value.trim()) return 'Email address is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+    return '';
+  }, []);
+
+  const validatePassword = useCallback((value: string, isSignUp: boolean): string => {
+    if (!value) return 'Password is required';
+    if (isSignUp) {
+      if (value.length < 8) return 'Password must be at least 8 characters';
+      if (!/[A-Z]/.test(value)) return 'Password must contain at least one uppercase letter';
+      if (!/[a-z]/.test(value)) return 'Password must contain at least one lowercase letter';
+      if (!/\d/.test(value)) return 'Password must contain at least one number';
+    }
+    return '';
+  }, []);
+
+  const validateConfirmPassword = useCallback((value: string, pw: string): string => {
+    if (!value) return 'Please confirm your password';
+    if (value !== pw) return 'Passwords do not match';
+    return '';
+  }, []);
+
+  const validateAllFields = useCallback((): Record<string, string> => {
+    const newErrors: Record<string, string> = {};
+    const emailErr = validateEmail(email);
+    if (emailErr) newErrors.email = emailErr;
+    const pwErr = validatePassword(password, tab === 'signup');
+    if (pwErr) newErrors.password = pwErr;
+    if (tab === 'signup') {
+      const cpErr = validateConfirmPassword(confirmPassword, password);
+      if (cpErr) newErrors.confirmPassword = cpErr;
+    }
+    return newErrors;
+  }, [email, password, confirmPassword, tab, validateEmail, validatePassword, validateConfirmPassword]);
+
+  // Early return AFTER all hooks
   if (!isOpen) return null;
 
   const handleOtpChange = (index: number, value: string) => {
@@ -121,28 +161,38 @@ const AuthModal: React.FC<AuthModalProps> = ({
     otpInputRefs.current[nextEmpty === -1 ? 5 : nextEmpty]?.focus();
   };
 
+  const handleFieldBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const newErrors = { ...fieldErrors };
+    if (field === 'email') {
+      const err = validateEmail(email);
+      if (err) newErrors.email = err; else delete newErrors.email;
+    } else if (field === 'password') {
+      const err = validatePassword(password, tab === 'signup');
+      if (err) newErrors.password = err; else delete newErrors.password;
+      // Re-validate confirm if it was touched
+      if (tab === 'signup' && touched.confirmPassword) {
+        const cpErr = validateConfirmPassword(confirmPassword, password);
+        if (cpErr) newErrors.confirmPassword = cpErr; else delete newErrors.confirmPassword;
+      }
+    } else if (field === 'confirmPassword') {
+      const err = validateConfirmPassword(confirmPassword, password);
+      if (err) newErrors.confirmPassword = err; else delete newErrors.confirmPassword;
+    }
+    setFieldErrors(newErrors);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
+    // Validate all fields and mark them touched
+    const newErrors = validateAllFields();
+    setTouched({ email: true, password: true, confirmPassword: true });
+    setFieldErrors(newErrors);
 
-    if (tab === 'signup') {
-      if (password.length < 8) {
-        setError('Password must be at least 8 characters');
-        return;
-      }
-      if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-        setError('Password must contain uppercase, lowercase, and a number');
-        return;
-      }
-      if (password !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
-      }
+    if (Object.keys(newErrors).length > 0) {
+      return;
     }
 
     setIsLoading(true);
@@ -213,6 +263,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setPassword('');
     setConfirmPassword('');
     setError('');
+    setFieldErrors({});
+    setTouched({});
     setStep('credentials');
     setOtpDigits(['', '', '', '', '', '']);
     setOtpSuccess('');
@@ -429,8 +481,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-              {error}
+            <div className="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-lg text-sm">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <span className="text-red-700">{error}</span>
+              </div>
             </div>
           )}
 
@@ -441,17 +496,29 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 Email Address
               </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 ${touched.email && fieldErrors.email ? 'text-red-400' : 'text-slate-400'}`}>
                   <Mail className="w-5 h-5" />
                 </div>
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (touched.email) {
+                      const err = validateEmail(e.target.value);
+                      setFieldErrors(prev => err ? { ...prev, email: err } : (() => { const { email: _, ...rest } = prev; return rest; })());
+                    }
+                  }}
+                  onBlur={() => handleFieldBlur('email')}
                   placeholder={role === 'student' ? 'maria.santos@up.edu.ph' : 'admin@iskolarship.ph'}
-                  className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+                  className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                    touched.email && fieldErrors.email ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
                 />
               </div>
+              {touched.email && fieldErrors.email && (
+                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -459,15 +526,24 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 Password
               </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 ${touched.password && fieldErrors.password ? 'text-red-400' : 'text-slate-400'}`}>
                   <Lock className="w-5 h-5" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (touched.password) {
+                      const err = validatePassword(e.target.value, tab === 'signup');
+                      setFieldErrors(prev => err ? { ...prev, password: err } : (() => { const { password: _, ...rest } = prev; return rest; })());
+                    }
+                  }}
+                  onBlur={() => handleFieldBlur('password')}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+                  className={`w-full pl-12 pr-12 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                    touched.password && fieldErrors.password ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
                 />
                 <button
                   type="button"
@@ -477,6 +553,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {touched.password && fieldErrors.password && tab === 'signin' && (
+                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {fieldErrors.password}</p>
+              )}
               {tab === 'signup' && password.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
                   <div className={`flex items-center gap-1.5 text-xs ${password.length >= 8 ? 'text-green-600' : 'text-slate-400'}`}>
@@ -497,10 +576,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                 </div>
               )}
-              {tab === 'signup' && password.length === 0 && (
+              {tab === 'signup' && password.length === 0 && !fieldErrors.password && (
                 <p className="text-xs text-slate-500 mt-1">
                   Min 8 characters with uppercase, lowercase, and number
                 </p>
+              )}
+              {tab === 'signup' && touched.password && fieldErrors.password && password.length === 0 && (
+                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {fieldErrors.password}</p>
               )}
             </div>
 
@@ -510,17 +592,29 @@ const AuthModal: React.FC<AuthModalProps> = ({
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 ${touched.confirmPassword && fieldErrors.confirmPassword ? 'text-red-400' : 'text-slate-400'}`}>
                     <CheckCircle className="w-5 h-5" />
                   </div>
                   <input
                     type="password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (touched.confirmPassword) {
+                        const err = validateConfirmPassword(e.target.value, password);
+                        setFieldErrors(prev => err ? { ...prev, confirmPassword: err } : (() => { const { confirmPassword: _, ...rest } = prev; return rest; })());
+                      }
+                    }}
+                    onBlur={() => handleFieldBlur('confirmPassword')}
                     placeholder="••••••••"
-                    className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all hover:border-slate-300"
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all ${
+                      touched.confirmPassword && fieldErrors.confirmPassword ? 'border-red-300 bg-red-50' : 'border-slate-200 hover:border-slate-300'
+                    }`}
                   />
                 </div>
+                {touched.confirmPassword && fieldErrors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">⚠ {fieldErrors.confirmPassword}</p>
+                )}
               </div>
             )}
 

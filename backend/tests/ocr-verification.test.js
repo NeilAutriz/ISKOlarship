@@ -52,7 +52,7 @@ const {
   compareFields,
   determineOverallMatch,
   calculateConfidence,
-} = require('../src/services/ocrExtractors/comparison');
+} = require('../src/services/ocr/comparison');
 
 // ── fuzzyMatch ──────────────────────────────────────────────────────────────
 
@@ -362,7 +362,7 @@ test('calculateConfidence: empty → 0', () => {
 
 console.log('\n━━━ 2. Transcript Extractor ━━━');
 
-const transcriptExtractor = require('../src/services/ocrExtractors/transcript.extractor');
+const transcriptExtractor = require('../src/services/ocr/transcript.extractor');
 
 test('transcript: extracts GWA from "General Weighted Average: 1.75"', () => {
   const r = transcriptExtractor.extract('General Weighted Average: 1.75\nOther text');
@@ -440,7 +440,7 @@ test('transcript: handles null text', () => {
 
 console.log('\n━━━ 3. COR Extractor ━━━');
 
-const corExtractor = require('../src/services/ocrExtractors/cor.extractor');
+const corExtractor = require('../src/services/ocr/cor.extractor');
 
 test('cor: extracts student number', () => {
   const r = corExtractor.extract('Certificate of Registration\nStudent Number: 2021-54321\nName: Juan Santos');
@@ -477,7 +477,7 @@ test('cor: handles empty text', () => {
 
 console.log('\n━━━ 4. Income Extractor ━━━');
 
-const incomeExtractor = require('../src/services/ocrExtractors/income.extractor');
+const incomeExtractor = require('../src/services/ocr/income.extractor');
 
 test('income: extracts PHP amount "PHP 150,000.00"', () => {
   const r = incomeExtractor.extract('Annual Income: PHP 150,000.00\nSigned by: Treasurer');
@@ -506,7 +506,7 @@ test('income: handles empty text', () => {
 
 console.log('\n━━━ 5. Grade Report Extractor ━━━');
 
-const gradeReportExtractor = require('../src/services/ocrExtractors/gradeReport.extractor');
+const gradeReportExtractor = require('../src/services/ocr/gradeReport.extractor');
 
 test('gradeReport: extracts GWA', () => {
   const r = gradeReportExtractor.extract('Grade Report\nGWA: 1.85\nStudent: Juan Santos');
@@ -527,7 +527,7 @@ test('gradeReport: handles empty text', () => {
 
 console.log('\n━━━ 6. Barangay Extractor ━━━');
 
-const barangayExtractor = require('../src/services/ocrExtractors/barangay.extractor');
+const barangayExtractor = require('../src/services/ocr/barangay.extractor');
 
 test('barangay: extracts name from certification', () => {
   const r = barangayExtractor.extract('Barangay Certification\nThis is to certify that MARIA SANTOS is a bonafide resident');
@@ -557,7 +557,7 @@ test('barangay: handles empty text', () => {
 
 console.log('\n━━━ 7. Generic Extractor ━━━');
 
-const genericExtractor = require('../src/services/ocrExtractors/generic.extractor');
+const genericExtractor = require('../src/services/ocr/generic.extractor');
 
 test('generic: extracts student number if present', () => {
   const r = genericExtractor.extract('Some document\n2021-12345\nMore text');
@@ -593,7 +593,7 @@ const {
   getExtractor,
   extractFields,
   SKIP_TYPES,
-} = require('../src/services/ocrExtractors');
+} = require('../src/services/ocr/extractors');
 
 test('router: transcript → transcript extractor', () => {
   const ext = getExtractor('transcript');
@@ -758,7 +758,7 @@ test('pipeline: no extractable fields → "unreadable"', () => {
 
 console.log('\n━━━ 10. OCR Verification Service (Module Structure) ━━━');
 
-const ocrService = require('../src/services/ocrVerification.service');
+const ocrService = require('../src/services/ocr/ocrVerification.service');
 
 test('ocrService: exports verifyDocument function', () => {
   assert(typeof ocrService.verifyDocument === 'function', 'verifyDocument should be a function');

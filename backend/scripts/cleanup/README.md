@@ -4,8 +4,9 @@ Scripts for cleaning up test data, removing invalid records, and database mainte
 
 ## Available Scripts
 
-- `cleanup-admin-profiles.js` - Removes studentProfile from admin users
+- `cleanup-zero-predictions.js` - Removes applications with 0% ML predictions (null/missing data)
 - `clear-test-users.js` - Removes test users from the database
+- `restore-historical-applications.js` - Re-seeds historical applications without deleting existing data
 
 ## Running Cleanup Scripts
 

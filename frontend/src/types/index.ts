@@ -548,6 +548,7 @@ export interface PredictionSubFactor {
   value: number;
   weight: number;
   contribution: number;
+  description?: string;
 }
 
 export interface PredictionFactor {

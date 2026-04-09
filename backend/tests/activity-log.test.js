@@ -163,17 +163,17 @@ test('ActivityLog schema has timestamps', () => {
 // ============================================================================
 
 test('activityLog.service loads without errors', () => {
-  const service = require('../src/services/activityLog.service');
+  const service = require('../src/services/activity/activityLog.service');
   assert.ok(service, 'Service should load');
 });
 
 test('activityLog.service exports logActivity core function', () => {
-  const { logActivity } = require('../src/services/activityLog.service');
+  const { logActivity } = require('../src/services/activity/activityLog.service');
   assert.strictEqual(typeof logActivity, 'function', 'logActivity should be a function');
 });
 
 test('activityLog.service exports all 16 convenience methods', () => {
-  const service = require('../src/services/activityLog.service');
+  const service = require('../src/services/activity/activityLog.service');
   const expectedMethods = [
     'logLogin', 'logRegister',
     'logProfileUpdate', 'logDocumentUpload', 'logDocumentDelete',
@@ -190,7 +190,7 @@ test('activityLog.service exports all 16 convenience methods', () => {
 });
 
 test('logActivity never throws even with invalid input', async () => {
-  const { logActivity } = require('../src/services/activityLog.service');
+  const { logActivity } = require('../src/services/activity/activityLog.service');
   // None of these should throw — fire-and-forget
   await logActivity(null);
   await logActivity(undefined);
@@ -201,20 +201,20 @@ test('logActivity never throws even with invalid input', async () => {
 });
 
 test('logLogin accepts user object and ip', async () => {
-  const { logLogin } = require('../src/services/activityLog.service');
+  const { logLogin } = require('../src/services/activity/activityLog.service');
   // Should not throw
   await logLogin({ _id: 'test', role: 'student', email: 'test@up.edu.ph' }, '127.0.0.1');
   assert.ok(true, 'logLogin should accept user + ip');
 });
 
 test('logRegister accepts user object and ip', async () => {
-  const { logRegister } = require('../src/services/activityLog.service');
+  const { logRegister } = require('../src/services/activity/activityLog.service');
   await logRegister({ _id: 'test', role: 'student', email: 'test@up.edu.ph' }, '127.0.0.1');
   assert.ok(true, 'logRegister should accept user + ip');
 });
 
 test('logApplicationCreate accepts user, application, and ip', async () => {
-  const { logApplicationCreate } = require('../src/services/activityLog.service');
+  const { logApplicationCreate } = require('../src/services/activity/activityLog.service');
   const mockUser = { _id: 'u1', role: 'student', email: 'test@up.edu.ph' };
   const mockApp = { _id: 'a1', scholarship: 's1' };
   await logApplicationCreate(mockUser, mockApp, 'Test Scholarship', '127.0.0.1');
@@ -222,7 +222,7 @@ test('logApplicationCreate accepts user, application, and ip', async () => {
 });
 
 test('logApplicationStatusChange accepts admin, application, status, and ip', async () => {
-  const { logApplicationStatusChange } = require('../src/services/activityLog.service');
+  const { logApplicationStatusChange } = require('../src/services/activity/activityLog.service');
   const mockAdmin = { _id: 'admin1', role: 'admin', email: 'admin@up.edu.ph' };
   const mockApp = { _id: 'a1', scholarship: 's1' };
   await logApplicationStatusChange(mockAdmin, mockApp, 'approved', 'Test Scholar', '127.0.0.1');
@@ -230,7 +230,7 @@ test('logApplicationStatusChange accepts admin, application, status, and ip', as
 });
 
 test('logScholarshipCreate accepts admin, scholarship, and ip', async () => {
-  const { logScholarshipCreate } = require('../src/services/activityLog.service');
+  const { logScholarshipCreate } = require('../src/services/activity/activityLog.service');
   const mockAdmin = { _id: 'admin1', role: 'admin', email: 'admin@up.edu.ph' };
   const mockScholar = { _id: 's1', title: 'DOST Scholarship' };
   await logScholarshipCreate(mockAdmin, mockScholar, '127.0.0.1');
@@ -238,7 +238,7 @@ test('logScholarshipCreate accepts admin, scholarship, and ip', async () => {
 });
 
 test('logDocumentVerification accepts admin, student, docType, verifyAction, and ip', async () => {
-  const { logDocumentVerification } = require('../src/services/activityLog.service');
+  const { logDocumentVerification } = require('../src/services/activity/activityLog.service');
   const mockAdmin = { _id: 'admin1', role: 'admin', email: 'admin@up.edu.ph' };
   const mockStudent = { _id: 'student1', email: 'student@up.edu.ph' };
   await logDocumentVerification(mockAdmin, mockStudent, 'grades', 'verify', '127.0.0.1');
@@ -246,35 +246,35 @@ test('logDocumentVerification accepts admin, student, docType, verifyAction, and
 });
 
 test('logModelTrain accepts admin, scholarship name, result, and ip', async () => {
-  const { logModelTrain } = require('../src/services/activityLog.service');
+  const { logModelTrain } = require('../src/services/activity/activityLog.service');
   const mockAdmin = { _id: 'admin1', role: 'admin', email: 'admin@up.edu.ph' };
   await logModelTrain(mockAdmin, 'DOST Scholarship', { accuracy: 0.85 }, '127.0.0.1');
   assert.ok(true);
 });
 
 test('logModelTrainAll accepts admin, success/failed counts, and ip', async () => {
-  const { logModelTrainAll } = require('../src/services/activityLog.service');
+  const { logModelTrainAll } = require('../src/services/activity/activityLog.service');
   const mockAdmin = { _id: 'admin1', role: 'admin', email: 'admin@up.edu.ph' };
   await logModelTrainAll(mockAdmin, 5, 1, '127.0.0.1');
   assert.ok(true);
 });
 
 test('logProfileUpdate accepts user and updated fields', async () => {
-  const { logProfileUpdate } = require('../src/services/activityLog.service');
+  const { logProfileUpdate } = require('../src/services/activity/activityLog.service');
   const mockUser = { _id: 'u1', role: 'student', email: 'test@up.edu.ph' };
   await logProfileUpdate(mockUser, ['firstName', 'lastName'], '127.0.0.1');
   assert.ok(true);
 });
 
 test('logDocumentUpload accepts user, doc type, and ip', async () => {
-  const { logDocumentUpload } = require('../src/services/activityLog.service');
+  const { logDocumentUpload } = require('../src/services/activity/activityLog.service');
   const mockUser = { _id: 'u1', role: 'student', email: 'test@up.edu.ph' };
   await logDocumentUpload(mockUser, 'grades', '127.0.0.1');
   assert.ok(true);
 });
 
 test('logDocumentDelete accepts user, doc type, and ip', async () => {
-  const { logDocumentDelete } = require('../src/services/activityLog.service');
+  const { logDocumentDelete } = require('../src/services/activity/activityLog.service');
   const mockUser = { _id: 'u1', role: 'student', email: 'test@up.edu.ph' };
   await logDocumentDelete(mockUser, 'grades', '127.0.0.1');
   assert.ok(true);
@@ -362,7 +362,7 @@ test('auth.routes.js has logLogin integration', () => {
   const src = fs.readFileSync(path.join(__dirname, '../src/routes/auth.routes.js'), 'utf-8');
   assert.ok(src.includes('logLogin'), 'auth.routes should call logLogin');
   assert.ok(src.includes('logRegister'), 'auth.routes should call logRegister');
-  assert.ok(src.includes("require('../services/activityLog.service')"), 'Should import service');
+  assert.ok(src.includes("require('../services/activity/activityLog.service')"), 'Should import service');
 });
 
 test('application.routes.js has activity logging integration', () => {
@@ -439,13 +439,13 @@ test('All ActivityAction values match action enum in schema', () => {
 });
 
 test('Convenience methods cover auth actions', () => {
-  const service = require('../src/services/activityLog.service');
+  const service = require('../src/services/activity/activityLog.service');
   assert.ok(service.logLogin, 'Should have logLogin for LOGIN');
   assert.ok(service.logRegister, 'Should have logRegister for REGISTER');
 });
 
 test('Convenience methods cover application lifecycle', () => {
-  const service = require('../src/services/activityLog.service');
+  const service = require('../src/services/activity/activityLog.service');
   assert.ok(service.logApplicationCreate, 'logApplicationCreate');
   assert.ok(service.logApplicationSubmit, 'logApplicationSubmit');
   assert.ok(service.logApplicationWithdraw, 'logApplicationWithdraw');
@@ -453,7 +453,7 @@ test('Convenience methods cover application lifecycle', () => {
 });
 
 test('Convenience methods cover document management', () => {
-  const service = require('../src/services/activityLog.service');
+  const service = require('../src/services/activity/activityLog.service');
   assert.ok(service.logDocumentUpload, 'logDocumentUpload');
   assert.ok(service.logDocumentDelete, 'logDocumentDelete');
   assert.ok(service.logDocumentVerification, 'logDocumentVerification');
@@ -461,14 +461,14 @@ test('Convenience methods cover document management', () => {
 });
 
 test('Convenience methods cover scholarship CRUD', () => {
-  const service = require('../src/services/activityLog.service');
+  const service = require('../src/services/activity/activityLog.service');
   assert.ok(service.logScholarshipCreate, 'logScholarshipCreate');
   assert.ok(service.logScholarshipUpdate, 'logScholarshipUpdate');
   assert.ok(service.logScholarshipDelete, 'logScholarshipDelete');
 });
 
 test('Convenience methods cover ML training', () => {
-  const service = require('../src/services/activityLog.service');
+  const service = require('../src/services/activity/activityLog.service');
   assert.ok(service.logModelTrain, 'logModelTrain');
   assert.ok(service.logModelTrainAll, 'logModelTrainAll');
 });

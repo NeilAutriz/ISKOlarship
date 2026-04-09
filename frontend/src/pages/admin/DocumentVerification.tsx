@@ -652,6 +652,42 @@ const DocumentVerification: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0">
+          <img 
+            src="https://bao.uplb.edu.ph/wp-content/uploads/2025/08/CVL_0015-1-scaled.jpg" 
+            alt="UPLB Campus" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />
+        </div>
+        
+        <div className="container-app py-8 md:py-10 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-3 py-1.5 bg-white/15 backdrop-blur-sm text-primary-100 text-xs font-semibold rounded-full uppercase tracking-wide flex items-center gap-1.5 border border-white/20">
+                  <Shield className="w-3.5 h-3.5" />Verification
+                </span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Document Verification</h1>
+              <p className="text-primary-100">
+                Review and verify student &amp; admin profile documents
+              </p>
+              {adminScope && (
+                <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-sm">
+                  <Shield className="w-3.5 h-3.5 text-primary-200" />
+                  <span className="font-medium text-white">{adminScope.levelDisplay}</span>
+                  <span className="text-primary-200">—</span>
+                  <span className="text-primary-100">{adminScope.description}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Scope Error Screen */}
         {isScopeError && (
@@ -675,27 +711,6 @@ const DocumentVerification: React.FC = () => {
 
         {!isScopeError && (
           <>
-        {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Document Verification</h1>
-              <p className="text-sm text-slate-500">Review and verify student &amp; admin profile documents</p>
-            </div>
-          </div>
-          {/* Admin Scope Badge */}
-          {adminScope && (
-            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200 rounded-lg text-sm">
-              <Shield className="w-3.5 h-3.5 text-primary-600" />
-              <span className="font-medium text-primary-700">{adminScope.levelDisplay}</span>
-              <span className="text-primary-500">—</span>
-              <span className="text-primary-600">{adminScope.description}</span>
-            </div>
-          )}
-        </div>
 
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-6 bg-slate-100 rounded-xl p-1 w-fit">

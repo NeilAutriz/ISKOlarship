@@ -96,8 +96,8 @@ export const generatePredictionFactors = (
     rawContribution: collegeContrib,
     contribution: 0,
     description: criteria.eligibleColleges?.length 
-      ? (collegeMatch === 1 ? `${student.college} is eligible` : 'College not in eligible list')
-      : 'Open to all colleges',
+      ? (collegeMatch === 1 ? `Your college (${student.college}) is eligible for this scholarship.` : `Your college (${student.college || 'not set'}) is not in the eligible list.`)
+      : 'Open to all colleges. No restriction.',
     met: collegeMatch >= 0.5
   });
   
@@ -113,8 +113,8 @@ export const generatePredictionFactors = (
     rawContribution: incomeContrib,
     contribution: 0,
     description: criteria.maxAnnualFamilyIncome
-      ? `₱${(student.annualFamilyIncome || 0).toLocaleString()} / ₱${criteria.maxAnnualFamilyIncome.toLocaleString()} max`
-      : `₱${(student.annualFamilyIncome || 0).toLocaleString()} annual income`,
+      ? `Your family income is ₱${(student.annualFamilyIncome || 0).toLocaleString()}. Maximum allowed is ₱${criteria.maxAnnualFamilyIncome.toLocaleString()}.`
+      : `Your family income is ₱${(student.annualFamilyIncome || 0).toLocaleString()}. No income cap for this scholarship.`,
     met: !criteria.maxAnnualFamilyIncome || (student.annualFamilyIncome || 0) <= criteria.maxAnnualFamilyIncome
   });
   
@@ -129,7 +129,7 @@ export const generatePredictionFactors = (
     weight: citizenshipWeight,
     rawContribution: citizenshipContrib,
     contribution: 0,
-    description: student.citizenship || 'Not specified',
+    description: student.citizenship ? `Your citizenship is ${student.citizenship}.` : 'Citizenship not specified in your profile.',
     met: citizenshipMatch >= 0.5
   });
   
@@ -145,8 +145,8 @@ export const generatePredictionFactors = (
     rawContribution: gwaContrib,
     contribution: 0,
     description: student.gwa 
-      ? `GWA of ${student.gwa.toFixed(2)}${criteria.maxGWA ? ` (requires ≤${criteria.maxGWA})` : ''}`
-      : 'GWA not provided',
+      ? `Your GWA is ${student.gwa.toFixed(2)}.${criteria.maxGWA && criteria.maxGWA < 5.0 ? ` This scholarship requires ${criteria.maxGWA.toFixed(2)} or better (lower is better).` : ' No GWA restriction for this scholarship.'}`
+      : 'GWA not provided in your profile.',
     met: !criteria.maxGWA || (student.gwa || 5) <= criteria.maxGWA
   });
   
@@ -165,8 +165,8 @@ export const generatePredictionFactors = (
     rawContribution: yearLevelContrib,
     contribution: 0,
     description: yearLevels.length 
-      ? (yearLevelMatch === 1 ? `${student.yearLevel} is eligible` : `Requires: ${yearLevels.join(', ')}`)
-      : (student.yearLevel || 'Not specified'),
+      ? (yearLevelMatch === 1 ? `You are a ${student.yearLevel}, which matches the required: ${yearLevels.join(', ')}.` : `You are ${student.yearLevel || 'not set'}. Scholarship requires: ${yearLevels.join(', ')}.`)
+      : (student.yearLevel ? `You are ${student.yearLevel}. Open to all year levels.` : 'Year level not specified.'),
     met: yearLevelMatch >= 0.5
   });
   
@@ -187,8 +187,8 @@ export const generatePredictionFactors = (
     rawContribution: courseContrib,
     contribution: 0,
     description: criteria.eligibleCourses?.length 
-      ? (courseMatch === 1 ? `${student.course} matches` : 'Course not in list')
-      : 'Open to all courses',
+      ? (courseMatch === 1 ? `Your course (${student.course}) matches the requirements.` : `Your course (${student.course || 'not set'}) is not in the eligible list.`)
+      : 'Open to all courses. No restriction.',
     met: courseMatch >= 0.5
   });
   
@@ -207,8 +207,8 @@ export const generatePredictionFactors = (
     rawContribution: stBracketContrib,
     contribution: 0,
     description: stBrackets.length 
-      ? (stBrackets.includes(student.stBracket || '') ? `${student.stBracket} qualifies` : `Requires: ${stBrackets.join(', ')}`)
-      : (student.stBracket || 'Not specified'),
+      ? (stBrackets.includes(student.stBracket || '') ? `Your ST bracket (${student.stBracket}) qualifies.` : `Requires: ${stBrackets.join(', ')}. Yours is ${student.stBracket || 'not set'}.`)
+      : (student.stBracket ? `Your ST bracket is ${student.stBracket}. No specific bracket required.` : 'ST bracket not specified.'),
     met: !stBrackets.length || stBrackets.includes(student.stBracket || '')
   });
   
@@ -223,7 +223,7 @@ export const generatePredictionFactors = (
     weight: applicationTimingWeight,
     rawContribution: applicationTimingContrib,
     contribution: 0,
-    description: 'Based on application submission timing',
+    description: 'How early you apply relative to the deadline. Earlier applications tend to score better.',
     met: true
   });
   

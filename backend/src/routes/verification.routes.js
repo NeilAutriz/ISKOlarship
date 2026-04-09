@@ -10,11 +10,11 @@ const { User, UserRole } = require('../models');
 const { authMiddleware, requireRole } = require('../middleware/auth.middleware');
 const { getSignedUrl } = require('../middleware/upload.middleware');
 const { getStudentScopeFilter, canManageStudent, getAdminScopeSummary } = require('../middleware/adminScope.middleware');
-const { isOcrAvailable, getVisionClient } = require('../services/ocrVerification.service');
-const { extractFields, SKIP_TYPES } = require('../services/ocrExtractors');
-const { compareFields, determineOverallMatch, calculateConfidence } = require('../services/ocrExtractors/comparison');
-const { notifyDocumentStatusChange, notifyAllDocumentsVerified } = require('../services/notification.service');
-const { logDocumentVerification, logDocumentVerifyAll } = require('../services/activityLog.service');
+const { isOcrAvailable, getVisionClient } = require('../services/ocr/ocrVerification.service');
+const { extractFields, SKIP_TYPES } = require('../services/ocr/extractors');
+const { compareFields, determineOverallMatch, calculateConfidence } = require('../services/ocr/comparison');
+const { notifyDocumentStatusChange, notifyAllDocumentsVerified } = require('../services/email/notification.service');
+const { logDocumentVerification, logDocumentVerifyAll } = require('../services/activity/activityLog.service');
 
 // All verification routes require admin authentication
 router.use(authMiddleware);

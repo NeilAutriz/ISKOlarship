@@ -116,7 +116,7 @@ async function main() {
 
   // ── Test 8: Service loads correctly ─────────────────────────────────────
   try {
-    const svc = require('../src/services/autoTraining.service');
+    const svc = require('../src/services/trainingService/autoTraining.service');
     if (typeof svc.onApplicationDecision === 'function') ok('onApplicationDecision is a function');
     else fail('onApplicationDecision', 'not a function');
 
@@ -275,7 +275,7 @@ async function main() {
   console.log('='.repeat(60));
 
   // ── Test 13: Concurrent lock prevents double-training ───────────────────
-  const svc2 = require('../src/services/autoTraining.service');
+  const svc2 = require('../src/services/trainingService/autoTraining.service');
   // Check that the lock map is accessible and operational
   const status2 = svc2.getAutoTrainingStatus();
   if (Array.isArray(status2.activeLocks)) {
@@ -335,7 +335,7 @@ async function main() {
 
   // ── Test 15: No file system dependencies ────────────────────────────────
   const svcSource = require('fs').readFileSync(
-    require('path').join(__dirname, '../src/services/autoTraining.service.js'), 'utf8'
+    require('path').join(__dirname, '../src/services/trainingService/autoTraining.service.js'), 'utf8'
   );
   if (!svcSource.includes('writeFile') && !svcSource.includes('readFile') && !svcSource.includes('fs.')) {
     ok('No file system operations in autoTraining.service.js');

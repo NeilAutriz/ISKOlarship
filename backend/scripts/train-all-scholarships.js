@@ -23,7 +23,7 @@ const { User } = require('../src/models/User.model');
 // Import cache clearing function (for live server updates)
 let clearModelWeightsCache = null;
 try {
-  clearModelWeightsCache = require('../src/services/logisticRegression.service').clearModelWeightsCache;
+  clearModelWeightsCache = require('../src/services/logisticRegressionCore/logisticRegression.service').clearModelWeightsCache;
 } catch (e) {
   // Script may run standalone without the service
 }
@@ -555,7 +555,7 @@ async function main() {
     console.log('╚════════════════════════════════════════════════════════════════════╝');
     console.log('');
     console.log('Copy these weights to DEFAULT_PREDICTION_WEIGHTS in:');
-    console.log('  - backend/src/services/logisticRegression.service.js');
+    console.log('  - backend/src/services/logisticRegressionCore/logisticRegression.service.js');
     console.log('  - frontend/src/services/logisticRegression.ts');
     console.log('');
     console.log('const DEFAULT_PREDICTION_WEIGHTS = {');

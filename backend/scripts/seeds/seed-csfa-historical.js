@@ -9,25 +9,26 @@ const mongoose = require('mongoose');
 const path = require('path');
 
 // Load models
-const { Application } = require('../src/models');
-const { Scholarship } = require('../src/models/Scholarship.model');
-const { TrainedModel } = require('../src/models/TrainedModel.model');
-const { User } = require('../src/models/User.model');
+const { Application } = require('../../src/models');
+const { Scholarship } = require('../../src/models/Scholarship.model');
+const { TrainedModel } = require('../../src/models/TrainedModel.model');
+const { User } = require('../../src/models/User.model');
 
 // Load seed helpers
 const {
   generateApplicationsForScholarship
-} = require('../src/seeds/applications-historical.seed');
+} = require('../../src/seeds/applications-historical.seed');
 
 // Load training service
-const trainingService = require('../src/services/trainingService');
-const { clearModelWeightsCache } = require('../src/services/logisticRegression.service');
+const trainingService = require('../../src/services/trainingService');
+const { clearModelWeightsCache } = require('../../src/services/logisticRegressionCore/logisticRegression.service');
 
 // MongoDB URI
 const MONGODB_URI = process.env.MONGODB_URI ||
   'mongodb+srv://mgautriz_db_user:lrqPwYlyjyxZcfgy@iskolarship-cluster.nnsosid.mongodb.net/iskolaship?retryWrites=true&w=majority&appName=ISKOlarship-Cluster';
 
-const APPS_PER_SCHOLARSHIP = 50;
+const MIN_APPS = 30;
+const MAX_APPS = 40;
 
 async function main() {
   console.log('════════════════════════════════════════════════════════════════');
@@ -70,7 +71,8 @@ async function main() {
   const scholarshipSummaries = [];
 
   for (const scholarship of csfaScholarships) {
-    const apps = generateApplicationsForScholarship(scholarship, APPS_PER_SCHOLARSHIP);
+    const numApps = MIN_APPS + Math.floor(Math.random() * (MAX_APPS - MIN_APPS + 1));
+    const apps = generateApplicationsForScholarship(scholarship, numApps);
 
     // Set proper admin references in statusHistory
     apps.forEach(app => {

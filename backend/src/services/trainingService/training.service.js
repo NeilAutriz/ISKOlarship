@@ -10,8 +10,8 @@
 // - Training history and statistics
 // =============================================================================
 
-const trainingService = require('./trainingService');
-const { TRAINING_CONFIG } = require('./trainingService/constants');
+const trainingService = require('./');
+const { TRAINING_CONFIG } = require('./constants');
 
 // =============================================================================
 // Model Cache Management

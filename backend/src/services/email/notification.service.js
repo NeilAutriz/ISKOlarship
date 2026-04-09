@@ -3,8 +3,8 @@
 // Fire-and-forget email notifications for application & document events
 // =============================================================================
 
-const { User } = require('../models');
-const { Notification } = require('../models/Notification.model');
+const { User } = require('../../models');
+const { Notification } = require('../../models/Notification.model');
 const emailService = require('./email.service');
 const templates = require('./emailTemplates');
 

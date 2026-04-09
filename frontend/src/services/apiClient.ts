@@ -134,8 +134,8 @@ export const normalizeScholarship = (scholarship: any): Scholarship => {
       // Map API fields to frontend fields
       requiredYearLevels: criteria.requiredYearLevels || criteria.eligibleClassifications || [],
       eligibleClassifications: criteria.eligibleClassifications || criteria.requiredYearLevels || [],
-      minGWA: criteria.minGWA ?? criteria.maxGWA, // UP uses inverted scale (lower is better)
-      maxGWA: criteria.maxGWA ?? criteria.minGWA,
+      minGWA: criteria.minGWA,
+      maxGWA: criteria.maxGWA,
       mustNotHaveOtherScholarship: criteria.mustNotHaveOtherScholarship ?? criteria.noExistingScholarship ?? false,
       mustNotHaveThesisGrant: criteria.mustNotHaveThesisGrant ?? criteria.noExistingThesisGrant ?? false,
       mustNotHaveDisciplinaryAction: criteria.mustNotHaveDisciplinaryAction ?? criteria.noDisciplinaryRecord ?? false,

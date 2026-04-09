@@ -6,11 +6,11 @@
 // retrains the affected scholarship's ML model in the background.
 // =============================================================================
 
-const { Application } = require('../models');
-const { Scholarship } = require('../models/Scholarship.model');
-const { TrainedModel } = require('../models/TrainedModel.model');
-const { trainScholarshipModel, trainGlobalModel } = require('./trainingService');
-const { TRAINING_CONFIG } = require('./trainingService/constants');
+const { Application } = require('../../models');
+const { Scholarship } = require('../../models/Scholarship.model');
+const { TrainedModel } = require('../../models/TrainedModel.model');
+const { trainScholarshipModel, trainGlobalModel } = require('./');
+const { TRAINING_CONFIG } = require('./constants');
 
 // =============================================================================
 // State & Configuration

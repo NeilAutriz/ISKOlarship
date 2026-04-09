@@ -166,8 +166,16 @@ const AdminProfileCompletion: React.FC<AdminProfileCompletionProps> = ({
       case 1:
         if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
         if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-        if (!formData.email.trim()) newErrors.email = 'Email is required';
-        if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact number is required';
+        if (!formData.email.trim()) {
+          newErrors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+          newErrors.email = 'Please enter a valid email address';
+        }
+        if (!formData.contactNumber.trim()) {
+          newErrors.contactNumber = 'Contact number is required';
+        } else if (!/^(\+?63|0)?[0-9]{10,11}$/.test(formData.contactNumber.replace(/[\s-]/g, ''))) {
+          newErrors.contactNumber = 'Please enter a valid phone number (e.g., 09171234567)';
+        }
         break;
       case 2:
         if (!formData.accessLevel) newErrors.accessLevel = 'Access level is required';

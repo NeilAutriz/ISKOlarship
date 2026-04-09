@@ -4,7 +4,7 @@
 // =============================================================================
 
 const { Application } = require('../../models');
-const logisticRegression = require('../logisticRegression.service');
+const logisticRegression = require('../logisticRegressionCore/logisticRegression.service');
 const { MODEL_VERSION, MATCH_LEVELS } = require('./constants');
 const { checkEligibility } = require('./eligibility');
 const { analyzeDetailedFactors, generateRecommendation } = require('./factors');
@@ -94,7 +94,8 @@ async function predictApprovalProbability(user, scholarship) {
         name: String(sf.name || ''),
         value: Number(sf.value) || 0,
         weight: Number(sf.weight) || 0,
-        contribution: Number(sf.contribution) || 0
+        contribution: Number(sf.contribution) || 0,
+        description: String(sf.description || '')
       }));
     }
     return sanitized;

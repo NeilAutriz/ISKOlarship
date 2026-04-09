@@ -376,8 +376,8 @@ const Applicants: React.FC = () => {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img 
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/UPLB_Academic_Heritage_Monument%2C_June_2023.jpg/2560px-UPLB_Academic_Heritage_Monument%2C_June_2023.jpg" 
-            alt="UPLB Heritage Monument" 
+            src="https://scontent.fmnl13-1.fna.fbcdn.net/v/t39.30808-6/645631721_902841139305251_7273262104218095514_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=13d280&_nc_ohc=g1DRdauNIuwQ7kNvwGcwb-9&_nc_oc=AdqjEPhK4DudTsyuQ9PS0PB3YiouXCFf2Y1oS03lIy0aNlG_Sb68hBu8XeiZV2fiuCY&_nc_zt=23&_nc_ht=scontent.fmnl13-1.fna&_nc_gid=6o0tR-aRsRClR9TycS9Jzg&_nc_ss=7a389&oh=00_Af1k8vAe5ZLpTZQb4ykQBQJay4tDn6In9akRqj7oEyhAsA&oe=69DD5EA5" 
+            alt="UPLB Campus" 
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />

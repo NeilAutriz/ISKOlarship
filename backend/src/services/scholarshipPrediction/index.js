@@ -39,7 +39,7 @@ const { getRecommendations } = require('./recommendations');
 const { getModelStats, getFeatureImportance, trainModel } = require('./analytics');
 
 // Import logistic regression for re-export
-const logisticRegression = require('../logisticRegression.service');
+const logisticRegression = require('../logisticRegressionCore/logisticRegression.service');
 
 // =============================================================================
 // Exports (Backward Compatible)

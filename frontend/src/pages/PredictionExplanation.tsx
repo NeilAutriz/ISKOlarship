@@ -451,7 +451,12 @@ const PredictionExplanation: React.FC = () => {
                       {isExpanded && hasSubFactors && factor.subFactors!.map((sf, sfIndex) => (
                         <tr key={`${index}-${sfIndex}`} className="bg-slate-50/80 border-b border-slate-100">
                           <td className="pl-16 pr-6 py-3">
-                            <span className="text-sm text-slate-700">{sf.name}</span>
+                            <div>
+                              <span className="text-sm font-medium text-slate-700">{sf.name}</span>
+                              {sf.description && (
+                                <p className="text-xs text-slate-500 mt-0.5">{sf.description}</p>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={`font-mono text-sm ${
@@ -462,9 +467,11 @@ const PredictionExplanation: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-xs text-slate-500 font-mono">
-                              {sf.value.toFixed(2)} x {sf.weight >= 0 ? '+' : ''}{sf.weight.toFixed(3)}
-                            </span>
+                            <div>
+                              <span className="text-xs text-slate-500 font-mono">
+                                {sf.value.toFixed(2)} x {sf.weight >= 0 ? '+' : ''}{sf.weight.toFixed(3)}
+                              </span>
+                            </div>
                           </td>
                           <td></td>
                         </tr>
@@ -477,7 +484,10 @@ const PredictionExplanation: React.FC = () => {
                 {/* Intercept row */}
                 <tr className="bg-slate-100 border-t-2 border-slate-300">
                   <td className="px-6 py-3 text-right font-medium text-slate-600">
-                    Model Intercept (baseline):
+                    <div>
+                      <span>Model Intercept (baseline):</span>
+                      <p className="text-xs text-slate-400 font-normal mt-0.5">Starting point of the model before your profile factors are applied. A negative baseline means the model is conservative, so your factors must outweigh it to predict approval.</p>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="font-mono text-lg font-semibold text-slate-700">
@@ -489,7 +499,10 @@ const PredictionExplanation: React.FC = () => {
                 {/* Sum of contributions row */}
                 <tr className="bg-slate-200">
                   <td className="px-6 py-3 text-right font-medium text-slate-600">
-                    + Sum of Contributions:
+                    <div>
+                      <span>+ Sum of All Contributions:</span>
+                      <p className="text-xs text-slate-400 font-normal mt-0.5">Total of all factor scores above. Positive means your profile strengths outweigh weaknesses.</p>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="font-mono text-lg font-semibold text-slate-700">
@@ -501,7 +514,10 @@ const PredictionExplanation: React.FC = () => {
                 {/* Combined z-score row */}
                 <tr className="bg-slate-900 text-white">
                   <td className="px-6 py-4 text-right font-semibold">
-                    = Combined Score (z-score):
+                    <div>
+                      <span>= Combined Score (z-score):</span>
+                      <p className="text-xs text-white/60 font-normal mt-0.5">Intercept + contributions. This score is converted to the success probability shown above.</p>
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-center">
                     <span className="font-mono text-xl font-bold">

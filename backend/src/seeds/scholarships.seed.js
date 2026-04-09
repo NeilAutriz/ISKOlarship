@@ -854,18 +854,6 @@ The CHE Alumni Association is dedicated to supporting current students and foste
 ];
 
 // =============================================================================
-// Import Comprehensive Scholarships (50 realistic scholarships)
-// =============================================================================
-
-const { scholarships: comprehensiveScholarships } = require('./scholarships-comprehensive.seed');
-
-// =============================================================================
-// Import Scoped Scholarships (for admin level testing)
-// =============================================================================
-
-const { scopedScholarshipsData } = require('./scholarships-scoped.seed');
-
-// =============================================================================
 // Import Realistic Scholarships (Well-known companies with proper scoping)
 // =============================================================================
 
@@ -886,7 +874,7 @@ const { realisticScholarshipsData } = require('./scholarships-realistic.seed');
  * @param {boolean} options.includeScoped - Include old admin-scoped scholarships (default: false)
  */
 const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
-  const { useRealistic = true, useComprehensive = false, includeLegacy = false, includeScoped = false } = options;
+  const { useRealistic = true, includeLegacy = false } = options;
   
   try {
     await Scholarship.deleteMany({});
@@ -900,20 +888,9 @@ const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
       dataToInsert = [...realisticScholarshipsData];
     }
     
-    if (useComprehensive) {
-      console.log('Including comprehensive scholarships');
-      dataToInsert = [...dataToInsert, ...comprehensiveScholarships];
-    }
-    
     if (includeLegacy) {
       console.log('Including legacy scholarships');
       dataToInsert = [...dataToInsert, ...scholarshipsData];
-    }
-
-    // Add old scoped scholarships (usually not needed with realistic data)
-    if (includeScoped) {
-      console.log('Including old admin-scoped scholarships');
-      dataToInsert = [...dataToInsert, ...scopedScholarshipsData];
     }
 
     const scholarshipsWithAdmin = dataToInsert.map(scholarship => ({
@@ -941,8 +918,6 @@ const seedScholarships = async (Scholarship, adminUserId, options = {}) => {
 
 module.exports = {
   scholarshipsData,
-  comprehensiveScholarships,
-  scopedScholarshipsData,
   realisticScholarshipsData,
   seedScholarships
 };

@@ -8,7 +8,7 @@ const router = express.Router();
 const { body, query, param, validationResult } = require('express-validator');
 const { Scholarship, ScholarshipType, ScholarshipLevel, ScholarshipStatus, Application, TrainedModel } = require('../models');
 const { authMiddleware, optionalAuth, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
-const { logScholarshipCreate, logScholarshipUpdate, logScholarshipDelete } = require('../services/activityLog.service');
+const { logScholarshipCreate, logScholarshipUpdate, logScholarshipDelete } = require('../services/activity/activityLog.service');
 const { 
   attachAdminScope, 
   canManageScholarship, 

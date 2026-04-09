@@ -77,7 +77,8 @@ function generateFactors(contributions, studentProfile, criteria, matchData) {
         name: FACTOR_LABELS[featureName] || featureName,
         value: data.value,
         weight: data.weight,
-        contribution: data.contribution
+        contribution: data.contribution,
+        description: generateFactorDescription(featureName, studentProfile, criteria, matchData)
       });
     }
 
@@ -126,7 +127,7 @@ function generateGroupDescription(group, studentProfile, criteria, matchData) {
     case 'Academic Standing': {
       const parts = [];
       if (studentProfile.gwa) {
-        parts.push(`GWA of ${studentProfile.gwa.toFixed(2)}${criteria.maxGWA ? ` (requires \u2264${criteria.maxGWA})` : ''}`);
+        parts.push(`GWA of ${studentProfile.gwa.toFixed(2)}${criteria.maxGWA && criteria.maxGWA < 5.0 ? ` (requires ${criteria.maxGWA} or better)` : ''}`);
       } else {
         parts.push('GWA not provided');
       }
@@ -143,7 +144,7 @@ function generateGroupDescription(group, studentProfile, criteria, matchData) {
     case 'Financial Need': {
       const parts = [];
       if (criteria.maxAnnualFamilyIncome) {
-        parts.push(`\u20B1${(studentProfile.annualFamilyIncome || 0).toLocaleString()} / \u20B1${criteria.maxAnnualFamilyIncome.toLocaleString()} max`);
+        parts.push(`\u20B1${(studentProfile.annualFamilyIncome || 0).toLocaleString()} income / \u20B1${criteria.maxAnnualFamilyIncome.toLocaleString()} max`);
       } else {
         parts.push(`\u20B1${(studentProfile.annualFamilyIncome || 0).toLocaleString()} annual income`);
       }
@@ -160,12 +161,12 @@ function generateGroupDescription(group, studentProfile, criteria, matchData) {
     case 'Program Match': {
       const parts = [];
       if (criteria.eligibleColleges?.length > 0) {
-        parts.push(collegeMatch >= SCORING.MATCH ? `${studentProfile.college} is eligible` : 'College not eligible');
+        parts.push(collegeMatch >= SCORING.MATCH ? `${studentProfile.college} is eligible` : 'College not in eligible list');
       } else {
         parts.push('Open to all colleges');
       }
       if (criteria.eligibleCourses?.length > 0) {
-        parts.push(courseMatch >= SCORING.MATCH ? `${studentProfile.course} matches` : 'Course not in list');
+        parts.push(courseMatch >= SCORING.MATCH ? `${studentProfile.course} matches` : 'Course not in eligible list');
       } else {
         parts.push('Open to all courses');
       }
@@ -173,7 +174,7 @@ function generateGroupDescription(group, studentProfile, criteria, matchData) {
     }
 
     case 'Application Timing': {
-      return 'Based on application submission timing';
+      return 'How early the application is submitted relative to the deadline';
     }
 
     case 'Overall Eligibility': {
@@ -200,15 +201,15 @@ function generateFactorDescription(factorName, studentProfile, criteria, matchDa
   switch (factorName) {
     case 'gwaScore':
       return studentProfile.gwa
-        ? `GWA of ${studentProfile.gwa.toFixed(2)}${criteria.maxGWA ? ` (requires \u2264${criteria.maxGWA})` : ''}`
-        : 'GWA not provided';
+        ? `Your GWA is ${studentProfile.gwa.toFixed(2)}${criteria.maxGWA && criteria.maxGWA < 5.0 ? ` — must be ${criteria.maxGWA.toFixed(2)} or better (lower is better in UP scale)` : ' — no GWA restriction for this scholarship'}`
+        : 'GWA not provided in your profile';
 
     case 'yearLevelMatch':
       return yearLevels.length > 0
         ? (yearLevels.includes(studentProfile.classification)
-            ? `${studentProfile.classification} is eligible`
-            : `Requires: ${yearLevels.join(', ')}`)
-        : `${studentProfile.classification || 'Year level not set'}`;
+            ? `You are a ${studentProfile.classification} — matches the required level(s): ${yearLevels.join(', ')}`
+            : `You are a ${studentProfile.classification || 'N/A'} — scholarship requires: ${yearLevels.join(', ')}`)
+        : `${studentProfile.classification || 'Year level not set'} — open to all year levels`;
 
     case 'incomeMatch':
       return criteria.maxAnnualFamilyIncome
@@ -240,16 +241,18 @@ function generateFactorDescription(factorName, studentProfile, criteria, matchDa
       return `${matchedCriteria}/${totalCriteria || '0'} criteria met (${Math.round(eligibilityScore * 100)}%)`;
 
     case 'academicStrength':
-      return 'GWA weighted by year level standing';
+      return studentProfile.gwa
+        ? `Combines your GWA (${studentProfile.gwa.toFixed(2)}) with your year level — higher-year students with strong grades score better`
+        : 'Combines GWA with year level standing';
 
     case 'financialNeed':
-      return 'Income level relative to ST bracket';
+      return `Combines income (₱${(studentProfile.annualFamilyIncome || 0).toLocaleString()}) and ST bracket${studentProfile.stBracket ? ` (${studentProfile.stBracket})` : ''} — lower income increases financial need score`;
 
     case 'programFit':
-      return 'College and course alignment';
+      return `How well your college${studentProfile.course ? ` and course (${studentProfile.course})` : ''} align with the scholarship's target programs`;
 
     case 'overallFit':
-      return 'Eligibility and academic performance overlap';
+      return `Combined measure of your eligibility score and academic performance — reflects overall profile strength`;
 
     default:
       return '';

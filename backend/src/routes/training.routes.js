@@ -12,18 +12,18 @@ const {
   canManageScholarship,
   canManageTrainedModel
 } = require('../middleware/adminScope.middleware');
-const { getAutoTrainingStatus, getAutoTrainingLog } = require('../services/autoTraining.service');
+const { getAutoTrainingStatus, getAutoTrainingLog } = require('../services/trainingService/autoTraining.service');
 const {
   trainGlobalModel,
   trainScholarshipModel,
   trainAllScholarshipModels,
   getPrediction,
   getTrainingStats
-} = require('../services/training.service');
+} = require('../services/trainingService/training.service');
 const { TrainedModel } = require('../models/TrainedModel.model');
 const { Scholarship } = require('../models/Scholarship.model');
 const { Application } = require('../models');
-const { logModelTrain, logModelTrainAll } = require('../services/activityLog.service');
+const { logModelTrain, logModelTrainAll } = require('../services/activity/activityLog.service');
 
 // =============================================================================
 // Training Endpoints
@@ -36,8 +36,9 @@ const { logModelTrain, logModelTrainAll } = require('../services/activityLog.ser
  */
 router.post('/train', authMiddleware, requireRole('admin'), requireAdminLevel('university'), async (req, res) => {
   try {
+    const { includeExcelData } = req.body || {};
     
-    const result = await trainGlobalModel(req.user._id);
+    const result = await trainGlobalModel(req.user._id, { includeExcelData: !!includeExcelData });
 
     // Log model training (fire-and-forget)
     logModelTrain(req.user, 'Global Model', result.metrics, req.ip);
@@ -50,7 +51,8 @@ router.post('/train', authMiddleware, requireRole('admin'), requireAdminLevel('u
         weights: result.model.weights,
         bias: result.model.bias,
         metrics: result.metrics,
-        featureImportance: result.featureImportance
+        featureImportance: result.featureImportance,
+        ...(result.mergeStats ? { mergeStats: result.mergeStats } : {})
       }
     });
   } catch (error) {
@@ -70,6 +72,7 @@ router.post('/train', authMiddleware, requireRole('admin'), requireAdminLevel('u
 router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
     const { scholarshipId } = req.params;
+    const { includeExcelData } = req.body || {};
 
     // Scope check: admin must be able to manage this scholarship
     const scholarship = await Scholarship.findById(scholarshipId);
@@ -83,7 +86,7 @@ router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async
       });
     }
     
-    const result = await trainScholarshipModel(scholarshipId, req.user._id);
+    const result = await trainScholarshipModel(scholarshipId, req.user._id, { includeExcelData: !!includeExcelData });
 
     // Log model training (fire-and-forget)
     logModelTrain(req.user, result.scholarship?.name || scholarship.title || 'Unknown', result.metrics, req.ip);
@@ -95,7 +98,8 @@ router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async
         modelId: result.model._id,
         scholarshipName: result.scholarship.name,
         metrics: result.metrics,
-        featureImportance: result.featureImportance
+        featureImportance: result.featureImportance,
+        ...(result.mergeStats ? { mergeStats: result.mergeStats } : {})
       }
     });
   } catch (error) {
@@ -114,8 +118,9 @@ router.post('/train/:scholarshipId', authMiddleware, requireRole('admin'), async
  */
 router.post('/train-all', authMiddleware, requireRole('admin'), requireAdminLevel('university'), async (req, res) => {
   try {
+    const { includeExcelData } = req.body || {};
     
-    const results = await trainAllScholarshipModels(req.user._id);
+    const results = await trainAllScholarshipModels(req.user._id, { includeExcelData: !!includeExcelData });
     
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;

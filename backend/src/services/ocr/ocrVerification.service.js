@@ -6,10 +6,10 @@
 // Falls back gracefully when Vision API credentials are not configured.
 // =============================================================================
 
-const { Application } = require('../models');
-const { getSignedUrl } = require('../middleware/upload.middleware');
-const { extractFields, SKIP_TYPES } = require('./ocrExtractors');
-const { compareFields, determineOverallMatch, calculateConfidence } = require('./ocrExtractors/comparison');
+const { Application } = require('../../models');
+const { getSignedUrl } = require('../../middleware/upload.middleware');
+const { extractFields, SKIP_TYPES } = require('./extractors');
+const { compareFields, determineOverallMatch, calculateConfidence } = require('./comparison');
 
 // ─── Google Cloud Vision Client ─────────────────────────────────────────────
 

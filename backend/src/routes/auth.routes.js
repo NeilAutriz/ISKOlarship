@@ -9,8 +9,8 @@ const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const { User, UserRole } = require('../models');
 const { authMiddleware, optionalAuth } = require('../middleware/auth.middleware');
-const { generateOTP, sendOTPEmail, sendVerificationEmail, sendPasswordResetEmail } = require('../services/email.service');
-const { logLogin, logRegister } = require('../services/activityLog.service');
+const { generateOTP, sendOTPEmail, sendVerificationEmail, sendPasswordResetEmail } = require('../services/email/email.service');
+const { logLogin, logRegister } = require('../services/activity/activityLog.service');
 
 // =============================================================================
 // Validation Rules
@@ -94,7 +94,7 @@ router.post('/check-email', [
     if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message: 'Please enter a valid email address',
         errors: errors.array()
       });
     }
@@ -132,10 +132,18 @@ router.post('/register', registerValidation, async (req, res, next) => {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const fieldErrors = errors.array().reduce((acc, err) => {
+        acc[err.path] = err.msg;
+        return acc;
+      }, {});
+      // Build a human-readable summary from the first error
+      const firstError = errors.array()[0];
+      const message = firstError ? firstError.msg : 'Validation failed';
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
-        errors: errors.array()
+        message,
+        errors: errors.array(),
+        fieldErrors
       });
     }
 
@@ -241,9 +249,11 @@ router.post('/login', loginValidation, async (req, res, next) => {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const firstError = errors.array()[0];
+      const message = firstError ? firstError.msg : 'Validation failed';
       return res.status(400).json({
         success: false,
-        message: 'Validation failed',
+        message,
         errors: errors.array()
       });
     }
@@ -255,15 +265,15 @@ router.post('/login', loginValidation, async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'No account found with this email address. Please check your email or sign up.'
       });
     }
 
     // Check if account is active
     if (!user.isActive) {
-      return res.status(401).json({
+      return res.status(403).json({
         success: false,
-        message: 'Account is deactivated. Please contact support.'
+        message: 'Your account has been deactivated. Please contact the administrator for assistance.'
       });
     }
 
@@ -272,35 +282,11 @@ router.post('/login', loginValidation, async (req, res, next) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Incorrect password. Please try again or use the "Forgot password" option.'
       });
     }
 
-    // Admin users skip 2FA — issue tokens directly
-    // TEMPORARY: Students also skip 2FA for now (to be re-enabled later)
-    if (user.role === UserRole.ADMIN || user.role === UserRole.STUDENT) {
-      const accessToken = generateToken(user._id);
-      const refreshToken = generateRefreshToken(user._id);
-
-      user.refreshTokens.push({ token: refreshToken });
-      user.lastLoginAt = new Date();
-      await user.save();
-
-      // Log login activity (fire-and-forget)
-      logLogin(user, req.ip);
-
-      return res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-          user: user.getPublicProfile(),
-          accessToken,
-          refreshToken
-        }
-      });
-    }
-
-    // --- 2FA for students: Generate and send OTP ---
+    // --- 2FA: Generate and send OTP for all users ---
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -314,6 +300,7 @@ router.post('/login', loginValidation, async (req, res, next) => {
     // Determine first name for email personalization
     const firstName = user.firstName || 
       user.studentProfile?.firstName || 
+      user.adminProfile?.firstName ||
       'User';
 
     // Send OTP email

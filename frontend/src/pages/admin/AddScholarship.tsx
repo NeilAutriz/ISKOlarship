@@ -924,7 +924,7 @@ const AddScholarship: React.FC = () => {
         }
         if (formData.eligibilityCriteria.minGWA > 0 && formData.eligibilityCriteria.maxGWA > 0) {
           if (formData.eligibilityCriteria.minGWA > formData.eligibilityCriteria.maxGWA) {
-            errors.minGWA = 'Best GWA bound must be less than or equal to the required GWA threshold (remember: 1.0 = best)';
+            errors.minGWA = 'Minimum GWA must be lower (better) than the Maximum GWA allowed (remember: 1.0 = best, 5.0 = worst)';
           }
         }
         if (formData.eligibilityCriteria.minAnnualFamilyIncome > 0 && formData.eligibilityCriteria.maxAnnualFamilyIncome > 0) {
@@ -1692,14 +1692,14 @@ const AddScholarship: React.FC = () => {
                       {/* GWA Requirement - UPLB uses 1.0=highest (best), 5.0=lowest (worst) */}
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-2">
                         <p className="text-xs text-amber-800">
-                          <strong>UP Grading System:</strong> 1.0 = highest (excellent), 5.0 = lowest (failed). 
-                          Set the GWA threshold a student must meet to qualify (e.g., 2.0 means the student's GWA must be 2.0 or better).
+                          <strong>UP Grading System:</strong> 1.0 = highest (excellent), 5.0 = lowest (failed). A <em>lower</em> GWA is <em>better</em>.
+                          Students must have a GWA within the range you set below to qualify.
                         </p>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Required GWA Threshold (or better)
+                            Maximum GWA Allowed
                           </label>
                           <input
                             type="number"
@@ -1711,12 +1711,12 @@ const AddScholarship: React.FC = () => {
                             step="0.01"
                             placeholder="e.g., 2.00 (no restriction if blank)"
                           />
-                          <p className="text-xs text-slate-500 mt-1">Leave blank if no GWA requirement</p>
+                          <p className="text-xs text-slate-500 mt-1">Student's GWA must be this value or lower (better). Leave blank for no restriction.</p>
                         </div>
 
                         <div>
                           <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Best GWA Bound (for elite scholarships)
+                            Minimum GWA Allowed <span className="text-slate-400 font-normal">(optional, rare)</span>
                           </label>
                           <input
                             type="number"
@@ -1726,11 +1726,23 @@ const AddScholarship: React.FC = () => {
                             min="1.0"
                             max="5.0"
                             step="0.01"
-                            placeholder="e.g., 1.25 (rarely used)"
+                            placeholder="e.g., 1.25 (defaults to 1.0)"
                           />
-                          <p className="text-xs text-slate-500 mt-1">Only for Dean's List type scholarships</p>
+                          <p className="text-xs text-slate-500 mt-1">Only for elite scholarships (e.g., Dean's List: GWA must be between 1.0 and 1.75)</p>
                         </div>
                       </div>
+                      {/* GWA Range Preview */}
+                      {formData.eligibilityCriteria.maxGWA && formData.eligibilityCriteria.maxGWA < 5.0 && (
+                        <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
+                          <p className="text-xs text-primary-800">
+                            <strong>GWA Range Preview:</strong>{' '}
+                            {formData.eligibilityCriteria.minGWA && formData.eligibilityCriteria.minGWA > 1.0
+                              ? `Students need a GWA between ${formData.eligibilityCriteria.minGWA.toFixed(2)} and ${formData.eligibilityCriteria.maxGWA.toFixed(2)}`
+                              : `Students need a GWA of ${formData.eligibilityCriteria.maxGWA.toFixed(2)} or better (i.e., ${formData.eligibilityCriteria.maxGWA.toFixed(2)} down to 1.00)`
+                            }
+                          </p>
+                        </div>
+                      )}
 
                       {/* Unit Requirements */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

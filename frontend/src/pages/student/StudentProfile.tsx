@@ -696,7 +696,7 @@ const StudentProfile: React.FC = () => {
       <div 
         className="relative bg-cover bg-center bg-no-repeat overflow-hidden"
         style={{
-          backgroundImage: `linear-gradient(rgba(30, 58, 138, 0.88), rgba(29, 78, 216, 0.92)), url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/UPLB_Academic_Heritage_Monument%2C_June_2023.jpg/2560px-UPLB_Academic_Heritage_Monument%2C_June_2023.jpg')`
+          backgroundImage: `linear-gradient(rgba(30, 58, 138, 0.88), rgba(29, 78, 216, 0.92)), url('https://scontent.fmnl13-1.fna.fbcdn.net/v/t39.30808-6/645644339_902840825971949_35814290326517716_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=13d280&_nc_ohc=WkPzA3SwiFEQ7kNvwHmW81q&_nc_oc=Adrdrv6RR3aAb1tN3VLubReMqmXqspDUgsX6WM6GP6Xt7C4yOT5NPNdNJBT0puiDYQU&_nc_zt=23&_nc_ht=scontent.fmnl13-1.fna&_nc_gid=JcsibJV3adBcsSAVmkjc6A&_nc_ss=7a389&oh=00_Af24SOSgFke3dgBv2QFJqDRiImwB2CbfgISJ4xHgt82JTg&oe=69DD5D95')`
         }}
       >
         <div className="container-app py-8 md:py-10 relative z-10">

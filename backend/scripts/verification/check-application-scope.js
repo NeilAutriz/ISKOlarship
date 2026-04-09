@@ -202,7 +202,7 @@ async function checkApplicationScope() {
       
       if (icsCount === 0) {
         console.log('\n⚠️  NOTE: No ICS applications found. Run the seed script:');
-        console.log('   node src/seeds/applications-uplb-realistic.seed.js');
+        console.log('   node src/seeds/index.js');
       }
       
     } else {

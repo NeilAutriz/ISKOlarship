@@ -16,11 +16,10 @@ const { Application } = require('../models/Application.model');
 // Import Seed Functions
 const { seedUsers } = require('./users.seed');
 const { seedScholarships } = require('./scholarships.seed');
-const { seedApplications, generateTrainingData } = require('./applications.seed');
 const { seedComprehensiveApplications, generateTrainingData: generateComprehensiveTrainingData } = require('./applications-comprehensive.seed');
 
 // Import Training Service for model training
-const trainingService = require('../services/training.service');
+const trainingService = require('../services/trainingService/training.service');
 
 // =============================================================================
 // Main Seed Function
@@ -57,10 +56,7 @@ const runAllSeeds = async () => {
     console.log('════════════════════════════════════════════════════════════════');
     
     const scholarships = await seedScholarships(Scholarship, adminUser._id, {
-      useRealistic: true,      // Jollibee, Globe, PLDT, SM, Ayala, etc.
-      useComprehensive: false, // Skip old comprehensive data
-      includeLegacy: false,    // Skip old legacy scholarships
-      includeScoped: false     // Skip old scoped scholarships (realistic already has scoping)
+      useRealistic: true
     });
     console.log(`   ✅ Created ${scholarships.length} scholarships\n`);
 
@@ -201,8 +197,6 @@ module.exports = {
   runAllSeeds,
   seedUsers,
   seedScholarships,
-  seedApplications,
   seedComprehensiveApplications,
-  generateTrainingData,
   generateComprehensiveTrainingData
 };

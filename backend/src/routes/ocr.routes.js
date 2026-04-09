@@ -14,7 +14,7 @@ const {
   getVerificationStatus,
   getRawText,
   isOcrAvailable,
-} = require('../services/ocrVerification.service');
+} = require('../services/ocr/ocrVerification.service');
 
 // All OCR routes require admin authentication
 router.use(authMiddleware);

@@ -201,12 +201,12 @@ const App: React.FC = () => {
         };
       }
       
-      // Direct login (admin users skip 2FA and get tokens directly)
+      // Direct login fallback (if backend ever returns tokens directly)
       if (response.success && response.data?.user) {
         const userData = response.data.user as User;
         if ((role === 'admin' && userData.role !== UserRole.ADMIN) ||
             (role === 'student' && userData.role !== UserRole.STUDENT)) {
-          throw new Error(`Invalid credentials for ${role} login`);
+          throw new Error(`This account is not registered as ${role === 'admin' ? 'an administrator' : 'a student'}. Please select the correct role and try again.`);
         }
         login(userData);
         setShowAuthModal(false);
@@ -218,7 +218,7 @@ const App: React.FC = () => {
       throw new Error(response.message || 'Login failed');
     } catch (error: any) {
       console.error('Sign in error:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Login failed');
+      throw new Error(error.response?.data?.message || error.message || 'Sign in failed. Please check your credentials and try again.');
     }
   };
 
@@ -233,7 +233,7 @@ const App: React.FC = () => {
         // Check if the user role matches the selected role
         if ((role === 'admin' && userData.role !== UserRole.ADMIN) ||
             (role === 'student' && userData.role !== UserRole.STUDENT)) {
-          throw new Error(`Invalid credentials for ${role} login`);
+          throw new Error(`This account is not registered as ${role === 'admin' ? 'an administrator' : 'a student'}. Please select the correct role.`);
         }
 
         login(userData);
@@ -431,6 +431,7 @@ const App: React.FC = () => {
       // Parse error message from different sources
       const errorMessage = error.response?.data?.message || error.message || '';
       const errorData = error.response?.data?.error || '';
+      const fieldErrors = error.response?.data?.fieldErrors;
       
       // Check for duplicate student number error (MongoDB E11000)
       if (errorMessage.includes('E11000') || errorMessage.includes('duplicate key') || 
@@ -446,8 +447,22 @@ const App: React.FC = () => {
         return;
       }
       
-      // Re-throw the error to be handled by ProfileCompletion
-      throw error;
+      // Map backend validation errors to a user-friendly message
+      if (error.response?.status === 400 && fieldErrors) {
+        const errorMessages = Object.values(fieldErrors) as string[];
+        throw new Error(errorMessages.join('. '));
+      }
+      
+      // Map generic error to a more user-friendly message
+      if (errorMessage === 'Validation failed') {
+        const validationErrors = error.response?.data?.errors;
+        if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+          throw new Error(validationErrors.map((e: any) => e.msg).join('. '));
+        }
+      }
+      
+      // Re-throw with a clear message
+      throw new Error(errorMessage || 'An error occurred during registration. Please try again.');
     }
   };
 
@@ -550,6 +565,7 @@ const App: React.FC = () => {
       
       // Parse error message
       const errorMessage = error.response?.data?.message || error.message || '';
+      const fieldErrors = error.response?.data?.fieldErrors;
       
       // Check if it's a duplicate email error
       if (errorMessage.includes('already exists') || error.response?.status === 409) {
@@ -559,8 +575,22 @@ const App: React.FC = () => {
         return;
       }
       
-      // Re-throw the error to be handled by AdminProfileCompletion
-      throw error;
+      // Map backend validation errors to a user-friendly message
+      if (error.response?.status === 400 && fieldErrors) {
+        const errorMessages = Object.values(fieldErrors) as string[];
+        throw new Error(errorMessages.join('. '));
+      }
+      
+      // Map generic validation errors
+      if (errorMessage === 'Validation failed') {
+        const validationErrors = error.response?.data?.errors;
+        if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+          throw new Error(validationErrors.map((e: any) => e.msg).join('. '));
+        }
+      }
+      
+      // Re-throw with a clear message
+      throw new Error(errorMessage || 'An error occurred during admin registration. Please try again.');
     }
   };
 

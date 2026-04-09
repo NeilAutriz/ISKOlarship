@@ -19,6 +19,7 @@ import HorizontalFilterBar from '../components/HorizontalFilterBar';
 import SearchBar from '../components/SearchBar';
 import PaginationControls from '../components/PaginationControls';
 import { FilterCriteria, Scholarship, Application, ApplicationStatus, isStudentProfile } from '../types';
+import { matchStudentToScholarships } from '../services/filterEngine';
 
 const PAGE_SIZE = 12;
 
@@ -143,7 +144,13 @@ const Scholarships: React.FC = () => {
   // Handle filter changes
   const handleFilterChange = (newFilters: Partial<FilterCriteria>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
-    setCurrentPage(1); // reset to first page on filter change
+    setCurrentPage(1);
+    // When enabling eligible-only, fetch all scholarships so we can check eligibility across the full list
+    if (newFilters.showEligibleOnly === true) {
+      setShowAll(true);
+    } else if (newFilters.showEligibleOnly === false) {
+      setShowAll(false);
+    }
   };
 
   // Handle search
@@ -208,9 +215,26 @@ const Scholarships: React.FC = () => {
     }
   };
 
+  // Compute eligibility match results once for use in filtering and display
+  const matchResults = useMemo(() => {
+    if (!studentUser) return new Map<string, { isEligible: boolean }>();
+    const results = matchStudentToScholarships(studentUser, scholarships);
+    return new Map(results.map(r => {
+      const id = r.scholarship.id || (r.scholarship as any)._id;
+      return [id, { isEligible: r.isEligible }];
+    }));
+  }, [studentUser, scholarships]);
+
   // Filter scholarships locally (for filters not handled by API)
   const filteredScholarships = useMemo(() => {
     return scholarships.filter(s => {
+      // Apply eligible-only filter using local match results
+      if (filters.showEligibleOnly && studentUser) {
+        const id = s.id || (s as any)._id;
+        const result = matchResults.get(id);
+        if (!result?.isEligible) return false;
+      }
+
       // Apply type filter (case-insensitive comparison for robustness)
       if (filters.scholarshipTypes && filters.scholarshipTypes.length > 0) {
         const sType = (s.type || '').toLowerCase().trim();
@@ -250,7 +274,7 @@ const Scholarships: React.FC = () => {
 
       return true;
     });
-  }, [scholarships, filters, studentUser]);
+  }, [scholarships, filters, studentUser, matchResults]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
@@ -259,8 +283,8 @@ const Scholarships: React.FC = () => {
         {/* Background Image */}
         <div className="absolute inset-0">
           <img 
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/UPLB_Academic_Heritage_Monument%2C_June_2023.jpg/2560px-UPLB_Academic_Heritage_Monument%2C_June_2023.jpg" 
-            alt="UPLB Heritage Monument" 
+            src="https://uplb.edu.ph/wp-content/uploads/2023/12/UPLB-receives-Environmental-Compliance-Certificate-from-DENR.webp" 
+            alt="UPLB Campus" 
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />

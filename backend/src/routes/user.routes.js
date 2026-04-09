@@ -8,10 +8,10 @@ const router = express.Router();
 const { body, param, validationResult } = require('express-validator');
 const { User, UserRole, UPLBCollege, YearLevel, STBracket } = require('../models');
 const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
-const { logProfileUpdate, logDocumentUpload, logDocumentDelete, logPasswordChange } = require('../services/activityLog.service');
+const { logProfileUpdate, logDocumentUpload, logDocumentDelete, logPasswordChange } = require('../services/activity/activityLog.service');
 const { uploadSingle, uploadMultiple, handleUploadError, uploadFilesToCloudinary, uploadToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../middleware/upload.middleware');
-const { generateOTP, sendOTPEmail } = require('../services/email.service');
-const { notifyPasswordChanged } = require('../services/notification.service');
+const { generateOTP, sendOTPEmail } = require('../services/email/email.service');
+const { notifyPasswordChanged } = require('../services/email/notification.service');
 const {
   getScholarshipScopeFilter,
   getScopedScholarshipIds

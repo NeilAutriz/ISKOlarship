@@ -9,7 +9,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { authMiddleware, requireRole, requireAdminLevel } = require('../middleware/auth.middleware');
 const { Scholarship, Application, User } = require('../models');
-const predictionService = require('../services/prediction.service');
+const predictionService = require('../services/scholarshipPrediction/prediction.service');
 const {
   canManageApplication,
   getScopedScholarshipIds

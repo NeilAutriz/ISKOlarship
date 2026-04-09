@@ -166,8 +166,8 @@ const Home: React.FC = () => {
               </h1>
 
               <p className="text-base sm:text-lg text-white/80 mb-8 max-w-xl">
-                Join thousands of UPLB students discovering scholarship opportunities 
-                tailored to their unique profile with our intelligent matching algorithm.
+                Discover scholarship opportunities tailored to your unique profile 
+                with our intelligent matching algorithm built for UPLB students.
               </p>
 
               {/* CTA Buttons */}
@@ -304,12 +304,12 @@ const Home: React.FC = () => {
               {/* Stats */}
               <div className="flex flex-wrap gap-4 sm:gap-8 mb-8">
                 <div className="border-2 border-primary-100 rounded-xl p-3 sm:p-4">
-                  <div className="text-2xl sm:text-3xl font-bold text-primary-600">12K+</div>
-                  <div className="text-slate-500 text-sm">Applications Processed</div>
+                  <div className="text-2xl sm:text-3xl font-bold text-primary-600">{stats.totalScholarships || 63}+</div>
+                  <div className="text-slate-500 text-sm">Scholarships Available</div>
                 </div>
                 <div className="border-2 border-primary-100 rounded-xl p-3 sm:p-4">
-                  <div className="text-2xl sm:text-3xl font-bold text-primary-600">98%</div>
-                  <div className="text-slate-500 text-sm">Satisfaction Rate</div>
+                  <div className="text-2xl sm:text-3xl font-bold text-primary-600">{stats.activeStudents || 35}+</div>
+                  <div className="text-slate-500 text-sm">Active Users</div>
                 </div>
               </div>
 
@@ -385,7 +385,7 @@ const Home: React.FC = () => {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-3">Smart Matching</h3>
               <p className="text-slate-600">
-                Advanced algorithms analyze your profile against hundreds of scholarship 
+                Advanced algorithms analyze your profile against scholarship 
                 criteria to find your perfect matches instantly.
               </p>
             </div>
@@ -648,7 +648,7 @@ const Home: React.FC = () => {
                     <Award className="w-6 h-6 text-white" />
                   </div>
                   <span className="inline-flex items-center px-3 py-1 bg-primary-100 text-primary-600 rounded-full text-xs font-medium">
-                    {Math.floor(Math.random() * 30 + 20)} Students
+                    {scholarship.slots || '—'} Slots
                   </span>
                 </div>
 
@@ -717,7 +717,7 @@ const Home: React.FC = () => {
           </h2>
 
           <p className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Join hundreds of successful UPLB students who discovered their 
+            Join UPLB students who have discovered their 
             scholarship opportunities through ISKOlarship
           </p>
 

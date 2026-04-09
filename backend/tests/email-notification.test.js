@@ -59,12 +59,12 @@ async function runTests() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('emailTemplates module loads without errors', () => {
-  const mod = require('../src/services/emailTemplates');
+  const mod = require('../src/services/email/emailTemplates');
   assert.ok(mod, 'Module should load');
 });
 
 test('emailTemplates exports all 7 template functions', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const expected = [
     'applicationApproved',
     'applicationRejected',
@@ -80,24 +80,24 @@ test('emailTemplates exports all 7 template functions', () => {
 });
 
 test('notification.service module loads without errors', () => {
-  const mod = require('../src/services/notification.service');
+  const mod = require('../src/services/email/notification.service');
   assert.ok(mod, 'Module should load');
 });
 
 test('notification.service exports expected functions', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   assert.strictEqual(typeof ns.notifyApplicationStatusChange, 'function');
   assert.strictEqual(typeof ns.notifyDocumentStatusChange, 'function');
   assert.strictEqual(typeof ns.notifyAllDocumentsVerified, 'function');
 });
 
 test('email.service exports sendEmail function', () => {
-  const es = require('../src/services/email.service');
+  const es = require('../src/services/email/email.service');
   assert.strictEqual(typeof es.sendEmail, 'function', 'sendEmail should be exported');
 });
 
 test('email.service still exports original functions', () => {
-  const es = require('../src/services/email.service');
+  const es = require('../src/services/email/email.service');
   assert.strictEqual(typeof es.generateOTP, 'function');
   assert.strictEqual(typeof es.sendOTPEmail, 'function');
   assert.strictEqual(typeof es.sendVerificationEmail, 'function');
@@ -109,7 +109,7 @@ test('email.service still exports original functions', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('applicationApproved template generates correct subject & HTML', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationApproved({ firstName: 'Juan', scholarshipName: 'DOST Scholarship' });
   assert.ok(result.subject, 'Should have subject');
   assert.ok(result.html, 'Should have html');
@@ -121,7 +121,7 @@ test('applicationApproved template generates correct subject & HTML', () => {
 });
 
 test('applicationRejected template includes reason when provided', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationRejected({
     firstName: 'Maria',
     scholarshipName: 'CHED Merit',
@@ -134,7 +134,7 @@ test('applicationRejected template includes reason when provided', () => {
 });
 
 test('applicationRejected template works without reason', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationRejected({
     firstName: 'Pedro',
     scholarshipName: 'Test Grant',
@@ -146,7 +146,7 @@ test('applicationRejected template works without reason', () => {
 });
 
 test('applicationUnderReview template generates correct content', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationUnderReview({
     firstName: 'Ana',
     scholarshipName: 'Albacea Grant',
@@ -162,7 +162,7 @@ test('applicationUnderReview template generates correct content', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('documentVerified template generates correct content', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.documentVerified({ firstName: 'Rosa', documentName: 'Student ID' });
   assert.ok(result.subject.includes('Student ID'), 'Subject should include doc name');
   assert.ok(result.subject.includes('verified'), 'Subject should mention verified');
@@ -172,7 +172,7 @@ test('documentVerified template generates correct content', () => {
 });
 
 test('documentRejected template includes remarks', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.documentRejected({
     firstName: 'Luis',
     documentName: 'Latest Grades',
@@ -185,7 +185,7 @@ test('documentRejected template includes remarks', () => {
 });
 
 test('documentRejected template works without remarks', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.documentRejected({
     firstName: 'Test',
     documentName: 'COR',
@@ -196,7 +196,7 @@ test('documentRejected template works without remarks', () => {
 });
 
 test('documentResubmit template includes remarks', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.documentResubmit({
     firstName: 'Ella',
     documentName: 'Certificate of Registration',
@@ -209,7 +209,7 @@ test('documentResubmit template includes remarks', () => {
 });
 
 test('allDocumentsVerified template generates correct content', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.allDocumentsVerified({ firstName: 'Marco' });
   assert.ok(result.subject.includes('verified'), 'Subject should mention verified');
   assert.ok(result.html.includes('Marco'), 'HTML should include name');
@@ -222,7 +222,7 @@ test('allDocumentsVerified template generates correct content', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('all templates produce valid HTML with DOCTYPE', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const all = [
     t.applicationApproved({ firstName: 'X', scholarshipName: 'S' }),
     t.applicationRejected({ firstName: 'X', scholarshipName: 'S', reason: '' }),
@@ -241,7 +241,7 @@ test('all templates produce valid HTML with DOCTYPE', () => {
 });
 
 test('all templates include copyright footer', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationApproved({ firstName: 'X', scholarshipName: 'S' });
   const year = new Date().getFullYear();
   assert.ok(result.html.includes(`${year}`), 'Footer should include current year');
@@ -249,7 +249,7 @@ test('all templates include copyright footer', () => {
 });
 
 test('application templates include CTA link to applications or scholarships', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const approvedHtml = t.applicationApproved({ firstName: 'X', scholarshipName: 'S' }).html;
   const rejectedHtml = t.applicationRejected({ firstName: 'X', scholarshipName: 'S', reason: '' }).html;
 
@@ -258,7 +258,7 @@ test('application templates include CTA link to applications or scholarships', (
 });
 
 test('document templates include CTA link to profile', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const rejectedHtml = t.documentRejected({ firstName: 'X', documentName: 'D', remarks: '' }).html;
   const resubmitHtml = t.documentResubmit({ firstName: 'X', documentName: 'D', remarks: '' }).html;
 
@@ -271,19 +271,19 @@ test('document templates include CTA link to profile', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('templates use "there" as fallback when firstName is missing', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationApproved({ firstName: undefined, scholarshipName: 'Grant' });
   assert.ok(result.html.includes('Hi <strong>there</strong>'), 'Should fallback to "there"');
 });
 
 test('templates use "there" when firstName is empty string', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.documentVerified({ firstName: '', documentName: 'ID' });
   assert.ok(result.html.includes('Hi <strong>there</strong>'), 'Should fallback to "there"');
 });
 
 test('templates use actual name when provided', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationApproved({ firstName: 'Rizal', scholarshipName: 'Test' });
   assert.ok(result.html.includes('Hi <strong>Rizal</strong>'), 'Should use actual name');
 });
@@ -293,32 +293,32 @@ test('templates use actual name when provided', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('notifyApplicationStatusChange ignores unmapped statuses (draft)', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   // Should not throw for unmapped status
   ns.notifyApplicationStatusChange('fakeId', 'draft', 'Test');
   assert.ok(true, 'No error for draft status');
 });
 
 test('notifyApplicationStatusChange ignores unmapped statuses (submitted)', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   ns.notifyApplicationStatusChange('fakeId', 'submitted', 'Test');
   assert.ok(true, 'No error for submitted status');
 });
 
 test('notifyApplicationStatusChange ignores unmapped statuses (withdrawn)', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   ns.notifyApplicationStatusChange('fakeId', 'withdrawn', 'Test');
   assert.ok(true, 'No error for withdrawn status');
 });
 
 test('notifyDocumentStatusChange ignores unmapped statuses (pending)', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   ns.notifyDocumentStatusChange('fakeId', 'pending', 'Doc');
   assert.ok(true, 'No error for pending status');
 });
 
 test('notifyApplicationStatusChange handles mapped statuses without throwing', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   // These will fail on user lookup (no DB) but should NOT throw synchronously
   ns.notifyApplicationStatusChange('000000000000000000000001', 'approved', 'DOST');
   ns.notifyApplicationStatusChange('000000000000000000000001', 'rejected', 'DOST', 'reason');
@@ -327,7 +327,7 @@ test('notifyApplicationStatusChange handles mapped statuses without throwing', (
 });
 
 test('notifyDocumentStatusChange handles mapped statuses without throwing', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   ns.notifyDocumentStatusChange('000000000000000000000001', 'verified', 'ID');
   ns.notifyDocumentStatusChange('000000000000000000000001', 'rejected', 'ID', 'bad');
   ns.notifyDocumentStatusChange('000000000000000000000001', 'resubmit', 'ID', 'old');
@@ -339,19 +339,19 @@ test('notifyDocumentStatusChange handles mapped statuses without throwing', () =
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('notifyAllDocumentsVerified does nothing for null documents', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   ns.notifyAllDocumentsVerified('fakeId', null);
   assert.ok(true, 'No error for null docs');
 });
 
 test('notifyAllDocumentsVerified does nothing for empty array', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   ns.notifyAllDocumentsVerified('fakeId', []);
   assert.ok(true, 'No error for empty docs');
 });
 
 test('notifyAllDocumentsVerified does nothing when not all verified', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   const docs = [
     { verificationStatus: 'verified' },
     { verificationStatus: 'pending' },
@@ -362,7 +362,7 @@ test('notifyAllDocumentsVerified does nothing when not all verified', () => {
 });
 
 test('notifyAllDocumentsVerified fires when all docs verified', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   const docs = [
     { verificationStatus: 'verified' },
     { verificationStatus: 'verified' },
@@ -374,7 +374,7 @@ test('notifyAllDocumentsVerified fires when all docs verified', () => {
 });
 
 test('notifyAllDocumentsVerified detects mixed statuses correctly', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   const docs = [
     { verificationStatus: 'verified' },
     { verificationStatus: 'rejected' },
@@ -438,7 +438,7 @@ test('user.routes.js loads without errors', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('templates never contain "undefined" in output', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const all = [
     t.applicationApproved({ firstName: undefined, scholarshipName: undefined }),
     t.applicationRejected({ firstName: undefined, scholarshipName: undefined, reason: undefined }),
@@ -457,7 +457,7 @@ test('templates never contain "undefined" in output', () => {
 });
 
 test('templates never contain "NaN" in output', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationApproved({ firstName: 'Test', scholarshipName: 'Grant' });
   assert.ok(!result.html.includes('NaN'), 'HTML should not contain NaN');
   assert.ok(!result.subject.includes('NaN'), 'Subject should not contain NaN');
@@ -468,7 +468,7 @@ test('templates never contain "NaN" in output', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('templates handle special characters in scholarship name', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationApproved({
     firstName: 'Juan',
     scholarshipName: 'DOST-SEI "S&T" Grant (2024–2025)',
@@ -478,7 +478,7 @@ test('templates handle special characters in scholarship name', () => {
 });
 
 test('templates handle special characters in remarks', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.documentRejected({
     firstName: 'Test',
     documentName: 'COR',
@@ -492,7 +492,7 @@ test('templates handle special characters in remarks', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('all template functions return { subject: string, html: string }', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const fns = [
     () => t.applicationApproved({ firstName: 'A', scholarshipName: 'B' }),
     () => t.applicationRejected({ firstName: 'A', scholarshipName: 'B', reason: '' }),
@@ -516,7 +516,7 @@ test('all template functions return { subject: string, html: string }', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('notifyApplicationStatusChange does not throw even with invalid userId', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   // Deliberately pass null/undefined — should NOT throw
   assert.doesNotThrow(() => {
     ns.notifyApplicationStatusChange(null, 'approved', 'Test');
@@ -524,14 +524,14 @@ test('notifyApplicationStatusChange does not throw even with invalid userId', ()
 });
 
 test('notifyDocumentStatusChange does not throw even with invalid userId', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   assert.doesNotThrow(() => {
     ns.notifyDocumentStatusChange(undefined, 'verified', 'ID');
   }, 'Should not throw for undefined userId');
 });
 
 test('notifyAllDocumentsVerified does not throw for undefined', () => {
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
   assert.doesNotThrow(() => {
     ns.notifyAllDocumentsVerified(undefined, undefined);
   }, 'Should not throw for undefined args');
@@ -542,7 +542,7 @@ test('notifyAllDocumentsVerified does not throw for undefined', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('all 4 notifiable application statuses map to correct templates', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
 
   // approved
   const approved = t.applicationApproved({ firstName: 'X', scholarshipName: 'S' });
@@ -558,7 +558,7 @@ test('all 4 notifiable application statuses map to correct templates', () => {
 });
 
 test('all 3 notifiable document statuses map to correct templates', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
 
   const verified = t.documentVerified({ firstName: 'X', documentName: 'D' });
   assert.ok(verified.html.includes('Verified'), 'verified → Verified badge');
@@ -575,13 +575,13 @@ test('all 3 notifiable document statuses map to correct templates', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('all templates include viewport meta tag for mobile', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.applicationApproved({ firstName: 'X', scholarshipName: 'S' });
   assert.ok(result.html.includes('width=device-width'), 'Should include viewport meta');
 });
 
 test('all templates include charset meta tag', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const result = t.documentVerified({ firstName: 'X', documentName: 'D' });
   assert.ok(result.html.includes('charset="utf-8"'), 'Should include charset meta');
 });
@@ -591,7 +591,7 @@ test('all templates include charset meta tag', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('approved templates use green color scheme', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const approved = t.applicationApproved({ firstName: 'X', scholarshipName: 'S' });
   const docVerified = t.documentVerified({ firstName: 'X', documentName: 'D' });
   assert.ok(approved.html.includes('#dcfce7') || approved.html.includes('#166534'), 'Approved should use green');
@@ -599,7 +599,7 @@ test('approved templates use green color scheme', () => {
 });
 
 test('rejected templates use red color scheme', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const rejected = t.applicationRejected({ firstName: 'X', scholarshipName: 'S', reason: '' });
   const docRejected = t.documentRejected({ firstName: 'X', documentName: 'D', remarks: '' });
   assert.ok(rejected.html.includes('#fee2e2') || rejected.html.includes('#991b1b'), 'Rejected should use red');
@@ -607,13 +607,13 @@ test('rejected templates use red color scheme', () => {
 });
 
 test('resubmit template uses amber/yellow scheme', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const resubmit = t.documentResubmit({ firstName: 'X', documentName: 'D', remarks: '' });
   assert.ok(resubmit.html.includes('#fef3c7') || resubmit.html.includes('#92400e'), 'Resubmit should use amber');
 });
 
 test('under review template uses blue color scheme', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const review = t.applicationUnderReview({ firstName: 'X', scholarshipName: 'S' });
   assert.ok(review.html.includes('#dbeafe') || review.html.includes('#1e40af'), 'Under review should use blue');
 });
@@ -623,7 +623,7 @@ test('under review template uses blue color scheme', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('application templates have clickable CTA buttons with ISKOlarship domain', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const templates = [
     t.applicationApproved({ firstName: 'X', scholarshipName: 'S' }),
     t.applicationRejected({ firstName: 'X', scholarshipName: 'S', reason: '' }),
@@ -653,7 +653,7 @@ test('notifiable statuses match ApplicationStatus enum values', () => {
 test('non-notifiable statuses are correctly excluded', () => {
   // These statuses should NOT trigger notification emails
   const nonNotifiable = ['draft', 'submitted', 'documents_required', 'shortlisted', 'interview_scheduled', 'withdrawn'];
-  const ns = require('../src/services/notification.service');
+  const ns = require('../src/services/email/notification.service');
 
   for (const status of nonNotifiable) {
     // Should silently do nothing — no throw
@@ -668,7 +668,7 @@ test('non-notifiable statuses are correctly excluded', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test('templates handle very long scholarship names', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const longName = 'The Juan dela Cruz Memorial Scholarship for Outstanding Students from Province of Laguna Academic Year 2025-2026 Second Semester Application';
   const result = t.applicationApproved({ firstName: 'Test', scholarshipName: longName });
   assert.ok(result.subject.includes('Juan dela Cruz'), 'Should include long name in subject');
@@ -676,7 +676,7 @@ test('templates handle very long scholarship names', () => {
 });
 
 test('templates handle very long remarks', () => {
-  const t = require('../src/services/emailTemplates');
+  const t = require('../src/services/email/emailTemplates');
   const longRemarks = 'A'.repeat(500);
   const result = t.documentRejected({ firstName: 'Test', documentName: 'COR', remarks: longRemarks });
   assert.ok(result.html.includes(longRemarks), 'Should include full long remarks');

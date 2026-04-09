@@ -28,6 +28,9 @@ import {
   SkipForward
 } from 'lucide-react';
 import { trainingApi } from '../../services/apiClient';
+import PaginationControls from '../../components/PaginationControls';
+
+const MODELS_PER_PAGE = 9;
 
 interface TrainedModel {
   _id: string;
@@ -115,6 +118,7 @@ const ModelTraining: React.FC = () => {
   const [autoStatus, setAutoStatus] = useState<AutoTrainingStatus | null>(null);
   const [autoLog, setAutoLog] = useState<AutoTrainingLogEntry[]>([]);
   const [showAutoLog, setShowAutoLog] = useState(false);
+  const [scholarshipPage, setScholarshipPage] = useState(1);
 
   // Feature display names
   const featureDisplayNames: Record<string, string> = {
@@ -306,12 +310,26 @@ const ModelTraining: React.FC = () => {
   // Find the active global model for fallback display
   const activeGlobalModel = models.find(m => m.modelType === 'global' && m.isActive);
 
+  // Paginate scholarship-specific models
+  const totalScholarshipPages = Math.ceil(trainableScholarships.length / MODELS_PER_PAGE);
+  const paginatedScholarships = trainableScholarships.slice(
+    (scholarshipPage - 1) * MODELS_PER_PAGE,
+    scholarshipPage * MODELS_PER_PAGE
+  );
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header */}
       <div className="relative overflow-hidden">
-        {/* Background Gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-800 via-primary-700 to-primary-900" />
+        {/* Background Image + Gradient */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://luzonintervarsity.wordpress.com/wp-content/uploads/2012/06/0e770-9036929.jpg" 
+            alt="UPLB Campus" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-800/95 via-primary-700/90 to-primary-900/95" />
+        </div>
         
         <div className="container-app py-8 md:py-10 relative z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -675,8 +693,9 @@ const ModelTraining: React.FC = () => {
           </div>
 
           {trainableScholarships.length > 0 ? (
+            <>
             <div className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
-              {trainableScholarships.map(scholarship => {
+              {paginatedScholarships.map(scholarship => {
                 const existingModel = models.find(
                   m => m.modelType === 'scholarship_specific' && 
                        (m.scholarshipId as any)?._id === scholarship._id
@@ -885,6 +904,17 @@ const ModelTraining: React.FC = () => {
                 );
               })}
             </div>
+            <div className="px-6 pb-6">
+              <PaginationControls
+                currentPage={scholarshipPage}
+                totalPages={totalScholarshipPages}
+                totalItems={trainableScholarships.length}
+                itemsPerPage={MODELS_PER_PAGE}
+                onPageChange={setScholarshipPage}
+                itemLabel="scholarships"
+              />
+            </div>
+            </>
           ) : (
             <div className="p-12 text-center">
               <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">

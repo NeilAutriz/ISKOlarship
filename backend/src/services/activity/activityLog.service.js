@@ -4,7 +4,7 @@
 // Never throws — failures are logged to console but don't affect the caller.
 // =============================================================================
 
-const { ActivityLog, ActivityAction } = require('../models/ActivityLog.model');
+const { ActivityLog, ActivityAction } = require('../../models/ActivityLog.model');
 
 /**
  * Helper: extract display name from user object

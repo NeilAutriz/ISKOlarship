@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const { trainGlobalModel, trainScholarshipModel, trainAllScholarshipModels, getTrainingStats } = require('../src/services/training.service');
+const { trainGlobalModel, trainScholarshipModel, trainAllScholarshipModels, getTrainingStats } = require('../src/services/trainingService/training.service');
 const { TrainedModel } = require('../src/models/TrainedModel.model');
 
 // Parse command line arguments

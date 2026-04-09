@@ -423,7 +423,8 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         {/* Key Requirements Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-5">
           {/* GWA Requirement */}
-          {(scholarship.eligibilityCriteria?.maxGWA || scholarship.eligibilityCriteria?.minGWA) && (
+          {((scholarship.eligibilityCriteria?.maxGWA && scholarship.eligibilityCriteria.maxGWA < 5.0) || 
+            (scholarship.eligibilityCriteria?.minGWA && scholarship.eligibilityCriteria.minGWA > 1.0 && scholarship.eligibilityCriteria.minGWA < 5.0)) && (
             <div className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-slate-50 rounded-lg">
               <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0`}>
                 <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
@@ -431,7 +432,14 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
               <div className="min-w-0">
                 <div className="text-[10px] sm:text-xs text-slate-500">GWA Required</div>
                 <div className="font-semibold text-slate-900 text-xs sm:text-sm text-xs sm:text-sm">
-                  {(scholarship.eligibilityCriteria.maxGWA || scholarship.eligibilityCriteria.minGWA || 0).toFixed(2)} or better
+                  {(() => {
+                    const max = scholarship.eligibilityCriteria.maxGWA;
+                    const min = scholarship.eligibilityCriteria.minGWA;
+                    if (min && min > 1.0 && min < 5.0 && max && max < 5.0) {
+                      return `${min.toFixed(2)} – ${max.toFixed(2)}`;
+                    }
+                    return `${(max || min || 0).toFixed(2)} or better`;
+                  })()}
                 </div>
               </div>
             </div>

@@ -64,7 +64,8 @@ const {
   trainScholarshipModel,
   trainAllScholarshipModels,
   getPrediction,
-  getTrainingStats
+  getTrainingStats,
+  loadTrainingApplications
 } = require('./trainingApi');
 
 // =============================================================================
@@ -78,6 +79,7 @@ module.exports = {
   trainAllScholarshipModels,
   getPrediction,
   getTrainingStats,
+  loadTrainingApplications,
   extractFeatures,
   extractFeaturesFromUserAndScholarship,
   

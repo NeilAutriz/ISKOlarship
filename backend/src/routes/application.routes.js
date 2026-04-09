@@ -17,10 +17,10 @@ const {
   canManageScholarship,
   getAdminScopeSummary 
 } = require('../middleware/adminScope.middleware');
-const { calculateEligibility, runPrediction } = require('../services/eligibility.service');
-const { onApplicationDecision } = require('../services/autoTraining.service');
-const { notifyApplicationStatusChange } = require('../services/notification.service');
-const { logApplicationCreate, logApplicationSubmit, logApplicationWithdraw, logApplicationStatusChange, logApplicationRevert } = require('../services/activityLog.service');
+const { calculateEligibility, runPrediction } = require('../services/eligibility/eligibility.service');
+const { onApplicationDecision } = require('../services/trainingService/autoTraining.service');
+const { notifyApplicationStatusChange } = require('../services/email/notification.service');
+const { logApplicationCreate, logApplicationSubmit, logApplicationWithdraw, logApplicationStatusChange, logApplicationRevert } = require('../services/activity/activityLog.service');
 
 // =============================================================================
 // Validation Rules

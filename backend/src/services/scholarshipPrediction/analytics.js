@@ -4,7 +4,7 @@
 // =============================================================================
 
 const { Application } = require('../../models');
-const logisticRegression = require('../logisticRegression.service');
+const logisticRegression = require('../logisticRegressionCore/logisticRegression.service');
 const { MODEL_VERSION } = require('./constants');
 
 /**
@@ -116,7 +116,7 @@ async function trainModel() {
   console.log('Starting model training...');
   
   // Use the dedicated training service for database-backed training
-  const trainingService = require('../training.service');
+  const trainingService = require('../trainingService/training.service');
   const result = await trainingService.trainGlobalModel();
   
   // Clear prediction cache to use new weights

@@ -8,7 +8,7 @@
 // - ./prediction.service.js (combined eligibility + prediction)
 // =============================================================================
 
-const predictionService = require('./prediction.service');
+const predictionService = require('../scholarshipPrediction/prediction.service');
 
 /**
  * Calculate eligibility for a user and scholarship

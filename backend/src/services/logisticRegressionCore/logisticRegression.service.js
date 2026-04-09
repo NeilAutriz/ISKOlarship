@@ -31,7 +31,7 @@
 // Import from modular logistic regression core system
 // =============================================================================
 
-const logisticRegressionCore = require('./logisticRegressionCore');
+const logisticRegressionCore = require('./');
 
 // Destructure commonly used exports for convenience
 const {

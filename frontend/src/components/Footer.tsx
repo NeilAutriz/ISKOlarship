@@ -186,7 +186,7 @@ const Footer: React.FC = () => {
               <li className="flex items-start gap-3 text-sm text-slate-400">
                 <MapPin className="w-4 h-4 mt-0.5 text-primary-400 flex-shrink-0" />
                 <span>
-                  Metro Manila, Philippines
+                  Los Baños, Laguna, Philippines
                 </span>
               </li>
             </ul>
@@ -202,7 +202,7 @@ const Footer: React.FC = () => {
               © {currentYear} ISKOlarship. All rights reserved.
             </p>
             <p className="text-sm text-slate-400 flex items-center gap-1">
-              Made with <Heart className="w-4 h-4 text-red-500 fill-red-500" /> for Filipino Students
+              Made with <Heart className="w-4 h-4 text-red-500 fill-red-500" /> for UPLB Students
             </p>
           </div>
         </div>

@@ -328,7 +328,7 @@ describe('PlatformStats Model Fixes', () => {
 // 7. EMAIL SERVICE FIXES
 // =============================================================================
 describe('Email Service Fixes', () => {
-  const emailServiceSrc = readSrc('src/services/email.service.js');
+  const emailServiceSrc = readSrc('src/services/email/email.service.js');
 
   // MEDIUM PRIORITY #1: sendPasswordResetEmail function exists
   describe('sendPasswordResetEmail', () => {

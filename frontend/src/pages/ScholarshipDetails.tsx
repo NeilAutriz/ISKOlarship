@@ -489,36 +489,52 @@ const ScholarshipDetails: React.FC = () => {
                   const maxGWA = scholarship.eligibilityCriteria?.maxGWA;
                   const minGWA = scholarship.eligibilityCriteria?.minGWA;
                   // Only show GWA requirement if there's a meaningful restriction
-                  const hasGWARequirement = (maxGWA && maxGWA < 5.0) || (minGWA && minGWA > 1.0);
+                  // maxGWA of 5.0 is the Mongoose default = no restriction, minGWA of 5.0 or 1.0 = no restriction
+                  const hasGWARequirement = (maxGWA && maxGWA < 5.0) || (minGWA && minGWA > 1.0 && minGWA < 5.0);
                   if (!hasGWARequirement) return null;
                   
                   const gwaStatus = getEligibilityStatus('gwa');
+                  const isPassed = gwaStatus === true;
+                  const isFailed = gwaStatus === false;
                   return (
                     <div className={`p-4 rounded-xl border ${
                       matchResult
-                        ? gwaStatus
+                        ? isPassed
                           ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
+                          : isFailed
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-slate-50 border-slate-200'
                         : 'bg-slate-50 border-slate-200'
                     }`}>
                       <div className="flex items-center gap-3">
                         <TrendingUp className={`w-5 h-5 ${
                           matchResult
-                            ? gwaStatus
+                            ? isPassed
                               ? 'text-green-600'
-                              : 'text-red-600'
+                              : isFailed
+                                ? 'text-red-600'
+                                : 'text-slate-400'
                             : 'text-slate-400'
                         }`} />
                         <div>
                           <div className="text-sm text-slate-500">GWA Required</div>
                           <div className="font-semibold text-slate-900">
-                            {(scholarship.eligibilityCriteria?.maxGWA || scholarship.eligibilityCriteria?.minGWA || 0).toFixed(2)} or better
+                            {(() => {
+                              const max = scholarship.eligibilityCriteria?.maxGWA;
+                              const min = scholarship.eligibilityCriteria?.minGWA;
+                              if (min && min > 1.0 && min < 5.0 && max && max < 5.0) {
+                                return `${min.toFixed(2)} to ${max.toFixed(2)}`;
+                              }
+                              return `${(max || min || 0).toFixed(2)} or better (lower is better)`;
+                            })()}
                           </div>
                         </div>
                         {matchResult && (
-                          gwaStatus
+                          isPassed
                             ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                            : isFailed
+                              ? <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                              : null
                         )}
                       </div>
                     </div>
@@ -532,20 +548,26 @@ const ScholarshipDetails: React.FC = () => {
                   if (!yearLevels || yearLevels.length === 0) return null;
                   
                   const yearLevelStatus = getEligibilityStatus('year level');
+                  const ylPassed = yearLevelStatus === true;
+                  const ylFailed = yearLevelStatus === false;
                   return (
                     <div className={`p-4 rounded-xl border ${
                       matchResult
-                        ? yearLevelStatus
+                        ? ylPassed
                           ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
+                          : ylFailed
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-slate-50 border-slate-200'
                         : 'bg-slate-50 border-slate-200'
                     }`}>
                       <div className="flex items-center gap-3">
                         <GraduationCap className={`w-5 h-5 ${
                           matchResult
-                            ? yearLevelStatus
+                            ? ylPassed
                               ? 'text-green-600'
-                              : 'text-red-600'
+                              : ylFailed
+                                ? 'text-red-600'
+                                : 'text-slate-400'
                             : 'text-slate-400'
                         }`} />
                         <div>
@@ -555,9 +577,11 @@ const ScholarshipDetails: React.FC = () => {
                           </div>
                         </div>
                         {matchResult && (
-                          yearLevelStatus
+                          ylPassed
                             ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                            : ylFailed
+                              ? <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                              : null
                         )}
                       </div>
                     </div>
@@ -567,20 +591,26 @@ const ScholarshipDetails: React.FC = () => {
                 {/* Colleges */}
                 {scholarship.eligibilityCriteria?.eligibleColleges && scholarship.eligibilityCriteria.eligibleColleges.length > 0 && (() => {
                   const collegeStatus = getEligibilityStatus('college');
+                  const colPassed = collegeStatus === true;
+                  const colFailed = collegeStatus === false;
                   return (
                     <div className={`p-4 rounded-xl border ${
                       matchResult
-                        ? collegeStatus
+                        ? colPassed
                           ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
+                          : colFailed
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-slate-50 border-slate-200'
                         : 'bg-slate-50 border-slate-200'
                     }`}>
                       <div className="flex items-start gap-3">
                         <Users className={`w-5 h-5 mt-0.5 ${
                           matchResult
-                            ? collegeStatus
+                            ? colPassed
                               ? 'text-green-600'
-                              : 'text-red-600'
+                              : colFailed
+                                ? 'text-red-600'
+                                : 'text-slate-400'
                             : 'text-slate-400'
                         }`} />
                         <div className="flex-1">
@@ -592,9 +622,11 @@ const ScholarshipDetails: React.FC = () => {
                           </div>
                         </div>
                         {matchResult && (
-                          collegeStatus
+                          colPassed
                             ? <CheckCircle className="w-5 h-5 text-green-600" />
-                            : <XCircle className="w-5 h-5 text-red-600" />
+                            : colFailed
+                              ? <XCircle className="w-5 h-5 text-red-600" />
+                              : null
                         )}
                       </div>
                     </div>
@@ -604,20 +636,26 @@ const ScholarshipDetails: React.FC = () => {
                 {/* Income */}
                 {scholarship.eligibilityCriteria?.maxAnnualFamilyIncome && (() => {
                   const incomeStatus = getEligibilityStatus('income');
+                  const incPassed = incomeStatus === true;
+                  const incFailed = incomeStatus === false;
                   return (
                     <div className={`p-4 rounded-xl border ${
                       matchResult
-                        ? incomeStatus
+                        ? incPassed
                           ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
+                          : incFailed
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-slate-50 border-slate-200'
                         : 'bg-slate-50 border-slate-200'
                     }`}>
                       <div className="flex items-center gap-3">
                         <DollarSign className={`w-5 h-5 ${
                           matchResult
-                            ? incomeStatus
+                            ? incPassed
                               ? 'text-green-600'
-                              : 'text-red-600'
+                              : incFailed
+                                ? 'text-red-600'
+                                : 'text-slate-400'
                             : 'text-slate-400'
                         }`} />
                         <div>
@@ -627,9 +665,11 @@ const ScholarshipDetails: React.FC = () => {
                           </div>
                         </div>
                         {matchResult && (
-                          incomeStatus
+                          incPassed
                             ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
-                            : <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                            : incFailed
+                              ? <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                              : null
                         )}
                       </div>
                     </div>

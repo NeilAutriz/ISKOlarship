@@ -33,7 +33,6 @@ node scripts/verification/test-e2e-model-selection.js
 - `check-user-profile.js` - Verifies user profile data integrity
 - `verify-admin-cleanup.js` - Verifies admin profiles are clean (no studentProfile)
 - `verify-document-storage.js` - Verifies document storage system
-- `verify-specific-admin.js` - Checks specific admin user data
 - `audit-model-selection.js` - Audits and fixes model selection configuration
 - `test-model-selection.js` - Tests model selection logic
 - `test-api-model-type.js` - Tests API modelType responses

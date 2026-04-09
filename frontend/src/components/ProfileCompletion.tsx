@@ -203,10 +203,27 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
       case 1:
         if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
         if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-        if (!formData.email.trim()) newErrors.email = 'Email is required';
-        if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact number is required';
+        if (!formData.email.trim()) {
+          newErrors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+          newErrors.email = 'Please enter a valid email address';
+        }
+        if (!formData.contactNumber.trim()) {
+          newErrors.contactNumber = 'Contact number is required';
+        } else if (!/^(\+?63|0)?[0-9]{10,11}$/.test(formData.contactNumber.replace(/[\s-]/g, ''))) {
+          newErrors.contactNumber = 'Please enter a valid phone number (e.g., 09171234567)';
+        }
         if (!formData.street.trim()) newErrors.street = 'Street address is required';
-        if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+        if (!formData.dateOfBirth) {
+          newErrors.dateOfBirth = 'Date of birth is required';
+        } else {
+          const dob = new Date(formData.dateOfBirth);
+          const today = new Date();
+          const age = today.getFullYear() - dob.getFullYear();
+          if (age < 15 || age > 60) {
+            newErrors.dateOfBirth = 'Please enter a valid date of birth (age must be between 15 and 60)';
+          }
+        }
         if (!formData.gender) newErrors.gender = 'Gender is required';
         break;
       case 2:
@@ -221,7 +238,11 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
             newErrors.gwa = 'GWA must be between 1.0 and 5.0';
           }
         }
-        if (!formData.studentNumber.trim()) newErrors.studentNumber = 'Student number is required';
+        if (!formData.studentNumber.trim()) {
+          newErrors.studentNumber = 'Student number is required';
+        } else if (!/^\d{4}-\d{4,6}$/.test(formData.studentNumber.trim())) {
+          newErrors.studentNumber = 'Student number must be in the format YYYY-XXXXX (e.g., 2021-12345)';
+        }
         const unitsEnrolled = parseInt(formData.unitsEnrolled);
         if (formData.unitsEnrolled && (isNaN(unitsEnrolled) || unitsEnrolled < 0 || unitsEnrolled > 30)) {
           newErrors.unitsEnrolled = 'Units enrolled must be between 0 and 30';

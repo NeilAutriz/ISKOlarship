@@ -49,7 +49,7 @@
 // Import from modular scholarship prediction system
 // =============================================================================
 
-const scholarshipPrediction = require('./scholarshipPrediction');
+const scholarshipPrediction = require('./');
 
 // Destructure all exports for convenience and backward compatibility
 const {

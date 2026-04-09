@@ -68,12 +68,12 @@ async function runAllTests() {
 const loading = suite('Module Loading');
 
 loading('logisticRegression.service.js loads without errors', () => {
-  const service = require('../src/services/logisticRegression.service');
+  const service = require('../src/services/logisticRegressionCore/logisticRegression.service');
   assert.ok(service, 'Service should load');
 });
 
 loading('prediction.service.js loads without errors', () => {
-  const service = require('../src/services/prediction.service');
+  const service = require('../src/services/scholarshipPrediction/prediction.service');
   assert.ok(service, 'Service should load');
 });
 
@@ -88,12 +88,12 @@ loading('scholarshipPrediction/index.js loads without errors', () => {
 });
 
 loading('eligibility.service.js loads without errors', () => {
-  const service = require('../src/services/eligibility.service');
+  const service = require('../src/services/eligibility/eligibility.service');
   assert.ok(service, 'Service should load');
 });
 
 loading('training.service.js loads without errors', () => {
-  const service = require('../src/services/training.service');
+  const service = require('../src/services/trainingService/training.service');
   assert.ok(service, 'Service should load');
 });
 
@@ -483,7 +483,7 @@ modelTests('getModelState returns object', () => {
 });
 
 modelTests('isModelTrained returns boolean', async () => {
-  const lr = require('../src/services/logisticRegression.service');
+  const lr = require('../src/services/logisticRegressionCore/logisticRegression.service');
   const trained = lr.isModelTrained();
   assert.strictEqual(typeof trained, 'boolean');
 });
@@ -504,27 +504,27 @@ modelTests('resetModel is a function', () => {
 const wrapperTests = suite('Service Wrapper Functions');
 
 wrapperTests('logisticRegression.service.runPrediction is async function', () => {
-  const lr = require('../src/services/logisticRegression.service');
+  const lr = require('../src/services/logisticRegressionCore/logisticRegression.service');
   assert.strictEqual(typeof lr.runPrediction, 'function');
 });
 
 wrapperTests('logisticRegression.service.getQuickFactors is function', () => {
-  const lr = require('../src/services/logisticRegression.service');
+  const lr = require('../src/services/logisticRegressionCore/logisticRegression.service');
   assert.strictEqual(typeof lr.getQuickFactors, 'function');
 });
 
 wrapperTests('prediction.service.runFullAnalysis is async function', () => {
-  const ps = require('../src/services/prediction.service');
+  const ps = require('../src/services/scholarshipPrediction/prediction.service');
   assert.strictEqual(typeof ps.runFullAnalysis, 'function');
 });
 
 wrapperTests('prediction.service.getQuickEligibility is async function', () => {
-  const ps = require('../src/services/prediction.service');
+  const ps = require('../src/services/scholarshipPrediction/prediction.service');
   assert.strictEqual(typeof ps.getQuickEligibility, 'function');
 });
 
 wrapperTests('prediction.service.isModelReady is async function', () => {
-  const ps = require('../src/services/prediction.service');
+  const ps = require('../src/services/scholarshipPrediction/prediction.service');
   assert.strictEqual(typeof ps.isModelReady, 'function');
 });
 
@@ -579,7 +579,7 @@ consistencyTests('sigmoid is same function across modules', () => {
 });
 
 consistencyTests('Main services re-export from modules correctly', () => {
-  const lrService = require('../src/services/logisticRegression.service');
+  const lrService = require('../src/services/logisticRegressionCore/logisticRegression.service');
   const lrCore = require('../src/services/logisticRegressionCore');
   
   // Verify core functions are same reference or produce same results
@@ -588,7 +588,7 @@ consistencyTests('Main services re-export from modules correctly', () => {
 });
 
 consistencyTests('prediction.service.logisticRegression has expected methods', () => {
-  const ps = require('../src/services/prediction.service');
+  const ps = require('../src/services/scholarshipPrediction/prediction.service');
   
   assert.ok(ps.logisticRegression, 'Should have logisticRegression object');
   assert.strictEqual(typeof ps.logisticRegression.getModelState, 'function');
