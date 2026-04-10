@@ -144,6 +144,7 @@ const sendViaGmailSMTP = async (mailOptions) => {
 /**
  * Send an email using the best available transport.
  * Falls through: Brevo → SMTP → throws error
+ * If Brevo fails (e.g. IP not whitelisted), automatically falls back to SMTP.
  */
 const sendEmail = async (mailOptions) => {
   const type = getTransportType();
@@ -153,7 +154,17 @@ const sendEmail = async (mailOptions) => {
   }
 
   if (type === 'brevo') {
-    return sendViaBrevo(mailOptions);
+    try {
+      return await sendViaBrevo(mailOptions);
+    } catch (brevoErr) {
+      console.warn(`⚠️ Brevo API failed: ${brevoErr.message}`);
+      // Fall back to SMTP if credentials are available
+      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        console.log('📧 Falling back to Gmail SMTP...');
+        return sendViaGmailSMTP(mailOptions);
+      }
+      throw brevoErr;
+    }
   }
 
   // type === 'smtp'
