@@ -25,7 +25,8 @@ const layout = (title, bodyHtml) => `
           <!-- Brand header -->
           <tr>
             <td style="background:#2563eb;padding:36px 40px 28px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">🎓 ISKOlarship</h1>
+              <img src="https://res.cloudinary.com/djromxmr7/image/upload/v1775912419/iskolarship/logo-white.png" alt="ISKOlarship" width="56" height="56" style="display:block;margin:0 auto 12px;width:56px;height:56px;object-fit:contain;" />
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">ISKOlarship</h1>
               <p style="margin:6px 0 0;color:rgba(255,255,255,0.75);font-size:12px;text-transform:uppercase;letter-spacing:2px;font-weight:500;">UPLB Scholarship Management Platform</p>
               <div style="margin:16px auto 0;width:40px;height:2px;background:rgba(255,255,255,0.3);border-radius:1px;"></div>
               <p style="margin:12px 0 0;color:#ffffff;font-size:14px;font-weight:600;letter-spacing:0.5px;">${title}</p>

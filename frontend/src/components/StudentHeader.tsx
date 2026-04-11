@@ -12,7 +12,6 @@ import {
   FileText,
   User,
   LogOut,
-  GraduationCap,
   Menu,
   X,
   Activity
@@ -47,9 +46,7 @@ const StudentHeader: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo-blue.png" alt="ISKOlarship" className="w-12 h-12 object-contain" />
             <div>
               <span className="text-lg font-bold text-primary-600">ISKOlarship</span>
               <p className="text-xs text-slate-500 -mt-0.5">Student Portal</p>

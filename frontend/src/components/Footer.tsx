@@ -6,7 +6,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  GraduationCap, 
   Mail, 
   MapPin, 
   Phone,
@@ -49,9 +48,7 @@ const Footer: React.FC = () => {
           {/* Brand Section */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-white" />
-              </div>
+              <img src="/logo-white.png" alt="ISKOlarship" className="w-10 h-10 object-contain" />
               <div>
                 <span className="text-xl font-display font-bold">
                   ISKO<span className="text-primary-400">larship</span>

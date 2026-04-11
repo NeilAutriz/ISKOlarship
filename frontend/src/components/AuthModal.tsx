@@ -5,7 +5,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, GraduationCap, User, Settings, Eye, EyeOff, ArrowRight, ArrowLeft, Mail, Lock, CheckCircle, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
+import { X, User, Settings, Eye, EyeOff, ArrowRight, ArrowLeft, Mail, Lock, CheckCircle, ShieldCheck, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -418,7 +418,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-              <GraduationCap className="w-7 h-7 text-white" />
+              <img src="/logo-white.png" alt="ISKOlarship" className="w-9 h-9 object-contain" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white">Welcome to ISKOlarship</h2>

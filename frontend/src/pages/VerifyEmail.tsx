@@ -56,7 +56,8 @@ const VerifyEmail: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-md overflow-hidden">
         {/* Header */}
         <div className="bg-primary-600 px-6 py-6 text-center">
-          <h1 className="text-2xl font-bold text-white">🎓 ISKOlarship</h1>
+          <img src="/logo-white.png" alt="ISKOlarship" className="w-12 h-12 object-contain mx-auto mb-2" />
+          <h1 className="text-2xl font-bold text-white">ISKOlarship</h1>
           <p className="text-white/80 text-sm mt-1">Email Verification</p>
         </div>
 

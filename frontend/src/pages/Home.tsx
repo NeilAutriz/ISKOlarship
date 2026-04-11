@@ -154,6 +154,9 @@ const Home: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Content */}
             <div className="text-white">
+              {/* Logo */}
+              <img src="/logo-white.png" alt="ISKOlarship" className="block w-28 h-28 sm:w-36 sm:h-36 object-contain mb-6" />
+
               {/* AI Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full mb-6">
                 <Sparkles className="w-4 h-4" />

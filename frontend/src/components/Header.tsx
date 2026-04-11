@@ -11,7 +11,6 @@ import {
   X, 
   User, 
   LogOut, 
-  GraduationCap,
   LayoutDashboard,
   ChevronDown,
   ArrowRight
@@ -71,9 +70,7 @@ const Header: React.FC<HeaderProps> = ({ onOpenAuth }) => {
           <div className="flex items-center justify-between h-[72px]">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-                <GraduationCap className="w-6 h-6 text-white" />
-              </div>
+              <img src="/logo-blue.png" alt="ISKOlarship" className="w-12 h-12 object-contain group-hover:scale-105 transition-transform" />
               <div className="hidden sm:block">
                 <span className="text-xl font-display font-bold text-slate-800">
                   ISKO<span className="text-primary-600">larship</span>

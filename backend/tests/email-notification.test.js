@@ -236,7 +236,7 @@ test('all templates produce valid HTML with DOCTYPE', () => {
     assert.ok(html.includes('<!DOCTYPE html>'), 'Should start with DOCTYPE');
     assert.ok(html.includes('</html>'), 'Should close html tag');
     assert.ok(html.includes('ISKOlarship'), 'Should have ISKOlarship branding');
-    assert.ok(html.includes('🎓'), 'Should have graduation cap emoji');
+    assert.ok(html.includes('logo-white.png'), 'Should have logo image');
   }
 });
 
