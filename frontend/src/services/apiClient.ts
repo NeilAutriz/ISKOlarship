@@ -896,6 +896,15 @@ export const predictionApi = {
 // ============================================================================
 
 export const statisticsApi = {
+  getPublic: async () => {
+    const response = await api.get<ApiResponse<{
+      totalStudents: number;
+      totalScholarships: number;
+      approvedApplications: number;
+      approvalRate: number;
+    }>>('/statistics/public');
+    return response.data;
+  },
   getOverview: async () => {
     const response = await api.get<ApiResponse<{
       overview: {

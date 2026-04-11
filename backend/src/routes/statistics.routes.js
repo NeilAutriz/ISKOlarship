@@ -20,6 +20,37 @@ const {
 // =============================================================================
 
 /**
+ * @route   GET /api/statistics/public
+ * @desc    Get basic platform stats for the public homepage (no auth required)
+ * @access  Public
+ */
+router.get('/public', async (req, res) => {
+  try {
+    const [totalStudents, totalScholarships, approvedApplications, totalApplications] = await Promise.all([
+      User.countDocuments({ role: 'student' }),
+      Scholarship.countDocuments({ status: 'active' }),
+      Application.countDocuments({ status: 'approved' }),
+      Application.countDocuments({ status: { $in: ['approved', 'rejected', 'submitted', 'under_review', 'shortlisted'] } })
+    ]);
+
+    const approvalRate = totalApplications > 0 ? Math.round((approvedApplications / totalApplications) * 100) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        totalStudents,
+        totalScholarships,
+        approvedApplications,
+        approvalRate
+      }
+    });
+  } catch (error) {
+    console.error('Public stats error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
+  }
+});
+
+/**
  * @route   GET /api/statistics/overview
  * @desc    Get platform-wide statistics (scoped to admin's scholarships)
  * @access  Admin (was previously public — now requires auth)

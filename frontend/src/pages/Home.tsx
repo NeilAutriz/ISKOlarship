@@ -18,7 +18,6 @@ import {
   Bell,
   Users,
   Award,
-  TrendingUp,
   ArrowRight,
   ChevronRight,
   Star,
@@ -62,7 +61,7 @@ const Home: React.FC = () => {
     totalScholarships: 0,
     totalFunding: 0,
     activeStudents: 0,
-    successRate: 0
+    approvedApplications: 0
   });
 
   // Fetch data from API
@@ -80,20 +79,18 @@ const Home: React.FC = () => {
           }));
         }
         
-        // Try to fetch platform stats (admin-only endpoint)
-        if (userRole === 'admin') {
-          try {
-            const statsRes = await statisticsApi.getOverview();
-            if (statsRes.success && statsRes.data) {
-              setStats(prev => ({
-                ...prev,
-                activeStudents: statsRes.data.overview?.totalStudents || 0,
-                successRate: statsRes.data.overview?.successRate ?? 0
-              }));
-            }
-          } catch {
-            // Use default values
+        // Fetch public platform stats
+        try {
+          const publicStats = await statisticsApi.getPublic();
+          if (publicStats.success && publicStats.data) {
+            setStats(prev => ({
+              ...prev,
+              activeStudents: publicStats.data.totalStudents || 0,
+              approvedApplications: publicStats.data.approvedApplications || 0
+            }));
           }
+        } catch {
+          // Use default values
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -101,7 +98,7 @@ const Home: React.FC = () => {
     };
 
     fetchData();
-  }, [userRole]);
+  }, []);
 
   // Featured scholarships (top 6)
   const featuredScholarships = scholarships.slice(0, 6);
@@ -245,13 +242,13 @@ const Home: React.FC = () => {
                 <div className="text-white/70 text-sm sm:text-base">Total Awards</div>
               </div>
 
-              {/* Success Rate */}
+              {/* Approved Applications */}
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-white/20">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-500 rounded-xl flex items-center justify-center mb-3 sm:mb-4">
-                  <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div className="text-2xl sm:text-3xl font-bold text-white">{stats.successRate > 0 ? `${Math.round(stats.successRate)}%` : '—'}</div>
-                <div className="text-white/70 text-sm sm:text-base">Success Rate</div>
+                <div className="text-2xl sm:text-3xl font-bold text-white">{stats.approvedApplications > 0 ? `${stats.approvedApplications.toLocaleString()}+` : '—'}</div>
+                <div className="text-white/70 text-sm sm:text-base">Approved Applications</div>
               </div>
             </div>
           </div>
@@ -341,8 +338,8 @@ const Home: React.FC = () => {
                     <Award className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-slate-900">{stats.successRate > 0 ? `${Math.round(stats.successRate)}%` : '—'}</div>
-                    <div className="text-sm text-slate-500">Match Accuracy</div>
+                    <div className="text-2xl font-bold text-slate-900">{stats.approvedApplications > 0 ? `${stats.approvedApplications.toLocaleString()}+` : '—'}</div>
+                    <div className="text-sm text-slate-500">Approved Awards</div>
                   </div>
                 </div>
               </div>
