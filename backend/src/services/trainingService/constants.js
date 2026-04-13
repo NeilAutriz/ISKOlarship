@@ -27,7 +27,7 @@ const TRAINING_CONFIG = {
   regularization: 0.0001,    // Very light regularization
   trainTestSplit: 0.8,
   minSamplesGlobal: 50,
-  minSamplesPerScholarship: 30,
+  minSamplesPerScholarship: 20,
   convergenceThreshold: 0.00001,
   earlyStoppingPatience: 50, // More patience
   kFolds: 5,                 // 5-fold cross-validation for consistent results
