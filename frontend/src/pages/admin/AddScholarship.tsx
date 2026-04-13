@@ -198,7 +198,6 @@ interface ScholarshipFormData {
     mustNotHaveGradeOf4: boolean;
     mustNotHaveIncompleteGrade: boolean;
     mustBeGraduating: boolean;
-    additionalRequirements: Array<{ description: string; isRequired: boolean }>;
   };
   // Custom conditions for dynamic eligibility
   customConditions: CustomCondition[];
@@ -243,8 +242,7 @@ const initialFormData: ScholarshipFormData = {
     mustNotHaveFailingGrade: false,
     mustNotHaveGradeOf4: false,
     mustNotHaveIncompleteGrade: false,
-    mustBeGraduating: false,
-    additionalRequirements: []
+    mustBeGraduating: false
   },
   customConditions: [],
   requiredDocuments: [],
@@ -278,7 +276,7 @@ const AddScholarship: React.FC = () => {
   const [availableCourses, setAvailableCourses] = useState<string[]>([]);
   
   // Custom inputs
-  const [customRequirement, setCustomRequirement] = useState({ description: '', isRequired: true });
+
   const [customDocument, setCustomDocument] = useState({ name: '', description: '', isRequired: true, fileType: 'any' as 'any' | 'pdf' | 'image' | 'text' });
   
   // Custom condition builder state
@@ -358,19 +356,6 @@ const AddScholarship: React.FC = () => {
             return date.toISOString().split('T')[0];
           };
           
-          // Map additional requirements to proper format
-          const mapAdditionalRequirements = (requirements: any): Array<{ description: string; isRequired: boolean }> => {
-            if (!requirements || !Array.isArray(requirements)) return [];
-            return requirements.map((req: any) => {
-              if (typeof req === 'string') {
-                return { description: req, isRequired: true };
-              }
-              return { 
-                description: req.description || '', 
-                isRequired: req.isRequired !== undefined ? req.isRequired : true 
-              };
-            });
-          };
           
           // Map required documents with proper defaults
           const mapRequiredDocuments = (docs: any): Array<{ name: string; description: string; isRequired: boolean; fileType?: 'any' | 'pdf' | 'image' | 'text' }> => {
@@ -426,8 +411,7 @@ const AddScholarship: React.FC = () => {
                 scholarship.eligibilityCriteria?.noFailingGrades || false,
               mustNotHaveGradeOf4: scholarship.eligibilityCriteria?.mustNotHaveGradeOf4 || false,
               mustNotHaveIncompleteGrade: scholarship.eligibilityCriteria?.mustNotHaveIncompleteGrade || false,
-              mustBeGraduating: scholarship.eligibilityCriteria?.mustBeGraduating || false,
-              additionalRequirements: mapAdditionalRequirements(scholarship.eligibilityCriteria?.additionalRequirements)
+              mustBeGraduating: scholarship.eligibilityCriteria?.mustBeGraduating || false
             },
             // Load custom conditions (from eligibilityCriteria or top-level for backward compatibility)
             customConditions: (() => {
@@ -570,21 +554,7 @@ const AddScholarship: React.FC = () => {
     }));
   };
 
-  const addCustomRequirement = () => {
-    if (customRequirement.description.trim()) {
-      handleEligibilityChange('additionalRequirements', [
-        ...formData.eligibilityCriteria.additionalRequirements,
-        customRequirement
-      ]);
-      setCustomRequirement({ description: '', isRequired: true });
-    }
-  };
 
-  const removeRequirement = (index: number) => {
-    handleEligibilityChange('additionalRequirements',
-      formData.eligibilityCriteria.additionalRequirements.filter((_, i) => i !== index)
-    );
-  };
 
   // ============================================================================
   // Custom Condition Management
@@ -1147,9 +1117,6 @@ const AddScholarship: React.FC = () => {
           mustNotHaveGradeOf4: formData.eligibilityCriteria.mustNotHaveGradeOf4,
           mustNotHaveIncompleteGrade: formData.eligibilityCriteria.mustNotHaveIncompleteGrade,
           mustBeGraduating: formData.eligibilityCriteria.mustBeGraduating,
-          
-          // Additional custom requirements (text-based, manual verification)
-          additionalRequirements: formData.eligibilityCriteria.additionalRequirements,
           
           // Custom conditions for dynamic eligibility (auto-evaluated)
           customConditions: formData.customConditions.filter(c => c.isActive)
@@ -2048,59 +2015,6 @@ const AddScholarship: React.FC = () => {
                           <span className="text-sm font-medium text-slate-700">{label}</span>
                         </label>
                       ))}
-                    </div>
-                  </div>
-
-                  {/* Additional Requirements */}
-                  <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
-                    <h3 className="text-base font-semibold text-slate-800 mb-4">Additional Requirements</h3>
-                    
-                    {formData.eligibilityCriteria.additionalRequirements.length > 0 && (
-                      <div className="space-y-2 mb-4">
-                        {formData.eligibilityCriteria.additionalRequirements.map((req, index) => (
-                          <div key={index} className="flex items-start gap-2 px-4 py-3 bg-white rounded-lg border border-slate-300">
-                            <div className="flex-1">
-                              <p className="text-sm text-slate-700">{req.description}</p>
-                              <p className="text-xs text-slate-500 mt-1">
-                                {req.isRequired ? 'Required' : 'Optional'}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeRequirement(index)}
-                              className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={customRequirement.description}
-                        onChange={(e) => setCustomRequirement({ ...customRequirement, description: e.target.value })}
-                        className="flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
-                        placeholder="Enter additional requirement..."
-                      />
-                      <select
-                        value={customRequirement.isRequired.toString()}
-                        onChange={(e) => setCustomRequirement({ ...customRequirement, isRequired: e.target.value === 'true' })}
-                        className="px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
-                      >
-                        <option value="true">Required</option>
-                        <option value="false">Optional</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={addCustomRequirement}
-                        className="px-5 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all flex items-center gap-2"
-                      >
-                        <Plus className="w-5 h-5" />
-                        Add
-                      </button>
                     </div>
                   </div>
 

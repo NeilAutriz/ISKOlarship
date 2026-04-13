@@ -1000,18 +1000,22 @@ router.put('/:id',
         keptDocuments = application.documents || [];
       }
 
-      // Process new uploaded files
+      // Process new uploaded files — upload to Cloudinary
       const namesArray = Array.isArray(documentNames) ? documentNames : [documentNames].filter(Boolean);
       const typesArray = Array.isArray(documentTypes) ? documentTypes : [documentTypes].filter(Boolean);
 
+      const cloudinaryResults = uploadedFiles.length > 0
+        ? await uploadFilesToCloudinary(uploadedFiles, req.user._id.toString())
+        : [];
+
       const newDocuments = uploadedFiles.map((file, index) => {
-        const userId = req.user._id.toString();
-        const relativePath = `documents/${userId}/${file.filename}`;
+        const cloudResult = cloudinaryResults[index];
 
         return {
           name: namesArray[index] || 'Uploaded Document',
           documentType: typesArray[index] || 'other',
-          filePath: relativePath,
+          url: cloudResult.url,
+          cloudinaryPublicId: cloudResult.publicId,
           fileName: file.originalname,
           fileSize: file.size,
           mimeType: file.mimetype,
