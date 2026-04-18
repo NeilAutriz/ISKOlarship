@@ -54,7 +54,8 @@ export const matchStudentToScholarships = (
       passed: check.passed,
       studentValue: check.studentValue,
       requiredValue: check.requiredValue,
-      importance: check.importance === ImportanceLevel.REQUIRED ? 'required' : 'preferred'
+      importance: check.importance === ImportanceLevel.REQUIRED ? 'required' : 'preferred',
+      ...((check as any).isCustom ? { isCustom: true } : {})
     }));
     
     // Calculate compatibility score with bonuses

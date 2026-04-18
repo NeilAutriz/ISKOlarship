@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { userApi, API_SERVER_URL } from '../../services/apiClient';
 import { UPLBCollege } from '../../types';
+import { useAuth } from '../../App';
 
 // API Response structure from backend
 interface StudentProfileData {
@@ -241,6 +242,7 @@ const provinceOptions = [
 ];
 
 const StudentProfile: React.FC = () => {
+  const authContext = useAuth();
   const [activeSection, setActiveSection] = useState<'personal' | 'academic' | 'financial' | 'documents' | 'notifications' | 'security'>('personal');
   const [profile, setProfile] = useState<StudentProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -749,6 +751,7 @@ const StudentProfile: React.FC = () => {
                   citizenship: sp?.citizenship || '',
                   hasExistingScholarship: sp?.hasExistingScholarship ?? false,
                   hasThesisGrant: sp?.hasThesisGrant ?? false,
+                  hasApprovedThesisOutline: sp?.hasApprovedThesisOutline ?? false,
                   hasDisciplinaryAction: sp?.hasDisciplinaryAction ?? false,
                   homeAddress: {
                     street: sp?.homeAddress?.street || '',
@@ -1716,6 +1719,23 @@ const StudentProfile: React.FC = () => {
                       <div className="flex items-start gap-3">
                         <input
                           type="checkbox"
+                          id="hasApprovedThesisOutline"
+                          checked={editFormData.hasApprovedThesisOutline}
+                          onChange={(e) => setEditFormData({...editFormData, hasApprovedThesisOutline: e.target.checked})}
+                          className="mt-0.5 w-5 h-5 text-primary-600 focus:ring-primary-500 border-slate-300 rounded"
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="hasApprovedThesisOutline" className="text-sm font-semibold text-slate-900 block mb-1 cursor-pointer">
+                            Has Approved Thesis Outline
+                          </label>
+                          <p className="text-xs text-slate-600">Check this if your thesis/SP outline has been approved by your adviser/department (required by some research grants)</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
                           id="hasDisciplinaryAction"
                           checked={editFormData.hasDisciplinaryAction}
                           onChange={(e) => setEditFormData({...editFormData, hasDisciplinaryAction: e.target.checked})}
@@ -1774,6 +1794,7 @@ const StudentProfile: React.FC = () => {
                         citizenship: editFormData.citizenship || undefined,
                         hasExistingScholarship: editFormData.hasExistingScholarship,
                         hasThesisGrant: editFormData.hasThesisGrant,
+                        hasApprovedThesisOutline: editFormData.hasApprovedThesisOutline,
                         hasDisciplinaryAction: editFormData.hasDisciplinaryAction,
                         homeAddress: editFormData.homeAddress
                       }
@@ -1789,13 +1810,25 @@ const StudentProfile: React.FC = () => {
                       }
                       
                       // Also re-fetch fresh profile to ensure consistency
+                      let freshProfile: any = null;
                       try {
                         const profileResponse = await userApi.getProfile();
                         if (profileResponse.success && profileResponse.data) {
-                          setProfile(profileResponse.data as unknown as StudentProfileData);
+                          freshProfile = profileResponse.data;
+                          setProfile(freshProfile as unknown as StudentProfileData);
                         }
                       } catch {
                         // Ignore — we already applied the update response above
+                      }
+                      
+                      // Sync AuthContext so other pages (Scholarships, Details) see fresh data
+                      try {
+                        const profileData = freshProfile || response.data;
+                        if (profileData) {
+                          authContext.updateProfile(profileData as any);
+                        }
+                      } catch {
+                        // Non-critical — eligibility will refresh on next full page load
                       }
                       
                       // Refresh completeness

@@ -214,11 +214,16 @@ api.interceptors.response.use(
         const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
           refreshToken,
         });
-        
-        const { accessToken: newAccessToken } = response.data.data;
-        accessToken = newAccessToken;
-        localStorage.setItem('accessToken', newAccessToken);
-        
+
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data.data;
+        // Server rotates refresh tokens — persist the new one if provided
+        if (newRefreshToken) {
+          setTokens(newAccessToken, newRefreshToken);
+        } else {
+          accessToken = newAccessToken;
+          localStorage.setItem('accessToken', newAccessToken);
+        }
+
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
@@ -342,8 +347,10 @@ export const authApi = {
   },
 
   logout: async () => {
+    // Read refresh token from storage directly to avoid stale closure
+    const currentRefreshToken = localStorage.getItem('refreshToken');
     try {
-      await api.post('/auth/logout', { refreshToken });
+      await api.post('/auth/logout', { refreshToken: currentRefreshToken });
     } finally {
       clearTokens();
     }

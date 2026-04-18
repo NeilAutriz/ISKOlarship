@@ -36,6 +36,10 @@ const Scholarships: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [showAll, setShowAll] = useState(false);
+  // Independent of `filters.showEligibleOnly` — true only when the "All Eligible"
+  // button is active. "Eligible Only" filters within the current page; this mode
+  // expands the fetch to all scholarships and filters eligible across the full set.
+  const [allEligibleMode, setAllEligibleMode] = useState(false);
   const [filters, setFilters] = useState<FilterCriteria>(() => ({
     searchQuery: searchParams.get('search') || '',
     scholarshipTypes: [],
@@ -54,6 +58,13 @@ const Scholarships: React.FC = () => {
       return prev;
     });
   }, [searchParams]);
+
+  // Refresh the cached user once on mount so eligibility reflects any profile
+  // changes made elsewhere (profile page, admin edits, another tab, etc.)
+  useEffect(() => {
+    authContext?.refreshUser?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Track student's existing application statuses per scholarship
@@ -142,15 +153,12 @@ const Scholarships: React.FC = () => {
   }, [filters.searchQuery, currentPage, showAll]);  // re-fetch when page, search, or showAll changes
 
   // Handle filter changes
+  // Note: `showEligibleOnly` deliberately does NOT toggle `showAll` — that filter
+  // applies only to the current pagination set. Use the "All Eligible" button to
+  // search eligible scholarships across all pages.
   const handleFilterChange = (newFilters: Partial<FilterCriteria>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
     setCurrentPage(1);
-    // When enabling eligible-only, fetch all scholarships so we can check eligibility across the full list
-    if (newFilters.showEligibleOnly === true) {
-      setShowAll(true);
-    } else if (newFilters.showEligibleOnly === false) {
-      setShowAll(false);
-    }
   };
 
   // Handle search
@@ -175,6 +183,7 @@ const Scholarships: React.FC = () => {
     });
     setCurrentPage(1);
     setShowAll(false);
+    setAllEligibleMode(false);
     setSearchParams({});
   };
 
@@ -184,35 +193,31 @@ const Scholarships: React.FC = () => {
   };
 
   // Reset to page 1 when local filters change (type, college, yearLevel, amount)
-  // These are client-side filters applied on the current page's data
-  // Note: showEligibleOnly is excluded because it's managed by handleShowAllEligible
+  // These are client-side filters applied on the current page's data.
+  // Also exit "All Eligible" mode so the user sees their newly-applied filters
+  // against the normal paginated view.
   useEffect(() => {
     setCurrentPage(1);
     setShowAll(false);
+    setAllEligibleMode(false);
   }, [filters.scholarshipTypes, filters.colleges, filters.yearLevels, filters.minAmount, filters.maxAmount]);
 
   const handleToggleShowAll = () => {
-    if (showAll) {
-      setShowAll(false);
-      setCurrentPage(1);
-    } else {
-      setShowAll(true);
-      setCurrentPage(1);
-    }
+    setShowAll(prev => !prev);
+    setAllEligibleMode(false);
+    setCurrentPage(1);
   };
 
+  // "All Eligible" is independent from the "Eligible Only" filter chip.
+  // Activating it expands the fetch to all scholarships and applies an
+  // eligibility filter for display, without touching `filters.showEligibleOnly`.
   const handleShowAllEligible = () => {
-    const isActive = showAll && filters.showEligibleOnly;
-    if (isActive) {
-      // Toggle off
-      setShowAll(false);
-      setFilters(prev => ({ ...prev, showEligibleOnly: false }));
+    setAllEligibleMode(prev => {
+      const next = !prev;
+      setShowAll(next);
       setCurrentPage(1);
-    } else {
-      setShowAll(true);
-      setFilters(prev => ({ ...prev, showEligibleOnly: true }));
-      setCurrentPage(1);
-    }
+      return next;
+    });
   };
 
   // Compute eligibility match results once for use in filtering and display
@@ -225,11 +230,15 @@ const Scholarships: React.FC = () => {
     }));
   }, [studentUser, scholarships]);
 
+  // Eligibility filter is active when EITHER the per-page "Eligible Only" chip
+  // is on, OR the cross-page "All Eligible" mode is active.
+  const eligibilityFilterActive = filters.showEligibleOnly || allEligibleMode;
+
   // Filter scholarships locally (for filters not handled by API)
   const filteredScholarships = useMemo(() => {
     return scholarships.filter(s => {
       // Apply eligible-only filter using local match results
-      if (filters.showEligibleOnly && studentUser) {
+      if (eligibilityFilterActive && studentUser) {
         const id = s.id || (s as any)._id;
         const result = matchResults.get(id);
         if (!result?.isEligible) return false;
@@ -274,7 +283,7 @@ const Scholarships: React.FC = () => {
 
       return true;
     });
-  }, [scholarships, filters, studentUser, matchResults]);
+  }, [scholarships, filters, studentUser, matchResults, eligibilityFilterActive]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
@@ -336,7 +345,7 @@ const Scholarships: React.FC = () => {
             onClearFilters={clearFilters}
             showEligibleToggle={!!user}
             onShowAllEligible={studentUser ? handleShowAllEligible : undefined}
-            showAllEligibleActive={showAll && filters.showEligibleOnly}
+            showAllEligibleActive={allEligibleMode}
             resultCount={filteredScholarships.length}
             totalCount={pagination.total}
             className="mb-8"
@@ -421,7 +430,7 @@ const Scholarships: React.FC = () => {
                 showFilters={false}
                 showViewToggle={false}
                 viewMode={viewMode}
-                showEligibleOnly={filters.showEligibleOnly}
+                showEligibleOnly={eligibilityFilterActive}
                 applicationStatuses={applicationStatuses}
                 title={undefined}
                 emptyMessage={

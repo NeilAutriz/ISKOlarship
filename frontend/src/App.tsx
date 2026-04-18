@@ -65,6 +65,7 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
   openAuthModal: () => void;
 }
 
@@ -184,6 +185,22 @@ const App: React.FC = () => {
   const updateProfile = (updates: Partial<User>) => {
     if (user) {
       setUser({ ...user, ...updates } as User);
+    }
+  };
+
+  // Re-fetch the current user from the backend and replace the cached user
+  // object. Pages that depend on fresh profile data (e.g. Scholarships listing
+  // for eligibility) call this on mount to avoid stale state.
+  const refreshUser = async () => {
+    try {
+      const response = await authApi.getMe();
+      if (response.success && response.data?.user) {
+        const fresh = response.data.user as User;
+        setUser(fresh);
+        setUserRole(fresh.role);
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
     }
   };
 
@@ -607,6 +624,7 @@ const App: React.FC = () => {
     login,
     logout,
     updateProfile,
+    refreshUser,
     openAuthModal: handleOpenAuthModal
   };
 

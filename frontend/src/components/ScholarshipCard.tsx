@@ -610,31 +610,33 @@ const ScholarshipCard: React.FC<ScholarshipCardProps> = ({
         })()}
 
         {/* Failed Criteria */}
-        {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && 
-         matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 0 && (
-          <div className="bg-red-50 rounded-xl p-3 sm:p-4 mb-4 border border-red-100">
-            <div className="flex items-center gap-1.5 sm:gap-2 text-red-700 mb-1.5 sm:mb-2">
-              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="text-xs sm:text-sm font-semibold">Requirements Not Met:</span>
-            </div>
-            <ul className="space-y-1 sm:space-y-1.5">
-              {matchResult.eligibilityDetails
-                .filter((detail: any) => !detail.passed)
-                .slice(0, 3)
-                .map((detail: any, index: number) => (
-                  <li key={index} className="text-xs sm:text-sm text-red-600 flex items-start gap-1.5 sm:gap-2">
-                    <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
-                    <span>{detail.criterion}</span>
+        {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && (() => {
+          const failedStandard = matchResult.eligibilityDetails.filter((d: any) => !d.passed && !d.isCustom);
+          if (failedStandard.length === 0) return null;
+          return (
+            <div className="bg-red-50 rounded-xl p-3 sm:p-4 mb-4 border border-red-100">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-red-700 mb-1.5 sm:mb-2">
+                <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm font-semibold">Requirements Not Met:</span>
+              </div>
+              <ul className="space-y-1 sm:space-y-1.5">
+                {failedStandard
+                  .slice(0, 3)
+                  .map((detail: any, index: number) => (
+                    <li key={index} className="text-xs sm:text-sm text-red-600 flex items-start gap-1.5 sm:gap-2">
+                      <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 mt-0.5 flex-shrink-0" />
+                      <span>{detail.criterion}</span>
+                    </li>
+                  ))}
+                {failedStandard.length > 3 && (
+                  <li className="text-sm text-red-500 italic pl-6">
+                    +{failedStandard.length - 3} more requirements
                   </li>
-                ))}
-              {matchResult.eligibilityDetails.filter((d: any) => !d.passed).length > 3 && (
-                <li className="text-sm text-red-500 italic pl-6">
-                  +{matchResult.eligibilityDetails.filter((d: any) => !d.passed).length - 3} more requirements
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
+                )}
+              </ul>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Footer - Always at bottom */}

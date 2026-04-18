@@ -382,6 +382,13 @@ const userSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
+
+    // Approved thesis outline (for requiresApprovedThesisOutline criteria,
+    // typically asked by research/thesis grants)
+    hasApprovedThesisOutline: {
+      type: Boolean,
+      default: false
+    },
     
     // Academic standing flag (for mustNotHaveDisciplinaryAction criteria)
     hasDisciplinaryAction: {

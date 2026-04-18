@@ -520,9 +520,20 @@ router.post('/',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        // Group validation errors by field for clearer feedback
+        const fieldErrors = {};
+        errors.array().forEach(err => {
+          const field = err.path || err.param || 'unknown';
+          if (!fieldErrors[field]) fieldErrors[field] = [];
+          fieldErrors[field].push(err.msg);
+        });
+
         return res.status(400).json({
           success: false,
-          errors: errors.array()
+          message: 'Scholarship validation failed. Please correct the following fields.',
+          errors: errors.array(),
+          fieldErrors,
+          hint: 'Required fields: name, description, sponsor, type, applicationDeadline, academicYear, semester'
         });
       }
 
@@ -535,8 +546,8 @@ router.post('/',
       if (!adminLevel) {
         return res.status(403).json({
           success: false,
-          message: 'Your admin profile is not properly configured',
-          hint: 'Please ensure your access level is set in your admin profile'
+          message: 'Your admin profile is not properly configured. Missing access level assignment.',
+          hint: 'Contact the system administrator to ensure your account has an accessLevel (university, college, or academic_unit) configured in your admin profile.'
         });
       }
 
@@ -551,6 +562,21 @@ router.post('/',
       switch (adminLevel) {
         case 'university':
           // University admin can create any level scholarship
+          // Validate that college/academic_unit level scholarships have required codes
+          if (scholarshipLevel === 'college' && !managingCollegeCode) {
+            return res.status(400).json({
+              success: false,
+              message: 'College-level scholarship requires a managingCollegeCode',
+              hint: 'Provide managingCollegeCode (e.g., "CAS", "CEAT", "CEM") when creating a college-level scholarship.'
+            });
+          }
+          if (scholarshipLevel === 'academic_unit' && (!managingCollegeCode || !managingAcademicUnitCode)) {
+            return res.status(400).json({
+              success: false,
+              message: 'Academic unit-level scholarship requires both managingCollegeCode and managingAcademicUnitCode',
+              hint: 'Provide managingCollegeCode (e.g., "CAS") and managingAcademicUnitCode (e.g., "ICS", "IMSP").'
+            });
+          }
           break;
 
         case 'college':
@@ -558,8 +584,16 @@ router.post('/',
           if (scholarshipLevel !== 'college') {
             return res.status(403).json({
               success: false,
-              message: 'College admins can only create college-level scholarships',
-              hint: 'Set scholarshipLevel to "college". Academic unit scholarships should be created by academic unit admins.'
+              message: `College admins can only create college-level scholarships. You requested "${scholarshipLevel}" level.`,
+              hint: 'Set scholarshipLevel to "college". Academic unit scholarships should be created by academic unit admins.',
+              yourScope: { level: adminLevel, collegeCode: adminCollegeCode }
+            });
+          }
+          if (!adminCollegeCode) {
+            return res.status(403).json({
+              success: false,
+              message: 'Your admin profile is missing a collegeCode assignment',
+              hint: 'Contact a university admin to assign your collegeCode before creating scholarships.'
             });
           }
           // Force managing college to admin's college
@@ -571,14 +605,29 @@ router.post('/',
           if (scholarshipLevel !== 'academic_unit') {
             return res.status(403).json({
               success: false,
-              message: 'Academic unit admins can only create academic unit-level scholarships',
-              hint: 'Set scholarshipLevel to "academic_unit"'
+              message: `Academic unit admins can only create academic unit-level scholarships. You requested "${scholarshipLevel}" level.`,
+              hint: 'Set scholarshipLevel to "academic_unit"',
+              yourScope: { level: adminLevel, collegeCode: adminCollegeCode, academicUnitCode: adminAcademicUnitCode }
+            });
+          }
+          if (!adminCollegeCode || !adminAcademicUnitCode) {
+            return res.status(403).json({
+              success: false,
+              message: 'Your admin profile is missing collegeCode or academicUnitCode assignment',
+              hint: 'Contact a university admin to assign your collegeCode and academicUnitCode before creating scholarships.'
             });
           }
           // Force managing college and academic unit to admin's values
           managingCollegeCode = adminCollegeCode;
           managingAcademicUnitCode = adminAcademicUnitCode;
           break;
+
+        default:
+          return res.status(403).json({
+            success: false,
+            message: `Unknown admin access level: "${adminLevel}"`,
+            hint: 'Valid access levels are: university, college, academic_unit. Contact system administrator.'
+          });
       }
 
       // Normalize scholarship type if provided (handle old format -> new format)
@@ -641,6 +690,62 @@ router.post('/',
           eligibleClassifications: req.body?.eligibilityCriteria?.eligibleClassifications
         }
       });
+
+      // Handle Mongoose validation errors with field-specific messages
+      if (error.name === 'ValidationError') {
+        const fieldErrors = {};
+        const errorDetails = [];
+        for (const [field, err] of Object.entries(error.errors)) {
+          fieldErrors[field] = err.message;
+          errorDetails.push({
+            field,
+            message: err.message,
+            value: err.value,
+            kind: err.kind // e.g., 'required', 'enum', 'maxlength', 'min', 'max'
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Scholarship creation failed: ${errorDetails.length} field(s) have errors`,
+          fieldErrors,
+          errors: errorDetails,
+          hint: 'Check each field error message for details on what needs to be corrected.'
+        });
+      }
+
+      // Handle duplicate key errors (e.g. duplicate scholarship name for same period)
+      if (error.code === 11000) {
+        const duplicateField = Object.keys(error.keyPattern || {})[0] || 'unknown field';
+        return res.status(409).json({
+          success: false,
+          message: `A scholarship with this ${duplicateField} already exists`,
+          field: duplicateField,
+          hint: 'Use a unique name or check existing scholarships for the same academic period.'
+        });
+      }
+
+      // Handle scope validation errors from pre-save hook
+      if (error.message && (
+        error.message.includes('does not belong to college') ||
+        error.message.includes('must have a managing')
+      )) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+          hint: 'Ensure the managingCollegeCode and managingAcademicUnitCode are valid and the academic unit belongs to the specified college.'
+        });
+      }
+
+      // Handle MongoDB cast errors (e.g., invalid ObjectId, wrong types)
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid value for field "${error.path}": expected ${error.kind}`,
+          field: error.path,
+          hint: `The value "${error.value}" is not a valid ${error.kind}.`
+        });
+      }
+
       next(error);
     }
   }

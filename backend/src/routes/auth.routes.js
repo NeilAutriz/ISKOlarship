@@ -69,8 +69,16 @@ const generateRefreshToken = (userId) => {
   return jwt.sign(
     { userId, type: 'refresh' },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '7d' }
   );
+};
+
+// Keep only the 5 most recent refresh tokens per user to prevent unbounded growth
+const MAX_REFRESH_TOKENS_PER_USER = 5;
+const pruneRefreshTokens = (user) => {
+  if (user.refreshTokens.length > MAX_REFRESH_TOKENS_PER_USER) {
+    user.refreshTokens = user.refreshTokens.slice(-MAX_REFRESH_TOKENS_PER_USER);
+  }
 };
 
 // =============================================================================
@@ -205,6 +213,7 @@ router.post('/register', registerValidation, async (req, res, next) => {
 
     // Update user with refresh token
     user.refreshTokens.push({ token: refreshToken });
+    pruneRefreshTokens(user);
     user.lastLoginAt = new Date();
     await user.save();
 
@@ -235,6 +244,33 @@ router.post('/register', registerValidation, async (req, res, next) => {
       }
     });
   } catch (error) {
+    // Translate Mongoose schema validation into field-level errors
+    if (error.name === 'ValidationError') {
+      const fieldErrors = {};
+      Object.keys(error.errors).forEach(field => {
+        fieldErrors[field] = error.errors[field].message;
+      });
+      const firstField = Object.keys(fieldErrors)[0];
+      return res.status(400).json({
+        success: false,
+        message: fieldErrors[firstField] || 'Please check your registration details and try again',
+        fieldErrors
+      });
+    }
+
+    // Handle race condition: another request created this email between
+    // the existence check and save()
+    if (error.code === 11000) {
+      const duplicateField = Object.keys(error.keyPattern || {})[0] || 'email';
+      return res.status(409).json({
+        success: false,
+        message: duplicateField === 'email'
+          ? 'An account with this email already exists. Please sign in instead.'
+          : `An account with this ${duplicateField} already exists.`,
+        fieldErrors: { [duplicateField]: 'Already in use' }
+      });
+    }
+
     next(error);
   }
 });
@@ -406,6 +442,7 @@ router.post('/verify-otp', [
     // Re-fetch user without select: false fields for session update
     const freshUser = await User.findById(user._id);
     freshUser.refreshTokens.push({ token: refreshToken });
+    pruneRefreshTokens(freshUser);
     freshUser.lastLoginAt = new Date();
     await freshUser.save();
 
@@ -670,12 +707,18 @@ router.post('/refresh', async (req, res, next) => {
       });
     }
 
-    // Generate new access token
+    // Rotate tokens: invalidate the used refresh token and issue a new pair.
+    // This limits the window of abuse if a refresh token is leaked.
+    user.refreshTokens = user.refreshTokens.filter(t => t.token !== refreshToken);
     const accessToken = generateToken(user._id);
+    const newRefreshToken = generateRefreshToken(user._id);
+    user.refreshTokens.push({ token: newRefreshToken });
+    pruneRefreshTokens(user);
+    await user.save();
 
     res.json({
       success: true,
-      data: { accessToken }
+      data: { accessToken, refreshToken: newRefreshToken }
     });
   } catch (error) {
     next(error);

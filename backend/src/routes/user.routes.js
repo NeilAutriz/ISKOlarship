@@ -150,6 +150,7 @@ router.put('/profile',
           'hasExistingScholarship',
           'existingScholarshipName',
           'hasThesisGrant',
+          'hasApprovedThesisOutline',
           'hasDisciplinaryAction',
           'profileCompleted',
           'customFields'  // Custom fields for scholarship-specific requirements

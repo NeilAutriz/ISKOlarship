@@ -126,6 +126,7 @@ export interface ConditionResult {
   category: ConditionCategory;
   importance: ImportanceLevel;
   type: ConditionType;
+  isCustom?: boolean;
 }
 
 export interface EligibilityResult {
@@ -836,7 +837,8 @@ function processCustomConditions(
       requiredValue: formattedRequiredValue,
       category: categoryMap[condition.category] || ConditionCategory.STATUS,
       importance,
-      type: condition.conditionType as unknown as ConditionType
+      type: condition.conditionType as unknown as ConditionType,
+      isCustom: true
     });
   }
 

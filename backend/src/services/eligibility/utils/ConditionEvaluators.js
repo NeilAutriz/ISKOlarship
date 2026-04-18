@@ -57,11 +57,13 @@ function getNestedValue(obj, path) {
     const key = keys[i];
     if (current === null || current === undefined) return undefined;
     
-    // Handle MongoDB Maps (customFields is stored as Map)
+    // Handle MongoDB Maps (e.g. customFields stored as a Map). Note: we
+    // intentionally do NOT use the generic `typeof current.get === 'function'`
+    // fallback because Mongoose Documents and embedded subdocuments expose a
+    // `.get(path)` method that does NOT resolve top-level subdoc fields the
+    // same way as bracket access — using it would return undefined for valid
+    // fields like `hasApprovedThesisOutline`.
     if (current instanceof Map) {
-      current = current.get(key);
-    } else if (typeof current.get === 'function' && key !== 'get') {
-      // Also handle Map-like objects
       current = current.get(key);
     } else {
       current = current[key];

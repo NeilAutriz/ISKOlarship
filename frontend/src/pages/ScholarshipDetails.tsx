@@ -95,6 +95,13 @@ const ScholarshipDetails: React.FC = () => {
   // State for existing application check
   const [existingApplication, setExistingApplication] = useState<Application | null>(null);
 
+  // Refresh the cached user once on mount so eligibility reflects any profile
+  // changes made elsewhere (profile page, admin edits, another tab, etc.)
+  useEffect(() => {
+    authContext?.refreshUser?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch existing application for this scholarship (if student is logged in)
   useEffect(() => {
     let isMounted = true;
@@ -481,6 +488,33 @@ const ScholarshipDetails: React.FC = () => {
                 Eligibility Requirements
               </h2>
 
+              {/* Requirements Not Met — mirrors the panel shown on the scholarship card.
+                  Lists every failed eligibility check from matchResult.eligibilityDetails so
+                  the details page is always consistent with the card (e.g. checks like
+                  Approved Thesis Outline, No Disciplinary Action, Course, etc. that don't
+                  have a dedicated criterion card below). */}
+              {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && (() => {
+                const failedStandard = matchResult.eligibilityDetails.filter((d: any) => !d.passed && !d.isCustom);
+                if (failedStandard.length === 0) return null;
+                return (
+                  <div className="bg-red-50 rounded-xl p-4 mb-4 border border-red-100">
+                    <div className="flex items-center gap-2 text-red-700 mb-2">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm font-semibold">Requirements Not Met:</span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {failedStandard
+                        .map((detail: any, index: number) => (
+                          <li key={index} className="text-sm text-red-600 flex items-start gap-2">
+                            <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <span>{detail.criterion}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+
               <div className="grid md:grid-cols-2 gap-4">
                 {/* GWA - Note: In Philippine grading system, lower GWA is better (1.0 = highest)
                     We display maxGWA as the requirement (the threshold students must meet or beat)
@@ -691,20 +725,49 @@ const ScholarshipDetails: React.FC = () => {
                   </div>
                 )}
 
-                {/* Thesis */}
-                {scholarship.eligibilityCriteria?.requiresApprovedThesis && (
-                  <div className="p-4 rounded-xl border bg-slate-50 border-slate-200">
-                    <div className="flex items-center gap-3">
-                      <BookOpen className="w-5 h-5 text-slate-400" />
-                      <div>
-                        <div className="text-sm text-slate-500">Requirement</div>
-                        <div className="font-semibold text-slate-900">
-                          Approved thesis/SP
+                {/* Thesis - shows pass/fail when scholarship requires an approved thesis/outline */}
+                {(scholarship.eligibilityCriteria?.requiresApprovedThesis ||
+                  scholarship.eligibilityCriteria?.requiresApprovedThesisOutline) && (() => {
+                  const thesisStatus = getEligibilityStatus('approved thesis|thesis outline');
+                  const thPassed = thesisStatus === true;
+                  const thFailed = thesisStatus === false;
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? thPassed
+                          ? 'bg-green-50 border-green-200'
+                          : thFailed
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-slate-50 border-slate-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <BookOpen className={`w-5 h-5 ${
+                          matchResult
+                            ? thPassed
+                              ? 'text-green-600'
+                              : thFailed
+                                ? 'text-red-600'
+                                : 'text-slate-400'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">Requirement</div>
+                          <div className="font-semibold text-slate-900">
+                            Approved thesis/SP outline
+                          </div>
                         </div>
+                        {matchResult && (
+                          thPassed
+                            ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                            : thFailed
+                              ? <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                              : null
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* No Existing Scholarship - CRITICAL for exclusivity */}
                 {scholarship.eligibilityCriteria?.mustNotHaveOtherScholarship && (() => {

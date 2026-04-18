@@ -304,6 +304,7 @@ export interface StudentProfile extends BaseUser {
   unitsEnrolled: number;
   expectedGraduationDate: Date;
   hasApprovedThesis?: boolean;
+  hasApprovedThesisOutline?: boolean;
   
   // Financial Information
   annualFamilyIncome: number;
@@ -541,6 +542,7 @@ export interface EligibilityCheckResult {
   studentValue: string | number | boolean;
   requiredValue: string | number | boolean;
   importance: 'required' | 'preferred';
+  isCustom?: boolean;
 }
 
 export interface PredictionSubFactor {

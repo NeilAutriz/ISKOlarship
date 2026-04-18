@@ -246,11 +246,19 @@ router.post('/',
       
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        const fieldErrors = {};
+        errors.array().forEach(err => {
+          const field = err.path || err.param || 'unknown';
+          if (!fieldErrors[field]) fieldErrors[field] = [];
+          fieldErrors[field].push(err.msg);
+        });
         console.error('❌ Validation errors:', JSON.stringify(errors.array(), null, 2));
         return res.status(400).json({
           success: false,
-          message: 'Validation failed',
-          errors: errors.array()
+          message: 'Application validation failed. Please correct the highlighted fields.',
+          errors: errors.array(),
+          fieldErrors,
+          hint: 'A valid scholarshipId is required. personalStatement is optional (max 5000 chars).'
         });
       }
 
@@ -262,14 +270,46 @@ router.post('/',
       if (!scholarship) {
         return res.status(404).json({
           success: false,
-          message: 'Scholarship not found'
+          message: 'Scholarship not found. The scholarship may have been removed or the ID is invalid.',
+          field: 'scholarshipId',
+          hint: 'Verify the scholarship ID and ensure the scholarship still exists.'
         });
       }
 
       if (!scholarship.isAcceptingApplications()) {
+        // Provide specific reason why the scholarship is not accepting applications
+        const reasons = [];
+        if (!scholarship.isActive) reasons.push('The scholarship has been deactivated.');
+        if (scholarship.status !== 'active') reasons.push(`The scholarship status is "${scholarship.status}" (must be "active").`);
+        if (new Date() > scholarship.applicationDeadline) {
+          reasons.push(`The application deadline was ${scholarship.applicationDeadline.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}.`);
+        }
+        if (scholarship.slots && scholarship.filledSlots >= scholarship.slots) {
+          reasons.push(`All ${scholarship.slots} slots have been filled.`);
+        }
         return res.status(400).json({
           success: false,
-          message: 'This scholarship is not currently accepting applications'
+          message: 'This scholarship is not currently accepting applications',
+          reasons: reasons.length > 0 ? reasons : ['The scholarship is closed for applications.'],
+          scholarshipName: scholarship.name
+        });
+      }
+
+      // Validate student profile completeness before allowing application
+      const profile = req.user.studentProfile || {};
+      const missingProfileFields = [];
+      if (!profile.studentNumber) missingProfileFields.push('studentNumber');
+      if (!profile.college) missingProfileFields.push('college');
+      if (!profile.course) missingProfileFields.push('course');
+      if (!profile.classification) missingProfileFields.push('classification');
+      if (profile.gwa === undefined || profile.gwa === null) missingProfileFields.push('gwa');
+
+      if (missingProfileFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Your student profile is incomplete. Please update your profile before applying.',
+          missingFields: missingProfileFields,
+          hint: 'Go to your profile settings and fill in: ' + missingProfileFields.join(', ') + '.'
         });
       }
 
@@ -296,7 +336,7 @@ router.post('/',
 
       // Create applicant snapshot with complete student data
       // Uses FLAT structure matching User.model.js studentProfile schema
-      const profile = req.user.studentProfile || {};
+      // Note: `profile` already declared above for completeness check
       const applicantSnapshot = {
         // Identity
         studentNumber: profile.studentNumber,
@@ -484,6 +524,47 @@ router.post('/',
         }
       });
     } catch (error) {
+      // Handle Mongoose validation errors with field-specific messages
+      if (error.name === 'ValidationError') {
+        const fieldErrors = {};
+        const errorDetails = [];
+        for (const [field, err] of Object.entries(error.errors)) {
+          fieldErrors[field] = err.message;
+          errorDetails.push({
+            field,
+            message: err.message,
+            value: err.value,
+            kind: err.kind
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          message: `Application creation failed: ${errorDetails.length} field(s) have errors`,
+          fieldErrors,
+          errors: errorDetails,
+          hint: 'Review each field error and correct the values before resubmitting.'
+        });
+      }
+
+      // Handle duplicate key error (applicant already has application for this scholarship)
+      if (error.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: 'You already have an application for this scholarship. You cannot create a duplicate.',
+          hint: 'Check your existing applications under "My Applications". If your previous application was withdrawn or rejected, it may need to be reset.'
+        });
+      }
+
+      // Handle MongoDB cast errors
+      if (error.name === 'CastError') {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid value for "${error.path}": expected a valid ${error.kind}`,
+          field: error.path,
+          hint: `The provided value is not a valid ${error.kind}. Check your input.`
+        });
+      }
+
       next(error);
     }
   }
@@ -955,9 +1036,21 @@ router.put('/:id',
       // Can only update draft or submitted applications
       const editableStatuses = [ApplicationStatus.DRAFT, ApplicationStatus.SUBMITTED];
       if (!editableStatuses.includes(application.status)) {
+        const statusExplanations = {
+          [ApplicationStatus.UNDER_REVIEW]: 'Your application is currently being reviewed by the committee. Contact the scholarship office if you need to make changes.',
+          [ApplicationStatus.APPROVED]: 'Your application has been approved and can no longer be modified.',
+          [ApplicationStatus.REJECTED]: 'Your application was rejected. You may re-apply by creating a new application if allowed.',
+          [ApplicationStatus.WITHDRAWN]: 'Your application was withdrawn. You may re-apply by creating a new application.',
+          [ApplicationStatus.DOCUMENTS_REQUIRED]: 'Your application requires specific documents. Please upload the requested documents instead of editing.',
+          [ApplicationStatus.SHORTLISTED]: 'Your application has been shortlisted and cannot be edited at this stage.',
+          [ApplicationStatus.INTERVIEW_SCHEDULED]: 'An interview has been scheduled. Contact the scholarship office for any changes needed.'
+        };
         return res.status(400).json({
           success: false,
-          message: 'Cannot edit application in ' + application.status + ' status. Only draft or submitted applications can be edited.'
+          message: statusExplanations[application.status] || `Cannot edit application in "${application.status}" status. Only draft or submitted applications can be edited.`,
+          currentStatus: application.status,
+          editableStatuses: ['draft', 'submitted'],
+          hint: 'Applications can only be edited while in "draft" or "submitted" status.'
         });
       }
 
@@ -1147,17 +1240,83 @@ router.post('/:id/submit',
 
       // Can only submit draft applications
       if (application.status !== ApplicationStatus.DRAFT) {
+        const statusMessages = {
+          [ApplicationStatus.SUBMITTED]: 'This application has already been submitted and is awaiting review.',
+          [ApplicationStatus.UNDER_REVIEW]: 'This application is already under review by the scholarship committee.',
+          [ApplicationStatus.APPROVED]: 'This application has already been approved.',
+          [ApplicationStatus.REJECTED]: 'This application was rejected. You may create a new application if re-application is allowed.',
+          [ApplicationStatus.WITHDRAWN]: 'This application has been withdrawn. You may create a new application to re-apply.',
+          [ApplicationStatus.DOCUMENTS_REQUIRED]: 'Additional documents are required before this application can be submitted.',
+          [ApplicationStatus.SHORTLISTED]: 'This application has been shortlisted and cannot be re-submitted.',
+          [ApplicationStatus.INTERVIEW_SCHEDULED]: 'An interview has been scheduled for this application.'
+        };
         return res.status(400).json({
           success: false,
-          message: `Cannot submit application in ${application.status} status`
+          message: statusMessages[application.status] || `Cannot submit application in "${application.status}" status. Only draft applications can be submitted.`,
+          currentStatus: application.status,
+          hint: 'Only applications in "draft" status can be submitted.'
         });
       }
 
       // Check if scholarship is still accepting applications
       if (!application.scholarship.isAcceptingApplications()) {
+        const scholarship = application.scholarship;
+        const reasons = [];
+        if (!scholarship.isActive) reasons.push('The scholarship has been deactivated.');
+        if (scholarship.status !== 'active') reasons.push(`The scholarship status is "${scholarship.status}".`);
+        if (new Date() > scholarship.applicationDeadline) {
+          reasons.push(`The application deadline was ${scholarship.applicationDeadline.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })}.`);
+        }
+        if (scholarship.slots && scholarship.filledSlots >= scholarship.slots) {
+          reasons.push(`All ${scholarship.slots} available slots have been filled.`);
+        }
         return res.status(400).json({
           success: false,
-          message: 'Scholarship is no longer accepting applications'
+          message: 'This scholarship is no longer accepting applications',
+          reasons: reasons.length > 0 ? reasons : ['The application period has ended.'],
+          scholarshipName: scholarship.name,
+          hint: 'Check the scholarship listing for updated deadlines or available alternatives.'
+        });
+      }
+
+      // Validate required documents before submission
+      const requiredDocs = application.scholarship.requiredDocuments?.filter(d => d.isRequired) || [];
+      if (requiredDocs.length > 0) {
+        const uploadedDocTypes = (application.documents || []).map(d => d.documentType);
+        const missingDocs = requiredDocs.filter(rd => {
+          // Check by document type matching or by name matching
+          const hasDoc = uploadedDocTypes.some(dt => dt === rd.name?.toLowerCase().replace(/\s+/g, '_'));
+          const hasDocByName = (application.documents || []).some(d => 
+            d.name?.toLowerCase().includes(rd.name?.toLowerCase())
+          );
+          return !hasDoc && !hasDocByName;
+        });
+
+        // Only warn — don't block (some scholarships may only partially match types)
+        if (missingDocs.length > 0 && missingDocs.length === requiredDocs.length) {
+          return res.status(400).json({
+            success: false,
+            message: `Missing required documents: ${missingDocs.map(d => d.name).join(', ')}`,
+            missingDocuments: missingDocs.map(d => ({ name: d.name, description: d.description })),
+            hint: 'Upload the required documents before submitting your application.'
+          });
+        }
+      }
+
+      // Verify applicant snapshot has essential data
+      const snapshot = application.applicantSnapshot || {};
+      const missingSnapshotFields = [];
+      if (!snapshot.college) missingSnapshotFields.push('college');
+      if (!snapshot.course) missingSnapshotFields.push('course');
+      if (!snapshot.classification) missingSnapshotFields.push('classification');
+      if (snapshot.gwa === undefined || snapshot.gwa === null) missingSnapshotFields.push('gwa');
+
+      if (missingSnapshotFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Your profile information is incomplete. Please update your student profile before submitting.',
+          missingFields: missingSnapshotFields,
+          hint: 'Go to Profile > Edit and fill in: ' + missingSnapshotFields.join(', ') + '. Then edit and re-save your application to update the snapshot.'
         });
       }
 
@@ -1220,9 +1379,16 @@ router.post('/:id/withdraw',
       ];
 
       if (nonWithdrawable.includes(application.status)) {
+        const statusExplanations = {
+          [ApplicationStatus.APPROVED]: 'Your application has already been approved. Contact the scholarship office if you wish to decline the award.',
+          [ApplicationStatus.REJECTED]: 'Your application was already rejected. No withdrawal is needed.',
+          [ApplicationStatus.WITHDRAWN]: 'Your application has already been withdrawn.'
+        };
         return res.status(400).json({
           success: false,
-          message: `Cannot withdraw application in ${application.status} status`
+          message: statusExplanations[application.status] || `Cannot withdraw application in "${application.status}" status.`,
+          currentStatus: application.status,
+          hint: 'Only applications in draft, submitted, or under-review status can be withdrawn.'
         });
       }
 
@@ -1354,6 +1520,20 @@ router.put('/:id/status',
         data: application
       });
     } catch (error) {
+      // Handle validation errors from status update
+      if (error.name === 'ValidationError') {
+        const fieldErrors = {};
+        for (const [field, err] of Object.entries(error.errors)) {
+          fieldErrors[field] = err.message;
+        }
+        return res.status(400).json({
+          success: false,
+          message: 'Status update validation failed',
+          fieldErrors,
+          hint: `Valid statuses: ${Object.values(ApplicationStatus).join(', ')}`
+        });
+      }
+
       next(error);
     }
   }
