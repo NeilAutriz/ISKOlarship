@@ -18,7 +18,7 @@ const {
   getAdminScopeSummary 
 } = require('../middleware/adminScope.middleware');
 const { calculateEligibility, runPrediction } = require('../services/eligibility/eligibility.service');
-const { onApplicationDecision } = require('../services/trainingService/autoTraining.service');
+const { onApplicationDecision, onApplicationRevert } = require('../services/trainingService/autoTraining.service');
 const { notifyApplicationStatusChange } = require('../services/email/notification.service');
 const { logApplicationCreate, logApplicationSubmit, logApplicationWithdraw, logApplicationStatusChange, logApplicationRevert } = require('../services/activity/activityLog.service');
 
@@ -1630,6 +1630,15 @@ router.put('/:id/revert',
       }
 
       await application.save();
+
+      // ── Auto-retrain ML model so the reverted decision no longer
+      //    influences predictions (non-blocking background task) ──────────
+      onApplicationRevert(
+        application._id,
+        application.scholarship._id,
+        previousStatus,
+        req.user._id
+      );
 
       // ── Email notification to student (fire-and-forget) ───────────────
       notifyApplicationStatusChange(

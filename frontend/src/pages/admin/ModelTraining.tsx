@@ -372,7 +372,7 @@ const ModelTraining: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="container-app -mt-6 relative z-20 mb-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Training Data Card */}
           <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
@@ -407,18 +407,6 @@ const ModelTraining: React.FC = () => {
             </div>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats?.totalModels || 0}</div>
             <div className="text-sm text-slate-500">Trained Models</div>
-          </div>
-          
-          {/* Trainable Card */}
-          <div className="bg-white rounded-2xl p-3 sm:p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
-                <Target className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xs font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Trainable</span>
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{stats?.scholarshipsWithEnoughData || 0}</div>
-            <div className="text-sm text-slate-500">Ready to Train</div>
           </div>
         </div>
       </div>

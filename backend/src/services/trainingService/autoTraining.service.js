@@ -88,6 +88,38 @@ function onApplicationDecision(applicationId, scholarshipId, newStatus, adminId)
   });
 }
 
+/**
+ * Hook to call when an admin REVERTS a previously approved/rejected
+ * application back to under_review. The reverted application is no longer a
+ * labeled training sample, so we must retrain to drop its influence from the
+ * active model. Same fire-and-forget semantics as onApplicationDecision.
+ *
+ * @param {string} applicationId  - The application that was just reverted
+ * @param {string} scholarshipId  - The scholarship this application belongs to
+ * @param {string} previousStatus - The status the app held before revert
+ *                                  ('approved' or 'rejected')
+ * @param {string} adminId        - The admin who performed the revert
+ */
+function onApplicationRevert(applicationId, scholarshipId, previousStatus, adminId) {
+  // Only retrain if the reverted decision was actually a labeled sample
+  if (!['approved', 'rejected'].includes(previousStatus)) return;
+
+  setImmediate(async () => {
+    try {
+      await _handleDecision(applicationId, scholarshipId, 'reverted', adminId);
+    } catch (err) {
+      console.error('⚠️  Auto-training (revert) error (non-fatal):', err.message);
+      logEvent({
+        type: 'error',
+        scope: 'revert',
+        scholarshipId,
+        applicationId,
+        error: err.message,
+      });
+    }
+  });
+}
+
 // =============================================================================
 // Internal: Decision Handler
 // =============================================================================
@@ -313,6 +345,7 @@ function getAutoTrainingLog(limit = 50) {
 
 module.exports = {
   onApplicationDecision,
+  onApplicationRevert,
   getAutoTrainingStatus,
   getAutoTrainingLog,
   AUTO_TRAINING_CONFIG,
