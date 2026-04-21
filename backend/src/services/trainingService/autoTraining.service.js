@@ -22,7 +22,7 @@ const AUTO_TRAINING_CONFIG = {
   /** Minimum labeled apps needed to train the global model */
   minSamplesGlobal: TRAINING_CONFIG.minSamplesGlobal || 50,
   /** Retrain the global model every N status decisions */
-  globalRetrainInterval: 10,
+  globalRetrainInterval: 1,
 };
 
 /** Rolling counter of status decisions since last global retrain */
