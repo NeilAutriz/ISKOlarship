@@ -184,6 +184,7 @@ router.post('/register', registerValidation, async (req, res, next) => {
         profileCompleted: false,
         hasExistingScholarship: false,
         hasThesisGrant: false,
+        hasApprovedThesisOutline: false,
         hasDisciplinaryAction: false
       };
     }

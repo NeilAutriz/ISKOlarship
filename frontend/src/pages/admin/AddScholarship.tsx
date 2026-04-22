@@ -194,10 +194,6 @@ interface ScholarshipFormData {
     mustNotHaveOtherScholarship: boolean;
     mustNotHaveThesisGrant: boolean;
     mustNotHaveDisciplinaryAction: boolean;
-    mustNotHaveFailingGrade: boolean;
-    mustNotHaveGradeOf4: boolean;
-    mustNotHaveIncompleteGrade: boolean;
-    mustBeGraduating: boolean;
   };
   // Custom conditions for dynamic eligibility
   customConditions: CustomCondition[];
@@ -238,11 +234,7 @@ const initialFormData: ScholarshipFormData = {
     requiresApprovedThesisOutline: false,
     mustNotHaveOtherScholarship: false,
     mustNotHaveThesisGrant: false,
-    mustNotHaveDisciplinaryAction: false,
-    mustNotHaveFailingGrade: false,
-    mustNotHaveGradeOf4: false,
-    mustNotHaveIncompleteGrade: false,
-    mustBeGraduating: false
+    mustNotHaveDisciplinaryAction: false
   },
   customConditions: [],
   requiredDocuments: [],
@@ -406,12 +398,7 @@ const AddScholarship: React.FC = () => {
               mustNotHaveThesisGrant: scholarship.eligibilityCriteria?.mustNotHaveThesisGrant || 
                 scholarship.eligibilityCriteria?.noExistingGrant || false,
               mustNotHaveDisciplinaryAction: scholarship.eligibilityCriteria?.mustNotHaveDisciplinaryAction || 
-                scholarship.eligibilityCriteria?.noDisciplinaryRecord || false,
-              mustNotHaveFailingGrade: scholarship.eligibilityCriteria?.mustNotHaveFailingGrade || 
-                scholarship.eligibilityCriteria?.noFailingGrades || false,
-              mustNotHaveGradeOf4: scholarship.eligibilityCriteria?.mustNotHaveGradeOf4 || false,
-              mustNotHaveIncompleteGrade: scholarship.eligibilityCriteria?.mustNotHaveIncompleteGrade || false,
-              mustBeGraduating: scholarship.eligibilityCriteria?.mustBeGraduating || false
+                scholarship.eligibilityCriteria?.noDisciplinaryRecord || false
             },
             // Load custom conditions (from eligibilityCriteria or top-level for backward compatibility)
             customConditions: (() => {
@@ -1113,10 +1100,11 @@ const AddScholarship: React.FC = () => {
           mustNotHaveOtherScholarship: formData.eligibilityCriteria.mustNotHaveOtherScholarship,
           mustNotHaveThesisGrant: formData.eligibilityCriteria.mustNotHaveThesisGrant,
           mustNotHaveDisciplinaryAction: formData.eligibilityCriteria.mustNotHaveDisciplinaryAction,
-          mustNotHaveFailingGrade: formData.eligibilityCriteria.mustNotHaveFailingGrade,
-          mustNotHaveGradeOf4: formData.eligibilityCriteria.mustNotHaveGradeOf4,
-          mustNotHaveIncompleteGrade: formData.eligibilityCriteria.mustNotHaveIncompleteGrade,
-          mustBeGraduating: formData.eligibilityCriteria.mustBeGraduating,
+          // Explicitly clear deprecated boolean restrictions in case stored on old docs
+          mustNotHaveFailingGrade: false,
+          mustNotHaveGradeOf4: false,
+          mustNotHaveIncompleteGrade: false,
+          mustBeGraduating: false,
           
           // Custom conditions for dynamic eligibility (auto-evaluated)
           customConditions: formData.customConditions.filter(c => c.isActive)
@@ -1994,13 +1982,9 @@ const AddScholarship: React.FC = () => {
                     <div className="space-y-3">
                       {[
                         { field: 'requiresApprovedThesisOutline', label: 'Requires Approved Thesis Outline' },
-                        { field: 'mustNotHaveOtherScholarship', label: 'Must NOT have other scholarships' },
                         { field: 'mustNotHaveThesisGrant', label: 'Must NOT have thesis grant' },
                         { field: 'mustNotHaveDisciplinaryAction', label: 'Must NOT have disciplinary action' },
-                        { field: 'mustNotHaveFailingGrade', label: 'Must NOT have failing grades' },
-                        { field: 'mustNotHaveGradeOf4', label: 'Must NOT have grade of 4.0' },
-                        { field: 'mustNotHaveIncompleteGrade', label: 'Must NOT have incomplete grades' },
-                        { field: 'mustBeGraduating', label: 'Must be graduating student' }
+                        { field: 'mustNotHaveOtherScholarship', label: 'Must NOT have existing scholarship' }
                       ].map(({ field, label }) => (
                         <label
                           key={field}

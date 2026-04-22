@@ -71,6 +71,7 @@ export interface ProfileData {
   annualFamilyIncome: string;
   hasExistingScholarship: boolean;
   hasThesisGrant: boolean;
+  hasApprovedThesisOutline: boolean;
   hasDisciplinaryAction: boolean;
   householdSize: string;
   stBracket: string;
@@ -135,6 +136,7 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
     annualFamilyIncome: '',
     hasExistingScholarship: false,
     hasThesisGrant: false,
+    hasApprovedThesisOutline: false,
     hasDisciplinaryAction: false,
     householdSize: '',
     stBracket: '',
@@ -1103,6 +1105,38 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
               onClick={() => updateField('hasThesisGrant', true)}
               className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
                 formData.hasThesisGrant
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Check className="w-4 h-4" />
+              Yes, I do
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-3">
+            Do you have an approved thesis/SP outline?
+          </label>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => updateField('hasApprovedThesisOutline', false)}
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
+                !formData.hasApprovedThesisOutline
+                  ? 'bg-primary-600 text-white border-primary-600 shadow-md'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <X className="w-4 h-4" />
+              No, I don't
+            </button>
+            <button
+              type="button"
+              onClick={() => updateField('hasApprovedThesisOutline', true)}
+              className={`flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all border-2 ${
+                formData.hasApprovedThesisOutline
                   ? 'bg-primary-600 text-white border-primary-600 shadow-md'
                   : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
               }`}

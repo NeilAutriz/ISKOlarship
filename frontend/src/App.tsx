@@ -368,6 +368,7 @@ const App: React.FC = () => {
             citizenship: profileData.citizenship || 'Filipino',
             hasExistingScholarship: profileData.hasExistingScholarship,
             hasThesisGrant: profileData.hasThesisGrant,
+            hasApprovedThesisOutline: profileData.hasApprovedThesisOutline,
             hasDisciplinaryAction: profileData.hasDisciplinaryAction,
             profileCompleted: true
           }
