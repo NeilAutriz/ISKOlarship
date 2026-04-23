@@ -335,7 +335,8 @@ router.get('/admin',
         limit = 20,
         sortBy = 'createdAt',
         sortOrder = 'desc',
-        includeExpired = 'false'
+        includeExpired = 'false',
+        includeArchived = 'false'
       } = req.query;
 
       // Start with scope filter based on admin level
@@ -365,6 +366,9 @@ router.get('/admin',
       // Add status filter (admin can see inactive/archived)
       if (status && Object.values(ScholarshipStatus).includes(status)) {
         query.status = status;
+      } else if (includeArchived !== 'true') {
+        // Hide archived (soft-deleted) scholarships unless explicitly requested
+        query.status = { $ne: ScholarshipStatus.ARCHIVED };
       }
 
       // Filter by scholarship level (within admin's scope)

@@ -89,6 +89,10 @@ interface AutoTrainingStatus {
     scope?: string;
     scholarshipName?: string;
     accuracy?: number;
+    previousAccuracy?: number | null;
+    accuracyDelta?: number | null;
+    sampleCount?: number;
+    triggerType?: 'decision' | 'revert';
     error?: string;
   } | null;
 }
@@ -100,6 +104,10 @@ interface AutoTrainingLogEntry {
   scholarshipId?: string;
   scholarshipName?: string;
   accuracy?: number;
+  previousAccuracy?: number | null;
+  accuracyDelta?: number | null;
+  sampleCount?: number;
+  triggerType?: 'decision' | 'revert';
   elapsed?: number;
   error?: string;
   reason?: string;
@@ -484,14 +492,35 @@ const ModelTraining: React.FC = () => {
 
               {/* Last Event */}
               {autoStatus.lastEvent && (
-                <div className="flex items-center gap-2 text-sm text-slate-600">
+                <div className="flex items-center gap-2 text-sm text-slate-600 flex-wrap">
                   <Clock className="w-4 h-4 text-slate-400" />
                   <span>
                     Last event: {autoStatus.lastEvent.type === 'success' ? '✅' : autoStatus.lastEvent.type === 'skipped' ? '⏭️' : '⚠️'}
                     {' '}{autoStatus.lastEvent.scope === 'global' ? 'Global model' : autoStatus.lastEvent.scholarshipName || 'Scholarship model'}
-                    {autoStatus.lastEvent.accuracy != null && ` — ${(autoStatus.lastEvent.accuracy * 100).toFixed(1)}% accuracy`}
+                    {autoStatus.lastEvent.accuracy != null && ` — ${(autoStatus.lastEvent.accuracy * 100).toFixed(1)}%`}
+                    {autoStatus.lastEvent.sampleCount != null && ` (n=${autoStatus.lastEvent.sampleCount})`}
                     {' · '}{new Date(autoStatus.lastEvent.timestamp).toLocaleTimeString()}
                   </span>
+                  {autoStatus.lastEvent.accuracyDelta != null && (
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${
+                        autoStatus.lastEvent.accuracyDelta > 0
+                          ? 'bg-green-100 text-green-700'
+                          : autoStatus.lastEvent.accuracyDelta < 0
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-slate-100 text-slate-600'
+                      }`}
+                      title={`Previous: ${((autoStatus.lastEvent.previousAccuracy ?? 0) * 100).toFixed(1)}%`}
+                    >
+                      {autoStatus.lastEvent.accuracyDelta > 0 ? '▲' : autoStatus.lastEvent.accuracyDelta < 0 ? '▼' : '='}{' '}
+                      {Math.abs(autoStatus.lastEvent.accuracyDelta * 100).toFixed(1)}%
+                    </span>
+                  )}
+                  {autoStatus.lastEvent.triggerType === 'revert' && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">
+                      Revert
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -513,20 +542,46 @@ const ModelTraining: React.FC = () => {
                           <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
                         )}
                         {/* Description */}
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
                           <span className="text-slate-800">
                             {entry.scope === 'global' ? 'Global model' : entry.scholarshipName || 'Scholarship model'}
                           </span>
+                          {entry.triggerType === 'revert' && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 uppercase tracking-wide"
+                              title="Triggered by a reverted decision — the reverted application was removed from the training set"
+                            >
+                              Revert
+                            </span>
+                          )}
                           {entry.type === 'success' && entry.accuracy != null && (
-                            <span className="text-slate-500"> — {(entry.accuracy * 100).toFixed(1)}%</span>
+                            <span className="text-slate-500">— {(entry.accuracy * 100).toFixed(1)}%</span>
+                          )}
+                          {entry.type === 'success' && entry.sampleCount != null && (
+                            <span className="text-xs text-slate-400">(n={entry.sampleCount})</span>
+                          )}
+                          {entry.type === 'success' && entry.accuracyDelta != null && (
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                entry.accuracyDelta > 0
+                                  ? 'bg-green-100 text-green-700'
+                                  : entry.accuracyDelta < 0
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-slate-100 text-slate-600'
+                              }`}
+                              title={`Previous: ${((entry.previousAccuracy ?? 0) * 100).toFixed(1)}% — dataset/composition changed between runs`}
+                            >
+                              {entry.accuracyDelta > 0 ? '▲' : entry.accuracyDelta < 0 ? '▼' : '='}{' '}
+                              {Math.abs(entry.accuracyDelta * 100).toFixed(1)}%
+                            </span>
                           )}
                           {entry.type === 'skipped' && (
-                            <span className="text-slate-400 ml-1">
+                            <span className="text-slate-400">
                               ({entry.reason === 'insufficient_data' ? 'need more data' : entry.reason === 'concurrent_lock' ? 'already training' : entry.reason})
                             </span>
                           )}
                           {entry.type === 'error' && (
-                            <span className="text-red-500 ml-1">— {entry.error}</span>
+                            <span className="text-red-500">— {entry.error}</span>
                           )}
                         </div>
                         {/* Elapsed time */}

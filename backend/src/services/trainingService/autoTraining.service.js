@@ -35,6 +35,12 @@ const trainingLocks = new Map();
 const autoTrainingLog = [];
 const MAX_LOG_ENTRIES = 100;
 
+/**
+ * Last successful accuracy per scope key, used to compute deltas.
+ * Keys: scholarship id string, or '__global__' for the global model.
+ */
+const lastAccuracyByScope = new Map();
+
 // =============================================================================
 // Logging
 // =============================================================================
@@ -74,7 +80,7 @@ function onApplicationDecision(applicationId, scholarshipId, newStatus, adminId)
   // Fire-and-forget via setImmediate so the HTTP response is sent first
   setImmediate(async () => {
     try {
-      await _handleDecision(applicationId, scholarshipId, newStatus, adminId);
+      await _handleDecision(applicationId, scholarshipId, newStatus, adminId, 'decision');
     } catch (err) {
       // Auto-training must NEVER crash the server
       console.error('⚠️  Auto-training error (non-fatal):', err.message);
@@ -106,7 +112,7 @@ function onApplicationRevert(applicationId, scholarshipId, previousStatus, admin
 
   setImmediate(async () => {
     try {
-      await _handleDecision(applicationId, scholarshipId, 'reverted', adminId);
+      await _handleDecision(applicationId, scholarshipId, 'reverted', adminId, 'revert');
     } catch (err) {
       console.error('⚠️  Auto-training (revert) error (non-fatal):', err.message);
       logEvent({
@@ -124,7 +130,7 @@ function onApplicationRevert(applicationId, scholarshipId, previousStatus, admin
 // Internal: Decision Handler
 // =============================================================================
 
-async function _handleDecision(applicationId, scholarshipId, newStatus, adminId) {
+async function _handleDecision(applicationId, scholarshipId, newStatus, adminId, triggerType = 'decision') {
   const scholarshipIdStr = scholarshipId.toString();
 
   // ── 1. Increment global counter ──────────────────────────────────────────
@@ -132,11 +138,11 @@ async function _handleDecision(applicationId, scholarshipId, newStatus, adminId)
   const shouldRetrainGlobal = globalDecisionCounter % AUTO_TRAINING_CONFIG.globalRetrainInterval === 0;
 
   // ── 2. Retrain scholarship-specific model ────────────────────────────────
-  await _retrainScholarshipModel(scholarshipIdStr, applicationId, adminId);
+  await _retrainScholarshipModel(scholarshipIdStr, applicationId, adminId, triggerType);
 
   // ── 3. Periodically retrain global model ─────────────────────────────────
   if (shouldRetrainGlobal) {
-    await _retrainGlobalModel(applicationId, adminId);
+    await _retrainGlobalModel(applicationId, adminId, triggerType);
   }
 }
 
@@ -144,7 +150,7 @@ async function _handleDecision(applicationId, scholarshipId, newStatus, adminId)
 // Internal: Scholarship-Specific Retrain
 // =============================================================================
 
-async function _retrainScholarshipModel(scholarshipId, applicationId, adminId) {
+async function _retrainScholarshipModel(scholarshipId, applicationId, adminId, triggerType = 'decision') {
   // ── Concurrency lock ─────────────────────────────────────────────────────
   if (trainingLocks.get(scholarshipId)) {
     console.log(`🔒 Auto-train skipped for scholarship ${scholarshipId} — already training`);
@@ -153,6 +159,7 @@ async function _retrainScholarshipModel(scholarshipId, applicationId, adminId) {
       reason: 'concurrent_lock',
       scholarshipId,
       applicationId,
+      triggerType,
     });
     return;
   }
@@ -178,7 +185,9 @@ async function _retrainScholarshipModel(scholarshipId, applicationId, adminId) {
         scholarshipId,
         applicationId,
         labeledCount,
+        sampleCount: labeledCount,
         required: AUTO_TRAINING_CONFIG.minSamplesScholarship,
+        triggerType,
       });
       return;
     }
@@ -202,6 +211,15 @@ async function _retrainScholarshipModel(scholarshipId, applicationId, adminId) {
       `accuracy: ${((result.metrics?.accuracy || 0) * 100).toFixed(1)}%`
     );
 
+    const accuracy = result.metrics?.accuracy;
+    const sampleCount = result.model?.trainingStats?.totalSamples ?? labeledCount;
+    const previousAccuracy = lastAccuracyByScope.has(scholarshipId)
+      ? lastAccuracyByScope.get(scholarshipId)
+      : null;
+    const accuracyDelta =
+      previousAccuracy != null && accuracy != null ? accuracy - previousAccuracy : null;
+    if (accuracy != null) lastAccuracyByScope.set(scholarshipId, accuracy);
+
     logEvent({
       type: 'success',
       scope: 'scholarship',
@@ -209,7 +227,11 @@ async function _retrainScholarshipModel(scholarshipId, applicationId, adminId) {
       scholarshipName: result.scholarship?.name,
       applicationId,
       modelId: result.model?._id,
-      accuracy: result.metrics?.accuracy,
+      accuracy,
+      previousAccuracy,
+      accuracyDelta,
+      sampleCount,
+      triggerType,
       elapsed,
     });
   } catch (err) {
@@ -220,6 +242,7 @@ async function _retrainScholarshipModel(scholarshipId, applicationId, adminId) {
       scholarshipId,
       applicationId,
       error: err.message,
+      triggerType,
       elapsed: Date.now() - startTime,
     });
   } finally {
@@ -231,10 +254,10 @@ async function _retrainScholarshipModel(scholarshipId, applicationId, adminId) {
 // Internal: Global Model Retrain
 // =============================================================================
 
-async function _retrainGlobalModel(applicationId, adminId) {
+async function _retrainGlobalModel(applicationId, adminId, triggerType = 'decision') {
   if (trainingLocks.get('__global__')) {
     console.log('🔒 Auto-train global model skipped — already training');
-    logEvent({ type: 'skipped', reason: 'concurrent_lock', scope: 'global' });
+    logEvent({ type: 'skipped', reason: 'concurrent_lock', scope: 'global', triggerType });
     return;
   }
 
@@ -256,7 +279,9 @@ async function _retrainGlobalModel(applicationId, adminId) {
         reason: 'insufficient_data',
         scope: 'global',
         labeledCount: totalLabeled,
+        sampleCount: totalLabeled,
         required: AUTO_TRAINING_CONFIG.minSamplesGlobal,
+        triggerType,
       });
       return;
     }
@@ -279,12 +304,25 @@ async function _retrainGlobalModel(applicationId, adminId) {
       `accuracy: ${((result.metrics?.accuracy || 0) * 100).toFixed(1)}%`
     );
 
+    const accuracy = result.metrics?.accuracy;
+    const sampleCount = result.model?.trainingStats?.totalSamples ?? totalLabeled;
+    const previousAccuracy = lastAccuracyByScope.has('__global__')
+      ? lastAccuracyByScope.get('__global__')
+      : null;
+    const accuracyDelta =
+      previousAccuracy != null && accuracy != null ? accuracy - previousAccuracy : null;
+    if (accuracy != null) lastAccuracyByScope.set('__global__', accuracy);
+
     logEvent({
       type: 'success',
       scope: 'global',
       applicationId,
       modelId: result.model?._id,
-      accuracy: result.metrics?.accuracy,
+      accuracy,
+      previousAccuracy,
+      accuracyDelta,
+      sampleCount,
+      triggerType,
       elapsed,
     });
   } catch (err) {
@@ -294,6 +332,7 @@ async function _retrainGlobalModel(applicationId, adminId) {
       scope: 'global',
       applicationId,
       error: err.message,
+      triggerType,
       elapsed: Date.now() - startTime,
     });
   } finally {

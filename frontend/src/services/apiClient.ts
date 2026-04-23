@@ -1251,6 +1251,10 @@ export const trainingApi = {
         scope?: string;
         scholarshipName?: string;
         accuracy?: number;
+        previousAccuracy?: number | null;
+        accuracyDelta?: number | null;
+        sampleCount?: number;
+        triggerType?: 'decision' | 'revert';
         error?: string;
       } | null;
     }>>('/training/auto-training/status');
@@ -1268,6 +1272,10 @@ export const trainingApi = {
       applicationId?: string;
       modelId?: string;
       accuracy?: number;
+      previousAccuracy?: number | null;
+      accuracyDelta?: number | null;
+      sampleCount?: number;
+      triggerType?: 'decision' | 'revert';
       elapsed?: number;
       error?: string;
       reason?: string;
