@@ -240,7 +240,7 @@ const eligibilityCriteriaSchema = new mongoose.Schema({
     // Category for grouping
     category: {
       type: String,
-      enum: ['academic', 'financial', 'status', 'location', 'demographic', 'custom'],
+      enum: ['academic', 'financial', 'status', 'location', 'demographic', 'enrollment', 'custom'],
       default: 'custom'
     },
     // Importance level
