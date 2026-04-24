@@ -83,6 +83,7 @@ const ConditionCategory = Object.freeze({
   STATUS: 'status',
   LOCATION: 'location',
   DEMOGRAPHIC: 'demographic',
+  ENROLLMENT: 'enrollment',
   CUSTOM: 'custom'
 });
 
