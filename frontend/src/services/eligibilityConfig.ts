@@ -272,6 +272,24 @@ export const CONDITIONS: ConditionConfig[] = [
     shouldSkip: (criteria) => !criteria.minUnitsEnrolled
   },
   
+  {
+    id: 'unitsPassed',
+    name: 'Units Passed',
+    category: ConditionCategory.ACADEMIC,
+    importance: ImportanceLevel.REQUIRED,
+    type: ConditionType.RANGE,
+    check: (student, criteria) => {
+      // Skip if no minimum specified on the scholarship
+      if (!criteria.minUnitsPassed) return true;
+      // Required field — fail if student hasn't provided it
+      if (student.unitsPassed == null) return false;
+      return student.unitsPassed >= criteria.minUnitsPassed;
+    },
+    getStudentValue: (student) => student.unitsPassed != null ? `${student.unitsPassed} units` : 'Not specified',
+    getRequiredValue: (criteria) => criteria.minUnitsPassed ? `≥ ${criteria.minUnitsPassed} units` : 'No minimum',
+    shouldSkip: (criteria) => !criteria.minUnitsPassed
+  },
+  
   // ==========================================================================
   // FINANCIAL RANGE CONDITIONS
   // ==========================================================================

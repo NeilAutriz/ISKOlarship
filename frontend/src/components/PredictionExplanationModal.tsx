@@ -161,9 +161,21 @@ const PredictionExplanationModal: React.FC<PredictionExplanationModalProps> = ({
               <h4 className="font-semibold text-slate-900 text-sm">{factor.factor}</h4>
             </div>
             
-            {factor.description && (
-              <p className="text-xs text-slate-600 mb-2 leading-relaxed">{factor.description}</p>
-            )}
+            {factor.description && (() => {
+              const parts = factor.description.split(/\n?Tip:\s*/);
+              const main = parts[0].trim();
+              const tip = parts.slice(1).join('Tip: ').trim();
+              return (
+                <div className="mb-2 space-y-1">
+                  {main && <p className="text-xs text-slate-600 leading-relaxed">{main}</p>}
+                  {tip && (
+                    <p className="text-xs text-blue-700 bg-blue-50 border-l-2 border-blue-300 pl-2 py-1 rounded-sm leading-relaxed">
+                      <span className="font-semibold">Tip:</span> {tip}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             
             {/* Visual bar */}
             <div className="flex items-center gap-2">

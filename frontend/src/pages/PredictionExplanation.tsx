@@ -438,9 +438,21 @@ const PredictionExplanation: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          {factor.description && (
-                            <p className="text-sm text-slate-600 max-w-sm">{factor.description}</p>
-                          )}
+                          {factor.description && (() => {
+                            const parts = factor.description.split(/\n?Tip:\s*/);
+                            const main = parts[0].trim();
+                            const tip = parts.slice(1).join('Tip: ').trim();
+                            return (
+                              <div className="max-w-sm space-y-1.5">
+                                {main && <p className="text-sm text-slate-600">{main}</p>}
+                                {tip && (
+                                  <p className="text-xs text-blue-700 bg-blue-50 border-l-2 border-blue-300 pl-2 py-1 rounded-sm">
+                                    <span className="font-semibold">Tip:</span> {tip}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-4 text-center">
                           {renderImpactIcon(impact, 'w-6 h-6')}
@@ -453,9 +465,21 @@ const PredictionExplanation: React.FC = () => {
                           <td className="pl-16 pr-6 py-3">
                             <div>
                               <span className="text-sm font-medium text-slate-700">{sf.name}</span>
-                              {sf.description && (
-                                <p className="text-xs text-slate-500 mt-0.5">{sf.description}</p>
-                              )}
+                              {sf.description && (() => {
+                                const parts = sf.description.split(/\n?Tip:\s*/);
+                                const main = parts[0].trim();
+                                const tip = parts.slice(1).join('Tip: ').trim();
+                                return (
+                                  <div className="mt-0.5 space-y-1">
+                                    {main && <p className="text-xs text-slate-500">{main}</p>}
+                                    {tip && (
+                                      <p className="text-xs text-blue-700 bg-blue-50 border-l-2 border-blue-300 pl-2 py-1 rounded-sm">
+                                        <span className="font-semibold">Tip:</span> {tip}
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center">

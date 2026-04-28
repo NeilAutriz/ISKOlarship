@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { AuthContext } from '../App';
 import { fetchScholarshipDetails, fetchScholarships, getPredictionForScholarship } from '../services/api';
-import { applicationApi } from '../services/apiClient';
+import { applicationApi, predictionApi } from '../services/apiClient';
 import { matchStudentToScholarships } from '../services/filterEngine';
 import { predictScholarshipSuccess } from '../services/logisticRegression';
 import {
@@ -199,11 +199,79 @@ const ScholarshipDetails: React.FC = () => {
   }, [id]);
 
   // Get match result if user is logged in as student
-  const matchResult = useMemo(() => {
+  // Local match (client-side filterEngine) — used as a fallback only.
+  const localMatchResult = useMemo(() => {
     if (!studentUser || !scholarship) return null;
     const results = matchStudentToScholarships(studentUser, [scholarship]);
     return results.length > 0 ? results[0] : null;
   }, [studentUser, scholarship]);
+
+  // Backend eligibility (authoritative source of truth — same engine used by the
+  // Browse / Scholarships card grid). Fetched whenever the student or scholarship
+  // changes so any profile edits are reflected immediately.
+  const [apiEligibility, setApiEligibility] = useState<{
+    eligible: boolean;
+    eligibilityDetails: EligibilityCheckResult[];
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchApiEligibility = async () => {
+      if (!studentUser || !scholarship) {
+        if (isMounted) setApiEligibility(null);
+        return;
+      }
+      const scholarshipId = scholarship.id || (scholarship as any)._id;
+      if (!scholarshipId) return;
+      try {
+        const response = await predictionApi.getBatchPredictions([scholarshipId]);
+        if (!isMounted || !response.success || !response.data?.length) return;
+        const pred: any = response.data[0];
+        const details: EligibilityCheckResult[] = (pred.eligibility?.checks || []).map((check: any) => ({
+          criterion: check.criterion || check.notes || 'Requirement',
+          passed: check.passed,
+          studentValue: check.applicantValue || check.studentValue || 'N/A',
+          requiredValue: check.requiredValue || 'Required',
+          importance: 'required' as const
+        }));
+        setApiEligibility({
+          eligible: pred.eligibility?.passed ?? false,
+          eligibilityDetails: details
+        });
+      } catch (err) {
+        // Silent fallback — local matchResult will be used.
+        if (isMounted) setApiEligibility(null);
+      }
+    };
+    fetchApiEligibility();
+    return () => { isMounted = false; };
+  }, [studentUser, scholarship]);
+
+  // Merge local + API results. API is the source of truth (mirrors the card view
+  // and ensures every eligibility criterion — including ones not yet implemented
+  // client-side, e.g. unitsPassed, customConditions — is honored consistently).
+  const matchResult: MatchResult | null = useMemo(() => {
+    if (!localMatchResult) return null;
+    if (!apiEligibility) return localMatchResult;
+    const apiFailed = apiEligibility.eligibilityDetails.filter(d => !d.passed);
+    let finalEligible = localMatchResult.isEligible;
+    let finalDetails = localMatchResult.eligibilityDetails;
+    if (apiEligibility.eligible) {
+      finalEligible = true;
+      // Prefer API details when present so the breakdown matches the card.
+      if (apiEligibility.eligibilityDetails.length > 0) {
+        finalDetails = apiEligibility.eligibilityDetails;
+      }
+    } else if (apiFailed.length > 0) {
+      finalEligible = false;
+      finalDetails = apiEligibility.eligibilityDetails;
+    }
+    return {
+      ...localMatchResult,
+      isEligible: finalEligible,
+      eligibilityDetails: finalDetails
+    };
+  }, [localMatchResult, apiEligibility]);
 
   // State for prediction from backend API (personalized)
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
@@ -488,34 +556,92 @@ const ScholarshipDetails: React.FC = () => {
                 Eligibility Requirements
               </h2>
 
-              {/* Requirements Not Met — mirrors the panel shown on the scholarship card.
-                  Lists every failed eligibility check from matchResult.eligibilityDetails so
-                  the details page is always consistent with the card (e.g. checks like
-                  Approved Thesis Outline, No Disciplinary Action, Course, etc. that don't
-                  have a dedicated criterion card below). */}
-              {matchResult && !matchResult.isEligible && matchResult.eligibilityDetails && (() => {
-                const failedStandard = matchResult.eligibilityDetails.filter((d: any) => !d.passed && !d.isCustom);
-                if (failedStandard.length === 0) return null;
-                return (
-                  <div className="bg-red-50 rounded-xl p-4 mb-4 border border-red-100">
-                    <div className="flex items-center gap-2 text-red-700 mb-2">
-                      <AlertCircle className="w-4 h-4" />
-                      <span className="text-sm font-semibold">Requirements Not Met:</span>
+              {/* Eligibility Requirements — single dynamic checklist that renders EVERY
+                  standard check the backend evaluates for this scholarship (kept in sync
+                  with the Browse / Scholarships card view). Custom conditions are shown
+                  separately below. */}
+              {matchResult && matchResult.eligibilityDetails && (() => {
+                // Map a check criterion → an appropriate Lucide icon component so each
+                // requirement card visually matches what it represents (GWA → trending,
+                // year level → graduation cap, college → users, income → dollar, etc.).
+                const getCriterionIcon = (criterion: string): React.ComponentType<any> => {
+                  const c = (criterion || '').toLowerCase();
+                  if (c.includes('gwa') || c.includes('grade requirement') || c.includes('average')) return TrendingUp;
+                  if (c.includes('year') || c.includes('classification') || c.includes('graduating')) return GraduationCap;
+                  if (c.includes('college')) return Users;
+                  if (c.includes('course') || c.includes('program') || c.includes('major') || c.includes('specialization')) return BookOpen;
+                  if (c.includes('income') || c.includes('bracket') || c.includes('financial')) return DollarSign;
+                  if (c.includes('unit')) return BookOpen;
+                  if (c.includes('province') || c.includes('region') || c.includes('hometown') || c.includes('address')) return MapPin;
+                  if (c.includes('citizenship') || c.includes('nationality')) return Globe2;
+                  if (c.includes('thesis') || c.includes('outline') || c.includes('sp ')) return FileText;
+                  if (c.includes('disciplinary') || c.includes('failing') || c.includes('grade of') || c.includes('incomplete')) return AlertCircle;
+                  if (c.includes('scholarship') || c.includes('grant')) return Award;
+                  return CheckCircle;
+                };
+
+                const standardChecks = matchResult.eligibilityDetails.filter(
+                  (d: any) => d && d.criterion && !d.isCustom
+                );
+                if (standardChecks.length === 0) {
+                  return (
+                    <div className="text-sm text-slate-500 italic">
+                      No specific eligibility requirements are configured for this scholarship.
                     </div>
-                    <ul className="space-y-1.5">
-                      {failedStandard
-                        .map((detail: any, index: number) => (
-                          <li key={index} className="text-sm text-red-600 flex items-start gap-2">
-                            <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                            <span>{detail.criterion}</span>
-                          </li>
-                        ))}
-                    </ul>
+                  );
+                }
+                const passedCount = standardChecks.filter(c => c.passed).length;
+                return (
+                  <div>
+                    <div className="text-sm text-slate-600 mb-3">
+                      <span className="font-semibold text-slate-900">{passedCount}</span>
+                      <span className="text-slate-500"> of </span>
+                      <span className="font-semibold text-slate-900">{standardChecks.length}</span>
+                      <span className="text-slate-500"> requirements met</span>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {standardChecks.map((check: any, idx: number) => {
+                        const Icon = getCriterionIcon(check.criterion);
+                        return (
+                          <div
+                            key={`${check.criterion}-${idx}`}
+                            className={`p-3 rounded-lg border flex items-start gap-2 ${
+                              check.passed
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-red-50 border-red-200'
+                            }`}
+                          >
+                            <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                              check.passed ? 'text-green-600' : 'text-red-600'
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-sm font-medium flex items-center gap-1.5 ${check.passed ? 'text-green-800' : 'text-red-800'}`}>
+                                <span>{check.criterion}</span>
+                                {check.passed
+                                  ? <CheckCircle className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                                  : <XCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />}
+                              </div>
+                              {(check.requiredValue || check.studentValue) && (
+                                <div className="text-xs text-slate-600 mt-0.5">
+                                  {check.requiredValue && (
+                                    <span><span className="text-slate-500">Required:</span> {check.requiredValue}</span>
+                                  )}
+                                  {check.requiredValue && check.studentValue && <span className="mx-1.5 text-slate-300">•</span>}
+                                  {check.studentValue && (
+                                    <span><span className="text-slate-500">You:</span> {check.studentValue}</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })()}
 
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="hidden">
                 {/* GWA - Note: In Philippine grading system, lower GWA is better (1.0 = highest)
                     We display maxGWA as the requirement (the threshold students must meet or beat)
                     maxGWA of 5.0 or higher means "no restriction" (backend default) */}
@@ -710,6 +836,80 @@ const ScholarshipDetails: React.FC = () => {
                   );
                 })()}
 
+                {/* Units Enrolled (matches backend `minUnitsEnrolled` check) */}
+                {scholarship.eligibilityCriteria?.minUnitsEnrolled ? (() => {
+                  const status = getEligibilityStatus('units enrolled');
+                  const passed = status === true;
+                  const failed = status === false;
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? passed ? 'bg-green-50 border-green-200'
+                        : failed ? 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <BookOpen className={`w-5 h-5 ${
+                          matchResult
+                            ? passed ? 'text-green-600'
+                            : failed ? 'text-red-600'
+                            : 'text-slate-400'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">Units Enrolled</div>
+                          <div className="font-semibold text-slate-900">
+                            ≥ {scholarship.eligibilityCriteria.minUnitsEnrolled} units
+                          </div>
+                        </div>
+                        {matchResult && (
+                          passed ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                          : failed ? <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                          : null
+                        )}
+                      </div>
+                    </div>
+                  );
+                })() : null}
+
+                {/* Units Passed (matches backend `minUnitsPassed` check — common for thesis grants) */}
+                {scholarship.eligibilityCriteria?.minUnitsPassed ? (() => {
+                  const status = getEligibilityStatus('units passed');
+                  const passed = status === true;
+                  const failed = status === false;
+                  return (
+                    <div className={`p-4 rounded-xl border ${
+                      matchResult
+                        ? passed ? 'bg-green-50 border-green-200'
+                        : failed ? 'bg-red-50 border-red-200'
+                        : 'bg-slate-50 border-slate-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <BookOpen className={`w-5 h-5 ${
+                          matchResult
+                            ? passed ? 'text-green-600'
+                            : failed ? 'text-red-600'
+                            : 'text-slate-400'
+                            : 'text-slate-400'
+                        }`} />
+                        <div>
+                          <div className="text-sm text-slate-500">Units Passed</div>
+                          <div className="font-semibold text-slate-900">
+                            ≥ {scholarship.eligibilityCriteria.minUnitsPassed} units
+                          </div>
+                        </div>
+                        {matchResult && (
+                          passed ? <CheckCircle className="w-5 h-5 text-green-600 ml-auto" />
+                          : failed ? <XCircle className="w-5 h-5 text-red-600 ml-auto" />
+                          : null
+                        )}
+                      </div>
+                    </div>
+                  );
+                })() : null}
+
                 {/* Province */}
                 {scholarship.eligibilityCriteria?.eligibleProvinces && scholarship.eligibilityCriteria.eligibleProvinces.length > 0 && (
                   <div className="p-4 rounded-xl border bg-slate-50 border-slate-200">
@@ -813,6 +1013,7 @@ const ScholarshipDetails: React.FC = () => {
                     </div>
                   );
                 })()}
+              </div>{/* /hidden static cards */}
 
                 {/* Custom Conditions Display */}
                 {scholarship.eligibilityCriteria?.customConditions && 
@@ -906,7 +1107,6 @@ const ScholarshipDetails: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
             </div>
 
             {/* Prediction Factors (if eligible and logged in) */}
