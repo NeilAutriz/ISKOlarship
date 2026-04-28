@@ -222,11 +222,11 @@ const Scholarships: React.FC = () => {
 
   // Compute eligibility match results once for use in filtering and display
   const matchResults = useMemo(() => {
-    if (!studentUser) return new Map<string, { isEligible: boolean }>();
+    if (!studentUser) return new Map<string, { isEligible: boolean; compatibilityScore: number }>();
     const results = matchStudentToScholarships(studentUser, scholarships);
     return new Map(results.map(r => {
       const id = r.scholarship.id || (r.scholarship as any)._id;
-      return [id, { isEligible: r.isEligible }];
+      return [id, { isEligible: r.isEligible, compatibilityScore: r.compatibilityScore ?? 0 }];
     }));
   }, [studentUser, scholarships]);
 

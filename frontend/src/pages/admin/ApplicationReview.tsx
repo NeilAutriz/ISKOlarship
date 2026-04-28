@@ -284,7 +284,7 @@ const ApplicationReview: React.FC = () => {
             citizenship: profile.citizenship,
             // Scholarship Info
             scholarshipId: app.scholarship?._id || app.scholarship?.id || '',
-            scholarshipName: app.scholarship?.name || 'Unknown Scholarship',
+            scholarshipName: app.scholarship?.name || app.scholarshipSnapshot?.name || 'Scholarship Removed',
             scholarshipSponsor: app.scholarship?.sponsor || 'Unknown Sponsor',
             scholarshipType: app.scholarship?.type || 'Scholarship',
             // Application Info

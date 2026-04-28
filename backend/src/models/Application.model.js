@@ -229,7 +229,19 @@ const applicationSchema = new mongoose.Schema({
     ref: 'Scholarship',
     required: [true, 'Scholarship is required']
   },
-  
+
+  // Snapshot of basic scholarship info at the time of application.
+  // Used as a graceful fallback when the referenced scholarship document
+  // has been deleted (e.g. orphaned applications), so the student/admin UI
+  // never has to display "Unknown Scholarship".
+  scholarshipSnapshot: {
+    name: { type: String },
+    sponsor: { type: String },
+    type: { type: String },
+    academicYear: { type: String },
+    semester: { type: String }
+  },
+
   // =========================================================================
   // Application Status (from ERD: application_status)
   // =========================================================================

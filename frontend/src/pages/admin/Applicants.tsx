@@ -30,7 +30,8 @@ import {
   BarChart3,
   AlertCircle,
   Sparkles,
-  Shield
+  Shield,
+  Ban
 } from 'lucide-react';
 import { applicationApi, scholarshipApi } from '../../services/apiClient';
 import { getPredictionForApplication } from '../../services/api';
@@ -178,7 +179,7 @@ const Applicants: React.FC = () => {
             yearLevel: app.applicant?.studentProfile?.classification || app.applicantSnapshot?.classification || 'N/A',
             gwa: app.applicant?.studentProfile?.gwa || app.applicantSnapshot?.gwa || 0,
             familyIncome: app.applicant?.studentProfile?.annualFamilyIncome || app.applicantSnapshot?.annualFamilyIncome || 0,
-            scholarship: app.scholarship?.name || 'Unknown Scholarship',
+            scholarship: app.scholarship?.name || app.scholarshipSnapshot?.name || 'Scholarship Removed',
             scholarshipType: app.scholarship?.type || 'Regular',
             submittedDate: app.submittedAt ? new Date(app.submittedAt).toISOString().split('T')[0] : 'N/A',
             status: app.status || 'pending',
@@ -304,6 +305,14 @@ const Applicants: React.FC = () => {
           <span className={`${baseClasses} bg-red-100 text-red-700 border border-red-200`}>
             <XCircle className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
             Rejected
+          </span>
+        );
+      case 'withdrawn':
+      case 'cancelled':
+        return (
+          <span className={`${baseClasses} bg-slate-200 text-slate-700 border border-slate-300`}>
+            <Ban className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
+            Withdrawn
           </span>
         );
       default:

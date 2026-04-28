@@ -97,7 +97,7 @@ const AdminDashboard: React.FC = () => {
               return {
               id: app._id || app.id,
               studentName: fullName || 'Unknown Student',
-              scholarshipName: app.scholarship?.name || 'Unknown Scholarship',
+              scholarshipName: app.scholarship?.name || app.scholarshipSnapshot?.name || 'Scholarship Removed',
               status: app.status || 'pending',
               submittedDate: app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : 'N/A',
               matchScore: 0 // Placeholder - will be updated with fresh ML predictions

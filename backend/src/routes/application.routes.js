@@ -118,6 +118,19 @@ router.get('/my', authMiddleware, async (req, res, next) => {
           citizenship: userProfile.citizenship
         };
       }
+
+      // If the referenced scholarship was deleted, surface the snapshot so the
+      // UI can still render meaningful info instead of "Unknown Scholarship".
+      if (!app.scholarship && app.scholarshipSnapshot) {
+        app.scholarship = {
+          _id: null,
+          name: app.scholarshipSnapshot.name,
+          sponsor: app.scholarshipSnapshot.sponsor,
+          type: app.scholarshipSnapshot.type,
+          isDeleted: true
+        };
+      }
+
       return app;
     });
 
@@ -438,6 +451,16 @@ router.post('/',
 
       let application;
 
+      // Snapshot of scholarship basics so the UI can still show meaningful
+      // info if the scholarship doc is ever deleted.
+      const scholarshipSnapshot = {
+        name: scholarship.name,
+        sponsor: scholarship.sponsor,
+        type: scholarship.type,
+        academicYear: scholarship.academicYear,
+        semester: scholarship.semester
+      };
+
       // Re-apply: reuse existing withdrawn/rejected application document (unique index on applicant+scholarship)
       if (existingApp && (existingApp.status === 'withdrawn' || existingApp.status === 'rejected')) {
         existingApp.personalStatement = personalStatement;
@@ -448,6 +471,7 @@ router.post('/',
         existingApp.hasCertificateOfRegistration = hasCertificateOfRegistration;
         existingApp.hasGradeReport = hasGradeReport;
         existingApp.applicantSnapshot = applicantSnapshot;
+        existingApp.scholarshipSnapshot = scholarshipSnapshot;
         existingApp.customFieldAnswers = parsedCustomFieldAnswers;
         existingApp.eligibilityChecks = eligibilityResult.checks;
         existingApp.passedAllEligibilityCriteria = eligibilityResult.passed;
@@ -487,6 +511,7 @@ router.post('/',
           hasCertificateOfRegistration,
           hasGradeReport,
           applicantSnapshot,
+          scholarshipSnapshot,
           customFieldAnswers: parsedCustomFieldAnswers,
           eligibilityChecks: eligibilityResult.checks,
           passedAllEligibilityCriteria: eligibilityResult.passed,

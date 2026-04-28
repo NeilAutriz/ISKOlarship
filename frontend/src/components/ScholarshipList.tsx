@@ -56,7 +56,10 @@ const ScholarshipList: React.FC<ScholarshipListProps> = ({
   const viewMode = externalViewMode ?? internalViewMode;
   const setViewMode = setInternalViewMode;
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('deadline');
+  // Default to 'match' (highest predicted % first) when a student profile is
+  // available, so the Browse / All Eligible view ranks by ML Prediction
+  // descending. Falls back to 'deadline' for guests / admins.
+  const [sortBy, setSortBy] = useState<SortOption>(studentProfile ? 'match' : 'deadline');
   const [selectedTypes, setSelectedTypes] = useState<ScholarshipType[]>([]);
   const [internalShowEligibleOnly, setInternalShowEligibleOnly] = useState(false);
   const showEligibleOnly = externalShowEligibleOnly ?? internalShowEligibleOnly;

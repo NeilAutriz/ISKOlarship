@@ -101,8 +101,8 @@ const StudentApplications: React.FC = () => {
           setApplications(response.data.applications.map((app: any) => ({
             id: app._id || app.id,
             scholarshipId: app.scholarship?._id || app.scholarship?.id || app.scholarshipId,
-            scholarshipName: app.scholarship?.name || 'Unknown Scholarship',
-            sponsor: app.scholarship?.sponsor || 'Unknown Sponsor',
+            scholarshipName: app.scholarship?.name || app.scholarshipSnapshot?.name || 'Scholarship Removed',
+            sponsor: app.scholarship?.sponsor || app.scholarshipSnapshot?.sponsor || 'Unknown Sponsor',
             status: app.status || 'draft',
             submittedDate: app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : null,
             lastUpdated: app.updatedAt ? new Date(app.updatedAt).toLocaleDateString() : new Date().toLocaleDateString(),
@@ -168,8 +168,8 @@ const StudentApplications: React.FC = () => {
         setSelectedApplication({
           id: app._id || app.id || applicationId,
           scholarshipId: scholarship?._id || scholarship?.id || app.scholarshipId || '',
-          scholarshipName: scholarship?.name || 'Unknown Scholarship',
-          sponsor: scholarship?.sponsor || 'Unknown Sponsor',
+          scholarshipName: scholarship?.name || app.scholarshipSnapshot?.name || 'Scholarship Removed',
+          sponsor: scholarship?.sponsor || app.scholarshipSnapshot?.sponsor || 'Unknown Sponsor',
           status: app.status || 'draft',
           submittedDate: app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : null,
           lastUpdated: app.updatedAt ? new Date(app.updatedAt).toLocaleDateString() : new Date().toLocaleDateString(),

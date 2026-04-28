@@ -148,6 +148,29 @@ const applicationUnderReview = ({ firstName, scholarshipName = 'a scholarship' }
   `),
 });
 
+const applicationReverted = ({ firstName, scholarshipName = 'a scholarship', reason = '' }) => ({
+  subject: `Update: Your ${scholarshipName} application is back under review`,
+  html: layout('Application Decision Reverted', `
+    <p style="margin:0 0 8px;color:#1e293b;font-size:16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
+    <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">
+      The previous decision on your scholarship application has been <strong>reverted</strong> and your application is now back <strong>under review</strong>.
+    </p>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:24px;text-align:center;margin:0 0 24px;">
+      <p style="margin:0 0 10px;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Application Status</p>
+      ${badge('&#8634; Reverted to Under Review', '#fef3c7', '#92400e')}
+      <p style="margin:14px 0 0;color:#92400e;font-size:15px;font-weight:600;">${scholarshipName}</p>
+    </div>
+    ${reason ? `<div style="background:#f8fafc;border-left:4px solid #cbd5e1;padding:12px 16px;margin:0 0 20px;border-radius:0 8px 8px 0;">
+      <p style="margin:0 0 4px;color:#64748b;font-size:12px;font-weight:600;">Reason</p>
+      <p style="margin:0;color:#334155;font-size:14px;">${reason}</p>
+    </div>` : ''}
+    <p style="margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.6;">
+      An administrator will re-evaluate your application and notify you once a new decision is made. No action is required from you at this time.
+    </p>
+    ${cta('Track My Application', '/applications')}
+  `),
+});
+
 
 // =============================================================================
 // Document Verification Templates
@@ -242,6 +265,7 @@ module.exports = {
   applicationApproved,
   applicationRejected,
   applicationUnderReview,
+  applicationReverted,
   documentVerified,
   documentRejected,
   documentResubmit,
