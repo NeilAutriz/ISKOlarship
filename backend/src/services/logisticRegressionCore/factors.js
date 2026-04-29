@@ -178,7 +178,7 @@ function generateGroupDescription(group, studentProfile, criteria, matchData) {
     }
 
     case 'Overall Eligibility': {
-      return `${matchedCriteria}/${totalCriteria || '0'} criteria met (${Math.round(eligibilityScore * 100)}%)`;
+      return `Combined Ratings of the criterias met`;
     }
 
     default:

@@ -78,7 +78,7 @@ export const generatePredictionFactors = (
     weight: eligibilityWeight,
     rawContribution: eligibilityContrib,
     contribution: 0,
-    description: `${eligibleCount}/${totalCriteria} criteria met (${Math.round(eligibilityScore * 100)}%)`,
+    description: `Combined Ratings of the criterias met`,
     met: eligibilityScore >= 0.5
   });
   

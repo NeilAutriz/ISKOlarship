@@ -28,9 +28,50 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { PredictionFactor, PredictionResult } from '../types';
+import { PredictionFactor, PredictionResult, PredictionSubFactor } from '../types';
 import { getPredictionForScholarship, getPredictionForApplication } from '../services/api';
 import { useAuth } from '../App';
+
+// ----------------------------------------------------------------------------
+// Display helper: merge "Citizenship", "Eligibility Score" and "Overall Fit"
+// sub-rows into a single "Feature Combination Compatibility Score" row inside
+// the Overall Eligibility group. This is purely cosmetic — backend math is
+// unchanged. The merged row's `contribution` is the sum of the three so the
+// parent group total still reconciles. `value`/`weight` are not displayed
+// because summing two value × weight terms wouldn't equal a single product.
+// ----------------------------------------------------------------------------
+type DisplaySubFactor = PredictionSubFactor & { hideMathExpression?: boolean };
+
+function getDisplaySubFactors(group: PredictionFactor): DisplaySubFactor[] {
+  const subs = group.subFactors ?? [];
+  if (group.factor !== 'Overall Eligibility' || subs.length === 0) return subs;
+
+  const citizenship = subs.find(s => s.name === 'Citizenship');
+  const elig = subs.find(s => s.name === 'Eligibility Score');
+  const fit = subs.find(s => s.name === 'Overall Fit');
+
+  // Need at least two of the three to make merging meaningful.
+  const present = [citizenship, elig, fit].filter(Boolean) as PredictionSubFactor[];
+  if (present.length < 2) return subs;
+
+  const others = subs.filter(s => s !== citizenship && s !== elig && s !== fit);
+
+  const combinedDescription = [
+    'Combined weight of all the factors above based on how well your profile meets each criterion.',
+    'Captures the overall interaction between every requirement — not any single one in isolation.'
+  ].join('\n');
+
+  const merged: DisplaySubFactor = {
+    name: 'Feature Combination Compatibility Score',
+    value: present[0].value, // not displayed
+    weight: present[0].weight, // not displayed
+    contribution: present.reduce((sum, sf) => sum + sf.contribution, 0),
+    description: combinedDescription,
+    hideMathExpression: true
+  };
+
+  return [merged, ...others];
+}
 
 interface LocationState {
   prediction?: PredictionResult;
@@ -460,18 +501,20 @@ const PredictionExplanation: React.FC = () => {
                       </tr>
 
                       {/* Expanded sub-factor rows */}
-                      {isExpanded && hasSubFactors && factor.subFactors!.map((sf, sfIndex) => (
+                      {isExpanded && hasSubFactors && getDisplaySubFactors(factor).map((sf, sfIndex) => (
                         <tr key={`${index}-${sfIndex}`} className="bg-slate-50/80 border-b border-slate-100">
                           <td className="pl-16 pr-6 py-3">
                             <div>
                               <span className="text-sm font-medium text-slate-700">{sf.name}</span>
                               {sf.description && (() => {
                                 const parts = sf.description.split(/\n?Tip:\s*/);
-                                const main = parts[0].trim();
+                                const mainLines = parts[0].split('\n').map(l => l.trim()).filter(Boolean);
                                 const tip = parts.slice(1).join('Tip: ').trim();
                                 return (
                                   <div className="mt-0.5 space-y-1">
-                                    {main && <p className="text-xs text-slate-500">{main}</p>}
+                                    {mainLines.map((line, i) => (
+                                      <p key={i} className="text-xs text-slate-500 leading-snug">{line}</p>
+                                    ))}
                                     {tip && (
                                       <p className="text-xs text-blue-700 bg-blue-50 border-l-2 border-blue-300 pl-2 py-1 rounded-sm">
                                         <span className="font-semibold">Tip:</span> {tip}
@@ -491,11 +534,13 @@ const PredictionExplanation: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <div>
+                            {!sf.hideMathExpression ? (
                               <span className="text-xs text-slate-500 font-mono">
                                 {sf.value.toFixed(2)} x {sf.weight >= 0 ? '+' : ''}{sf.weight.toFixed(3)}
                               </span>
-                            </div>
+                            ) : (
+                              <span className="text-xs text-slate-500 italic">Overall interaction of the factors</span>
+                            )}
                           </td>
                           <td></td>
                         </tr>
