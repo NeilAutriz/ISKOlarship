@@ -641,6 +641,178 @@ const ScholarshipDetails: React.FC = () => {
                 );
               })()}
 
+              {/* Fallback for admins / guests (no matchResult): render the same
+                  criteria informationally, sourced directly from scholarship.eligibilityCriteria.
+                  This way admin "View Details" still shows the full eligibility list. */}
+              {!matchResult && (() => {
+                const c = scholarship.eligibilityCriteria || {};
+                type Item = { criterion: string; requiredValue?: string; Icon: React.ComponentType<any> };
+                const items: Item[] = [];
+
+                // GWA
+                const maxGWA = c.maxGWA;
+                const minGWA = c.minGWA;
+                const hasGWA = (maxGWA && maxGWA < 5.0) || (minGWA && minGWA > 1.0 && minGWA < 5.0);
+                if (hasGWA) {
+                  let gwaText: string;
+                  if (minGWA && minGWA > 1.0 && minGWA < 5.0 && maxGWA && maxGWA < 5.0) {
+                    gwaText = `Between ${minGWA.toFixed(2)} and ${maxGWA.toFixed(2)}`;
+                  } else {
+                    gwaText = `${(maxGWA || minGWA || 0).toFixed(2)} or better (lower is better)`;
+                  }
+                  items.push({ criterion: 'GWA Required', requiredValue: gwaText, Icon: TrendingUp });
+                }
+
+                // Year levels
+                const yearLevels = (c as any).requiredYearLevels || (c as any).eligibleClassifications;
+                if (yearLevels && yearLevels.length > 0) {
+                  items.push({ criterion: 'Year Level', requiredValue: yearLevels.join(', '), Icon: GraduationCap });
+                }
+
+                // Colleges
+                if (c.eligibleColleges && c.eligibleColleges.length > 0) {
+                  items.push({
+                    criterion: 'Eligible Colleges',
+                    requiredValue: c.eligibleColleges.length <= 3 ? c.eligibleColleges.join(', ') : `${c.eligibleColleges.length} colleges`,
+                    Icon: Users
+                  });
+                }
+
+                // Courses
+                if ((c as any).eligibleCourses && (c as any).eligibleCourses.length > 0) {
+                  const courses = (c as any).eligibleCourses as string[];
+                  items.push({
+                    criterion: 'Eligible Courses / Programs',
+                    requiredValue: courses.length <= 3 ? courses.join(', ') : `${courses.length} courses`,
+                    Icon: BookOpen
+                  });
+                }
+
+                // Majors
+                if ((c as any).eligibleMajors && (c as any).eligibleMajors.length > 0) {
+                  items.push({
+                    criterion: 'Eligible Majors',
+                    requiredValue: ((c as any).eligibleMajors as string[]).join(', '),
+                    Icon: BookOpen
+                  });
+                }
+
+                // Income
+                if (c.maxAnnualFamilyIncome && c.maxAnnualFamilyIncome > 0) {
+                  items.push({
+                    criterion: 'Max Annual Family Income',
+                    requiredValue: formatCurrency(c.maxAnnualFamilyIncome),
+                    Icon: DollarSign
+                  });
+                }
+                if ((c as any).minAnnualFamilyIncome && (c as any).minAnnualFamilyIncome > 0) {
+                  items.push({
+                    criterion: 'Min Annual Family Income',
+                    requiredValue: formatCurrency((c as any).minAnnualFamilyIncome),
+                    Icon: DollarSign
+                  });
+                }
+
+                // ST Brackets
+                if ((c as any).eligibleSTBrackets && (c as any).eligibleSTBrackets.length > 0) {
+                  items.push({
+                    criterion: 'Socialized Tuition Brackets',
+                    requiredValue: ((c as any).eligibleSTBrackets as string[]).join(', '),
+                    Icon: DollarSign
+                  });
+                }
+
+                // Units
+                if ((c as any).minUnitsEnrolled && (c as any).minUnitsEnrolled > 0) {
+                  items.push({
+                    criterion: 'Units Enrolled',
+                    requiredValue: `≥ ${(c as any).minUnitsEnrolled} units`,
+                    Icon: BookOpen
+                  });
+                }
+                if ((c as any).minUnitsPassed && (c as any).minUnitsPassed > 0) {
+                  items.push({
+                    criterion: 'Units Passed',
+                    requiredValue: `≥ ${(c as any).minUnitsPassed} units`,
+                    Icon: BookOpen
+                  });
+                }
+
+                // Provinces
+                if (c.eligibleProvinces && c.eligibleProvinces.length > 0) {
+                  items.push({
+                    criterion: 'Eligible Provinces',
+                    requiredValue: c.eligibleProvinces.length <= 3 ? c.eligibleProvinces.join(', ') : `${c.eligibleProvinces.length} provinces`,
+                    Icon: MapPin
+                  });
+                }
+
+                // Citizenship
+                if ((c as any).eligibleCitizenship && (c as any).eligibleCitizenship.length > 0) {
+                  items.push({
+                    criterion: 'Citizenship',
+                    requiredValue: ((c as any).eligibleCitizenship as string[]).join(', '),
+                    Icon: Globe2
+                  });
+                }
+
+                // Thesis
+                if ((c as any).requiresApprovedThesisOutline || (c as any).requiresApprovedThesis) {
+                  items.push({ criterion: 'Approved Thesis / SP Outline', requiredValue: 'Required', Icon: FileText });
+                }
+
+                // Restrictions
+                if ((c as any).mustNotHaveOtherScholarship) {
+                  items.push({ criterion: 'No Existing Scholarship', requiredValue: 'Required', Icon: Award });
+                }
+                if ((c as any).mustNotHaveThesisGrant) {
+                  items.push({ criterion: 'No Existing Thesis Grant', requiredValue: 'Required', Icon: Award });
+                }
+                if ((c as any).mustNotHaveDisciplinaryAction) {
+                  items.push({ criterion: 'No Disciplinary Action', requiredValue: 'Required', Icon: AlertCircle });
+                }
+
+                if (items.length === 0) {
+                  return (
+                    <div className="text-sm text-slate-500 italic">
+                      No specific eligibility requirements are configured for this scholarship.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div>
+                    <div className="text-sm text-slate-600 mb-3">
+                      <span className="font-semibold text-slate-900">{items.length}</span>
+                      <span className="text-slate-500"> {items.length === 1 ? 'requirement' : 'requirements'} configured</span>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      {items.map((item, idx) => {
+                        const Icon = item.Icon;
+                        return (
+                          <div
+                            key={`${item.criterion}-${idx}`}
+                            className="p-3 rounded-lg border bg-slate-50 border-slate-200 flex items-start gap-2"
+                          >
+                            <Icon className="w-4 h-4 mt-0.5 flex-shrink-0 text-slate-500" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-slate-800">
+                                {item.criterion}
+                              </div>
+                              {item.requiredValue && (
+                                <div className="text-xs text-slate-600 mt-0.5">
+                                  <span className="text-slate-500">Required:</span> {item.requiredValue}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="hidden">
                 {/* GWA - Note: In Philippine grading system, lower GWA is better (1.0 = highest)
                     We display maxGWA as the requirement (the threshold students must meet or beat)
