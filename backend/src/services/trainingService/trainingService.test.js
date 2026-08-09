@@ -75,9 +75,9 @@ let failed = 0;
 console.log('\n📋 Testing Constants...');
 
 runTest('SCORING_CONFIG has required fields', () => {
-  assert(SCORING_CONFIG.MATCH === 0.65);
-  assert(SCORING_CONFIG.MISMATCH === 0.15);
-  assert(SCORING_CONFIG.NO_RESTRICTION === 0.3);
+  assert(SCORING_CONFIG.MATCH === 0.75);
+  assert(SCORING_CONFIG.MISMATCH === 0.25);
+  assert(SCORING_CONFIG.NO_RESTRICTION === 0.5);
   assert(SCORING_CONFIG.UNKNOWN === 0.50);
 });
 
